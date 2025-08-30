@@ -37,3 +37,9 @@
 ## Asset & Configuration Tips
 - Place optional textures in `public/textures/` using expected names (e.g., `2k_earth_daymap.jpg`, `2k_moon.jpg`, `2k_earth_clouds.jpg`, `2k_stars_milky_way.jpg`). Missing assets gracefully fallback to minimalist materials.
 - Keep TypeScript strict; retain path aliases in `tsconfig.json` and `vite.config.ts` when moving files.
+
+## Decoupling Workflow (Agents Only)
+- Scope: All decoupled rendering/photography work must live strictly under `test/decoupled/` (and optional test toggles). Do not modify main scene files except to add a non-invasive feature flag (e.g., `?decoupled=1`).
+- Isolation: Earth and Moon layers render in separate canvases with synchronized camera/tone mapping. Composition happens in DOM overlay; no cross‑layer lighting.
+- Toggles: Use query params or a temporary UI switch to enable decoupled mode; default remains the main pipeline.
+- Docs: Update `TODO.md` as progress is made; keep changes reversible and contained.

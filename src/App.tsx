@@ -94,6 +94,10 @@ export default function App() {
     try { localStorage.setItem('luBirth.mode', mode); } catch {}
   }, [mode]);
   const debug = React.useMemo(() => new URLSearchParams(location.search).get('debug') === '1', []);
+  const clean = React.useMemo(() => new URLSearchParams(location.search).get('clean') === '1', []);
+  const decoupled = React.useMemo(() => new URLSearchParams(location.search).get('decoupled') === '1', []);
+  const DualCanvas = React.useMemo(() => React.lazy(() => import('/test/decoupled/DualCanvas').then(m => ({ default: m.DualCanvasShell }))), []);
+  const [uiHidden, setUiHidden] = React.useState<boolean>(clean);
   const [canvasRect, setCanvasRect] = React.useState<DOMRect | null>(null);
 
   React.useEffect(() => {
@@ -131,8 +135,13 @@ export default function App() {
   }, [form]);
 
   const onReset = React.useCallback(() => {
-    setForm(DEFAULTS);
-    setComp({
+    // 优先使用保存的默认，否则退回内置默认
+    try {
+      const dForm = localStorage.getItem('luBirth.defaults.form');
+      const dComp = localStorage.getItem('luBirth.defaults.comp');
+      const dMode = localStorage.getItem('luBirth.defaults.mode') as 'art'|'real'|null;
+      if (dForm) setForm(JSON.parse(dForm)); else setForm(DEFAULTS);
+      if (dComp) setComp(JSON.parse(dComp)); else setComp({
       earthTopY: 0.333,
       earthSize: 3.0,
       moonScreenX: 0.5,
@@ -179,6 +188,10 @@ export default function App() {
       sunIntensityMoon: 1.2,
       exposure: 1.0,
     });
+      if (dMode === 'art' || dMode === 'real') setMode(dMode); else setMode('real');
+      return;
+    } catch {}
+    setForm(DEFAULTS);
     setMode('real');
   }, []);
 
@@ -220,25 +233,43 @@ export default function App() {
 
   const localLabel = React.useMemo(() => `${form.date} ${form.time}`, [form.date, form.time]);
 
+  const saveAsDefault = React.useCallback(() => {
+    try {
+      localStorage.setItem('luBirth.defaults.form', JSON.stringify(form));
+      localStorage.setItem('luBirth.defaults.comp', JSON.stringify(comp));
+      localStorage.setItem('luBirth.defaults.mode', mode);
+      alert('已保存当前为默认参数');
+    } catch {}
+  }, [form, comp, mode]);
+
   return (
     <div className="canvas-wrap">
+      {!uiHidden && (
       <div className="overlay">
         <div style={{ fontWeight: 500, letterSpacing: 0.4 }}>地月合影 · 出生纪念</div>
         <div style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(ephem.time).toISOString()}</div>
       </div>
+      )}
 
-      <EarthMoonScene
-        sunEQD={ephem.sunEQD}
-        moonEQD={ephem.moonEQD}
-        observerEQD={ephem.observerEQD}
-        composition={comp}
-        // 真实方位：仅用于光照方向，其它保持构图不变（最小偏置入框）
-        mode={mode}
-      />
+      {decoupled ? (
+        <div style={{ position:'absolute', inset:0 }}>
+          <React.Suspense fallback={null}>
+            <DualCanvas sunEQD={ephem.sunEQD} moonEQD={ephem.moonEQD} observerEQD={ephem.observerEQD} composition={comp} />
+          </React.Suspense>
+        </div>
+      ) : (
+        <EarthMoonScene
+          sunEQD={ephem.sunEQD}
+          moonEQD={ephem.moonEQD}
+          observerEQD={ephem.observerEQD}
+          composition={comp}
+          mode={mode}
+        />
+      )}
 
       {/* 辅助线已移除 */}
 
-      {debug && (
+      {debug && !uiHidden && (
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
             {/* viewport center */}
             <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: 'rgba(255,0,0,0.6)' }} />
@@ -253,6 +284,7 @@ export default function App() {
           </div>
       )}
 
+      {!uiHidden && (
       <div className="panel">
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
           <div className="row" style={{ gap: 12 }}>
@@ -269,6 +301,10 @@ export default function App() {
           <div className="row" style={{ gap: 8 }}>
             <button className="btn" onClick={onExportPNG}>保存 PNG</button>
             <button className="btn" onClick={onReset}>重置</button>
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn" onClick={saveAsDefault}>保存为默认</button>
+            <button className="btn" onClick={()=>setUiHidden(true)}>折叠 UI</button>
           </div>
         </div>
         <div className="row" style={{ marginBottom: 8 }}>
@@ -649,9 +685,19 @@ export default function App() {
           <button className="btn" onClick={onApply}>应用</button>
         </div>
       </div>
+      )}
+      {uiHidden && (
+        <div style={{ position:'absolute', top: 10, left: 10, zIndex: 40 }}>
+          <button className="btn" onClick={()=>setUiHidden(false)}>显示 UI</button>
+        </div>
+      )}
 
-      <div className="credit">视觉基调：极简·低饱和·苹果风（MVP） · 构图：地球下1/3 + 右上小月亮</div>
-      <div className="caption">{locLabel} · {localLabel}</div>
+      {!uiHidden && (
+        <>
+          <div className="credit">视觉基调：极简·低饱和·苹果风（MVP） · 构图：地球下1/3 + 右上小月亮</div>
+          <div className="caption">{locLabel} · {localLabel}</div>
+        </>
+      )}
     </div>
   );
 }
