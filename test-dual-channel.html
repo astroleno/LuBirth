@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双通道渲染测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        .test-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        .test-panel label {
+            display: block;
+            margin: 10px 0;
+        }
+        .test-panel input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .test-panel input[type="range"] {
+            width: 200px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-panel">
+        <h3>双通道渲染测试</h3>
+        <label>
+            <input type="checkbox" id="dualChannelEnabled"> 启用双通道渲染
+        </label>
+        <label>
+            <input type="checkbox" id="moonCacheEnabled" checked> 启用月球缓存
+        </label>
+        <label>
+            月球RenderTarget分辨率: <span id="resolutionValue">512</span>
+            <input type="range" id="moonRenderTargetSize" min="256" max="1024" step="128" value="512">
+        </label>
+        <div class="status" id="status">
+            状态: 未启用双通道渲染
+        </div>
+    </div>
+
+    <div id="app"></div>
+
+    <script type="module">
+        import { createRoot } from 'react-dom/client';
+        import React from 'react';
+        import { EarthMoonScene } from './src/scene/Scene.js';
+        import { computeEphemeris, toUTCFromLocal } from './src/astro/ephemeris.js';
+
+        // 测试数据
+        const testData = {
+            lat: 31.2304,
+            lon: 121.4737,
+            date: '1993-08-01',
+            time: '11:00'
+        };
+
+        // 计算天文数据
+        const utc = toUTCFromLocal(`${testData.date}T${testData.time}`, testData.lon);
+        const ephem = computeEphemeris(utc, testData.lat, testData.lon);
+
+        // 测试组件
+        function TestComponent() {
+            const [comp, setComp] = React.useState({
+                earthTopY: 0.333,
+                earthSize: 3.0,
+                moonScreenX: 0.5,
+                moonScreenY: 0.78,
+                moonDist: 14,
+                moonRadius: 0.44,
+                useTextures: true,
+                glow: 0.22,
+                useClouds: true,
+                useMilkyWay: true,
+                dayAmbient: 0.02,
+                nightIntensity: 3.0,
+                terminatorSoftness: 0.06,
+                terminatorLift: 0.01,
+                nightFalloff: 1.6,
+                bgScale: 0.5,
+                rimStrength: 1.08,
+                rimWidth: 0.15,
+                tideLock: false,
+                rimRadius: 0.002,
+                haloWidth: 0.006,
+                earthGlowStrength: 0.15,
+                earthGlowHeight: 0.02,
+                cloudHeight: 0.01,
+                cloudStrength: 0.55,
+                cloudGamma: 1.15,
+                strictDecouple: false,
+                cloudYawDeg: 0,
+                cloudPitchDeg: 0,
+                earthTiltDeg: 0,
+                earthYawDeg: 0,
+                earthLightEnabled: true,
+                earthLightAzDeg: 180,
+                earthLightElDeg: 23.44,
+                lightTempK: 5200,
+                shininess: 80,
+                specStrength: 0.05,
+                broadStrength: 0.15,
+                broadShiny: 24,
+                nightGamma: 1.1,
+                moonSeparateLight: true,
+                moonAzDeg: 180,
+                moonElDeg: 0,
+                sunIntensity: 1.3,
+                earthLightIntensity: 2.0,
+                sunIntensityMoon: 1.2,
+                exposure: 1.0,
+                moonLatDeg: 0,
+                moonLonDeg: -90,
+                // 双通道渲染参数
+                dualChannelEnabled: false,
+                moonRenderTargetSize: 512,
+                moonCacheEnabled: true,
+            });
+
+            // 监听UI控制
+            React.useEffect(() => {
+                const dualChannelEnabled = document.getElementById('dualChannelEnabled');
+                const moonCacheEnabled = document.getElementById('moonCacheEnabled');
+                const moonRenderTargetSize = document.getElementById('moonRenderTargetSize');
+                const resolutionValue = document.getElementById('resolutionValue');
+                const status = document.getElementById('status');
+
+                dualChannelEnabled.addEventListener('change', (e) => {
+                    setComp(prev => ({ ...prev, dualChannelEnabled: e.target.checked }));
+                    status.textContent = `状态: ${e.target.checked ? '已启用' : '未启用'}双通道渲染`;
+                });
+
+                moonCacheEnabled.addEventListener('change', (e) => {
+                    setComp(prev => ({ ...prev, moonCacheEnabled: e.target.checked }));
+                });
+
+                moonRenderTargetSize.addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    setComp(prev => ({ ...prev, moonRenderTargetSize: value }));
+                    resolutionValue.textContent = value;
+                });
+            }, []);
+
+            return React.createElement(EarthMoonScene, {
+                sunEQD: ephem.sunEQD,
+                moonEQD: ephem.moonEQD,
+                observerEQD: ephem.observerEQD,
+                composition: comp,
+                mode: 'celestial'
+            });
+        }
+
+        // 渲染应用
+        const container = document.getElementById('app');
+        const root = createRoot(container);
+        root.render(React.createElement(TestComponent));
+    </script>
+</body>
+</html>

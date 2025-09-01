@@ -6,6 +6,16 @@
 - 工程与基础
   - Vite + React + TypeScript + R3F（@react-three/fiber + drei）脚手架与运行链路。
   - astronomy-engine 接入（JS/TS 版），可计算 Sun/Moon 向量与月相（用于真实光照）。
+- 光照系统彻底解耦（2024年1月修复）
+  - 重命名参数：`debugLeftSun` → `earthLightEnabled`，`sunAzDeg` → `earthLightAzDeg`，`sunElDeg` → `earthLightElDeg`，`sunIntensityEarth` → `earthLightIntensity`
+  - 彻底移除兜底光源：
+    - 移除半球光（hemisphereLight）的默认强度 `hemiI = 0.08`
+    - 移除环境光（ambientLight）的默认强度 `ambientI = 0.12`
+    - 移除材质中的环境光参数 `ambient = 0`
+  - 修复光照强度联动问题：
+    - 地球光照强度：当 `earthLightEnabled` 为 false 时，强制设为 0
+    - 月球光照强度：完全独立，不再受地球光照强度影响
+  - 分层光照系统：地球层（layer 1）和月球层（layer 2）完全独立
 - MVP 场景与交互
   - 极简 Earth/Moon 场景、星空、ACES 色调映射、轻半球光、环境光。
   - 大气辉光（Additive）轻量实现，边缘更柔和（可调）。
@@ -67,8 +77,17 @@
 
 新增（解耦路线，验证中）：
 - 分层解耦渲染·摄影（Dual-Canvas 方案）
-  - 已在 `test/decoupled/` 搭建 DualCanvas 原型；通过 `?decoupled=1` 开关启用；先复用地球主场景 + 简化月相层分离。
-  - 待办：相机/曝光严格同步；月球位置对齐屏幕坐标；导出合成（次优先）。
+  - 已在 `test/decoupled/` 搭建 DualCanvas 原型；通过 `?decoupled=1` 开关启用；复用地球主场景 + 简化月相层分离。
+  - 进展：
+    - [x] 相机/曝光同步（CameraSync）：与主线统一 fov/pose/exposure。
+    - [x] 月球屏幕定位（MoonPlacement）：按 `moonScreenX/Y/dist` 放置，简化月相漫反射。
+    - [x] 下层仅地球：Earth 层复用主场景但隐藏月球（将 moonRadius/moonDist 设为极小），避免重复绘制。
+    - [x] 独立测试入口：`/test/decoupled/index.html`（dev 模式：http://localhost:5173/test/decoupled/）。
+  - 待办：
+    - [ ] 构图边界严格对齐：与主线 moonScreenX/Y/dist 的边界视觉一致，极值核对与小数精度处理。
+    - [ ] 光照策略明确：Earth 仅用左侧光（debugLeftSun），Moon 仅用真实 Sun→Moon（不受左侧光影响）。
+    - [ ] 月球层曝光匹配因子（可选，默认 1.0）。
+    - [ ] 导出合成（次优先）。
 
 ## 即将开始 · 解耦验证计划（仅在 `src/decoupled/` 内开发）
 - CameraSync：从主线构图计算相机（fov/near/far/position/lookAt），同步至月球 Canvas，相机保持只读。

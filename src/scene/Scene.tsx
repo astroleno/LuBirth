@@ -2,6 +2,45 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
+import { DualChannelRenderer } from './DualChannelRenderer';
+import { MoonBaker } from './MoonBaker';
+import { MoonOverlay } from './MoonOverlay';
+
+// 月球遮罩包装器，处理位置计算
+function MoonOverlayWrapper({ bakedTexture, moonScreen, moonRadius, enabled }: {
+  bakedTexture: THREE.Texture | null;
+  moonScreen: { x: number; y: number; dist: number };
+  moonRadius: number;
+  enabled: boolean;
+}) {
+  const { camera } = useThree();
+  
+  const moonPosition = React.useMemo(() => {
+    // 简化位置计算，确保遮罩在相机前面
+    const screenX = (moonScreen.x - 0.5) * 2; // 转换为 -1 到 1
+    const screenY = (moonScreen.y - 0.5) * 2; // 转换为 -1 到 1，不翻转Y轴
+    
+    // 使用简单的透视计算，确保Z坐标为正数
+    const distance = 10; // 固定距离，确保在相机前面
+    const x = screenX * distance * 0.5;
+    const y = screenY * distance * 0.5;
+    const z = distance;
+    
+    console.log('[MoonOverlayWrapper] 屏幕坐标:', moonScreen.x, moonScreen.y);
+    console.log('[MoonOverlayWrapper] 计算位置:', x, y, z);
+    
+    return new THREE.Vector3(x, y, z);
+  }, [moonScreen.x, moonScreen.y]);
+
+  return (
+    <MoonOverlay
+      bakedTexture={bakedTexture}
+      moonPosition={moonPosition}
+      moonRadius={moonRadius}
+      enabled={enabled}
+    />
+  );
+}
 
 type Vec3 = { x:number;y:number;z:number };
 const v3 = (x:number,y:number,z:number) => new THREE.Vector3(x,y,z);
@@ -174,8 +213,17 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
   comp?: Composition;
   mode?: 'art' | 'real';
 }) {
+  // 月球烘焙纹理状态
+  const [bakedMoonTexture, setBakedMoonTexture] = React.useState<THREE.Texture | null>(null);
   const isDebug = React.useMemo(() => new URLSearchParams(location.search).get('debug') === '1', []);
   const isSafe = React.useMemo(() => new URLSearchParams(location.search).get('safe') === '1', []);
+  const isDecoupled = React.useMemo(() => new URLSearchParams(location.search).get('decoupled') === '1', []);
+  
+  // 调试日志：确认解耦模式检测
+  React.useEffect(() => {
+    console.log('[SceneContent] 解耦模式检测:', isDecoupled, 'URL:', location.search);
+  }, [isDecoupled]);
+  
   // 参数化：地球屏幕呈现（大小与上沿）
   const earthTopScreen = Math.min(Math.max(comp?.earthTopY ?? 0.333, 0.05), 0.95);
   // 允许占屏比例扩展到 3.0（300%）
@@ -229,7 +277,7 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
     if (isDebug) console.log('[Scene] SAFE MODE: drawing test cube');
     return (
       <group>
-        <directionalLight position={[5,5,5]} intensity={1.0} />
+        {/* 移除全局DirectionalLight，使用分层光照 */}
         <mesh>
           <boxGeometry args={[1,1,1]} />
           <meshStandardMaterial color={'#44aa88'} />
@@ -298,8 +346,16 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
   const cloudPitchDeg = (comp as any)?.cloudPitchDeg ?? 0;
   // 色温（K）控制
   const tempK = Math.min(Math.max((comp as any)?.lightTempK ?? 5200, 2000), 10000);
-  const sunIE = Math.min(Math.max((comp as any)?.sunIntensityEarth ?? (comp as any)?.sunIntensity ?? 1.3, 0), 5);
+  
+  // 光照开关状态：必须先声明，供后续计算使用
+  const earthLightEnabled = !!(comp as any)?.earthLightEnabled;
+  const moonSeparate = !!(comp as any)?.moonSeparateLight;
+  
+  // 地球光照强度：当earthLightEnabled为false时，强制设为0
+  const sunIE = earthLightEnabled ? Math.min(Math.max((comp as any)?.earthLightIntensity ?? (comp as any)?.sunIntensity ?? 1.3, 0), 5) : 0;
+  // 月球光照强度：完全独立，不受地球光照影响
   const sunIM = Math.min(Math.max((comp as any)?.sunIntensityMoon ?? ((comp as any)?.sunIntensity ?? 1.3)*0.9, 0), 5);
+  
   function kelvinToRGB(k:number){
     const t = k/100;
     let r:number,g:number,b:number;
@@ -310,26 +366,24 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
   }
   const lightColor = React.useMemo(()=>kelvinToRGB(tempK),[tempK]);
 
-  // 环境光强度：贴图模式下降低环境/半球光，避免夜面被抬亮
-  const ambientI = useTex ? dayAmbient : 0.12;
-  const hemiI = useTex ? Math.min(0.5, dayAmbient * 2) : 0.08;
+  // 完全移除环境光和半球光，避免兜底光源干扰
+  // const ambientI = useTex ? dayAmbient : 0.12;  // 已移除
+  // const hemiI = useTex ? Math.min(0.5, dayAmbient * 2) : 0.08;  // 已移除
 
   // 光照方向（与方向光一致）需先定义，供后续材质使用
-  const debugLeftSun = !!(comp as any)?.debugLeftSun;
-  const moonSeparate = !!(comp as any)?.moonSeparateLight;
   const lightDir = React.useMemo(() => {
-    if (debugLeftSun) {
-      const az = THREE.MathUtils.degToRad(((comp as any)?.sunAzDeg ?? 180));
-      const el = THREE.MathUtils.degToRad(((comp as any)?.sunElDeg ?? 0));
+    if (earthLightEnabled) {
+      const az = THREE.MathUtils.degToRad(((comp as any)?.earthLightAzDeg ?? 180));
+      const el = THREE.MathUtils.degToRad(((comp as any)?.earthLightElDeg ?? 0));
       // 右手坐标：X右 Y上 Z向屏外；水平方位绕Y转，仰角绕XZ平面
       const x = Math.cos(el) * Math.cos(az);
       const z = Math.cos(el) * Math.sin(az);
       const y = Math.sin(el);
       return new THREE.Vector3(x, y, z).normalize();
     }
-    const v = mode === 'real' ? new THREE.Vector3(sunEQD.x, sunEQD.y, sunEQD.z) : new THREE.Vector3(12,10,16);
+    const v = mode === 'celestial' ? new THREE.Vector3(sunEQD.x, sunEQD.y, sunEQD.z) : new THREE.Vector3(12,10,16);
     return v.normalize();
-  }, [mode, sunEQD.x, sunEQD.y, sunEQD.z, debugLeftSun, (comp as any)?.sunAzDeg, (comp as any)?.sunElDeg]);
+  }, [mode, sunEQD.x, sunEQD.y, sunEQD.z, earthLightEnabled, (comp as any)?.earthLightAzDeg, (comp as any)?.earthLightElDeg]);
 
   // 月球独立光：默认采用真实月光方向（Sun -> Moon），可被方位/仰角覆盖
   const moonLightDir = React.useMemo(() => {
@@ -338,7 +392,7 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
       (sunEQD.y - moonEQD.y),
       (sunEQD.z - moonEQD.z)
     ).normalize();
-    if (!moonSeparate) return lightDir; // 艺术模式：与地球同向
+    if (!moonSeparate) return lightDir; // 调试模式：与地球同向
     const hasOverride = (comp as any)?.moonAzDeg != null || (comp as any)?.moonElDeg != null;
     if (hasOverride) {
       const az = THREE.MathUtils.degToRad(((comp as any)?.moonAzDeg ?? 180));
@@ -351,12 +405,99 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
     return moonSunDir;
   }, [moonSeparate, (comp as any)?.moonAzDeg, (comp as any)?.moonElDeg, lightDir, sunEQD.x, sunEQD.y, sunEQD.z, moonEQD.x, moonEQD.y, moonEQD.z]);
 
+  // 月球高度贴图
+  const moonDisplacementMap = useOptionalTexture('/textures/2k_moon_displacement.jpg', comp.useTextures);
+  
+  // 月球烘焙材质（用于烘焙）
+  const moonBakingMaterial = React.useMemo(() => {
+    let material;
+    try {
+      if (moonMap) {
+        material = new THREE.MeshStandardMaterial({
+          map: moonMap,
+          displacementMap: moonDisplacementMap,
+          displacementScale: (comp as any)?.moonDisplacementScale ?? 0.02,
+          displacementBias: (comp as any)?.moonDisplacementBias ?? 0,
+          roughness: 1.0,
+          metalness: 0.0,
+          // 烘焙时使用月球独立光照
+          envMapIntensity: 0,
+          lightMapIntensity: 0,
+          aoMapIntensity: 0,
+          emissiveIntensity: 0
+        });
+        console.log('[Moon Baking Material] 创建烘焙材质');
+      } else {
+        material = new THREE.MeshPhongMaterial({
+          color: new THREE.Color('#bdbdbd'),
+          shininess: 4,
+          specular: new THREE.Color('#1a1a1a'),
+          emissive: new THREE.Color(0, 0, 0),
+          emissiveIntensity: 0
+        });
+      }
+      return material;
+    } catch (error) {
+      console.error('Error creating moon baking material:', error);
+      return new THREE.MeshPhongMaterial({
+        color: new THREE.Color('#bdbdbd'),
+        shininess: 4,
+        specular: new THREE.Color('#1a1a1a'),
+        emissive: new THREE.Color(0, 0, 0),
+        emissiveIntensity: 0
+      });
+    }
+  }, [moonMap, moonDisplacementMap, (comp as any)?.moonDisplacementScale, (comp as any)?.moonDisplacementBias]);
+
+  // 月球展示材质（用于显示）
+  const moonDisplayMaterial = React.useMemo(() => {
+    let material;
+    try {
+      if (moonMap) {
+        // 始终使用原始贴图，烘焙纹理通过遮罩层显示
+        material = new THREE.MeshStandardMaterial({
+          map: moonMap,
+          displacementMap: moonDisplacementMap,
+          displacementScale: (comp as any)?.moonDisplacementScale ?? 0.02,
+          displacementBias: (comp as any)?.moonDisplacementBias ?? 0,
+          roughness: 1.0,
+          metalness: 0.0,
+          envMapIntensity: 0,
+          lightMapIntensity: 0,
+          aoMapIntensity: 0,
+          emissiveIntensity: 0
+        });
+        console.log('[Moon Display Material] 使用原始贴图');
+      } else {
+        // 回退到默认材质
+        material = new THREE.MeshPhongMaterial({
+          color: new THREE.Color('#bdbdbd'),
+          shininess: 4,
+          specular: new THREE.Color('#1a1a1a'),
+          emissive: new THREE.Color(0, 0, 0),
+          emissiveIntensity: 0
+        });
+        console.log('[Moon Display Material] 使用默认材质');
+      }
+      return material;
+    } catch (error) {
+      console.error('Error creating moon display material:', error);
+      return new THREE.MeshPhongMaterial({
+        color: new THREE.Color('#bdbdbd'),
+        shininess: 4,
+        specular: new THREE.Color('#1a1a1a'),
+        emissive: new THREE.Color(0, 0, 0),
+        emissiveIntensity: 0
+      });
+    }
+  }, [bakedMoonTexture, moonMap, moonDisplacementMap, (comp as any)?.moonDisplacementScale, (comp as any)?.moonDisplacementBias]);
+
   // Earth Day/Night 混合着色（当且仅当有日面贴图时启用）
   const earthDNMaterial = React.useMemo(() => {
     if (!earthMap) return null;
     const hasNight = !!earthNight;
     const hasSpec = !!earthSpecular;
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       uniforms: {
         dayMap: { value: earthMap },
         nightMap: { value: earthNight ?? new THREE.Texture() },
@@ -364,7 +505,7 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
         lightDir: { value: lightDir.clone() },
         lightColor: { value: lightColor.clone() },
         sunI: { value: sunIE },
-        ambient: { value: dayAmbient },
+        ambient: { value: 0 }, // 完全移除环境光，避免全局光照干扰
         nightBoost: { value: nightBoost },
         edge: { value: termEdge },
         lift: { value: termLift },
@@ -429,11 +570,16 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
         }
       `,
     });
+    // 设置材质只响应layer 1（地球层）
+    if (material && material.layers) {
+      material.layers.set(1);
+    }
+    return material;
   }, [earthMap, earthNight, lightDir, termEdge, nightBoost, dayAmbient, termLift, lightColor, (comp as any)?.specStrength, (comp as any)?.shininess, (comp as any)?.broadStrength, (comp as any)?.broadShiny, (comp as any)?.nightGamma, nightFalloff]);
 
   // 定向大气弧光（依光照方向 + Fresnel）
   const rimMaterial = React.useMemo(() => {
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       uniforms: {
         lightDir: { value: lightDir.clone() },
         strength: { value: Math.min(Math.max((comp as any)?.rimStrength ?? 0.15, 0.0), 2.0) },
@@ -465,11 +611,16 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
+    // 设置材质只响应layer 1（地球层）
+    if (material && material.layers) {
+      material.layers.set(1);
+    }
+    return material;
   }, [lightDir, (comp as any)?.rimStrength, (comp as any)?.rimWidth]);
 
   // 地光（径向渐变）：从地表向外逐渐消失，受“高度/强度”控制
   const earthGlowMaterial = React.useMemo(() => {
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       uniforms: {
         strength: { value: earthGlowStrength },
         color: { value: new THREE.Color('#6ea6ff') },
@@ -520,6 +671,11 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
       blending: THREE.AdditiveBlending,
       side: THREE.FrontSide,
     });
+    // 设置材质只响应layer 1（地球层）
+    if (material && material.layers) {
+      material.layers.set(1);
+    }
+    return material;
   }, [earthGlowStrength, earthGlowHeight, earthWorldR, earthY, lightDir.x, lightDir.y, lightDir.z]);
 
   React.useEffect(() => {
@@ -611,22 +767,40 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
   return (
     <group>
       
-      {/* Lighting: 分层两束平行光，分别照明地球与月球（可同向） */}
-      <directionalLight
-        ref={(l)=>{ if (l) l.layers.set(1); }}
-        position={[lightDir.x*50, lightDir.y*50, lightDir.z*50]}
-        intensity={sunIE}
-        color={lightColor}
-      />
-      <directionalLight
-        ref={(l)=>{ if (l) l.layers.set(2); }}
-        position={[moonLightDir.x*50, moonLightDir.y*50, moonLightDir.z*50]}
-        intensity={sunIM}
-        color={lightColor}
-      />
+      {/* 分层光照：地球光照只影响地球层，月球光照只影响月球层 */}
+      {earthLightEnabled && (
+        <directionalLight
+          ref={(l)=>{ 
+            if (l) { 
+              l.layers.set(1); 
+              console.log('[Earth Light] Layer set to 1, layers mask:', l.layers.mask, 'intensity:', sunIE);
+            }
+          }}
+          position={[lightDir.x*50, lightDir.y*50, lightDir.z*50]}
+          intensity={sunIE}
+          color={lightColor}
+        />
+      )}
+      {moonSeparate && (
+        <directionalLight
+          ref={(l)=>{ 
+            if (l) { 
+              l.layers.set(2); 
+              console.log('[Moon Light] Layer set to 2, layers mask:', l.layers.mask, 'intensity:', sunIM);
+            }
+          }}
+          position={[moonLightDir.x*50, moonLightDir.y*50, moonLightDir.z*50]}
+          intensity={sunIM}
+          color={lightColor}
+        />
+      )}
+      
+      {/* 显式添加强度为0的环境光来覆盖任何默认光照 */}
+      <ambientLight intensity={0} />
+      
       {/* 移除全局环境光，避免跨层耦合；环境补光在地球材质内实现 */}
-      <hemisphereLight args={[0xeeeeff, 0x080820, hemiI]} ref={(l)=>{ if(l) l.layers.set(1); }} />
-      <hemisphereLight args={[0xeeeeff, 0x080820, hemiI]} ref={(l)=>{ if(l) l.layers.set(2); }} />
+      {/* 完全移除半球光，避免全局光照干扰 */}
+      {/* 环境补光通过材质内的ambient参数实现 */}
 
       {/* Earth */}
       {/* Earth group (tilt + yaw) */}
@@ -637,7 +811,12 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
         {earthDNMaterial ? (
           <primitive object={earthDNMaterial} attach="material" />
         ) : (
-          <meshPhongMaterial color={new THREE.Color('#9fb3c8')} shininess={6} specular={new THREE.Color('#2a2a2a')} />
+          <meshPhongMaterial 
+            color={new THREE.Color('#9fb3c8')} 
+            shininess={6} 
+            specular={new THREE.Color('#2a2a2a')}
+            ref={(m) => { if (m && m.layers) m.layers.set(1); }}
+          />
         )}
       </mesh>
       {/* Atmosphere rim (directional, shader-based) */}
@@ -649,7 +828,14 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
       {haloWidth > 0 && (
         <mesh ref={(m)=>{ if (m) m.layers.set(1); }}>
           <sphereGeometry args={[earthWorldR*(1.0 + Math.max(rimRadius*1.2, haloWidth)), 64, 64]} />
-          <meshBasicMaterial color={new THREE.Color('#6ea6ff')} transparent opacity={0.04} blending={THREE.AdditiveBlending} depthWrite={false} />
+          <meshBasicMaterial 
+            color={new THREE.Color('#6ea6ff')} 
+            transparent 
+            opacity={0.04} 
+            blending={THREE.AdditiveBlending} 
+            depthWrite={false}
+            ref={(m) => { if (m && m.layers) m.layers.set(1); }}
+          />
         </mesh>
       )}
       {/* Earth glow (radial falloff) */}
@@ -692,17 +878,40 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
       {/* Location marker (subtle dark dot) */}
       <mesh position={markerPos} ref={(m)=>{ if (m) m.layers.set(1); }}>
         <sphereGeometry args={[0.012, 16, 16]} />
-        <meshStandardMaterial color={new THREE.Color('#0d0d0d')} emissive={new THREE.Color('#151515')} emissiveIntensity={0.6} />
+        <meshStandardMaterial 
+          color={new THREE.Color('#0d0d0d')} 
+          emissive={new THREE.Color('#151515')} 
+          emissiveIntensity={0.6}
+          ref={(m) => { if (m && m.layers) m.layers.set(1); }}
+        />
       </mesh>
 
       {/* Moon */}
-      <mesh position={moonPos.toArray()} ref={(m)=>{ if (m) { m.layers.set(2); const lock = !!(comp as any)?.tideLock; if (lock) { m.lookAt(0, earthY, 0); } m.rotation.y += 0; m.rotateY(THREE.MathUtils.degToRad(moonYawDeg)); m.rotateX(THREE.MathUtils.degToRad((comp as any)?.moonPitchDeg ?? 0)); } }}>
+      <mesh position={moonPos.toArray()} ref={(m)=>{ 
+        if (m) { 
+          m.layers.set(2); 
+          const lock = !!(comp as any)?.tideLock; 
+          if (lock) { 
+            m.lookAt(0, earthY, 0); 
+          } 
+          // 重置旋转
+          m.rotation.set(0, 0, 0);
+          
+          // 应用月球经纬度调整（贴图对齐）
+          const moonLatDeg = (comp as any)?.moonLatDeg ?? 0;
+          const moonLonDeg = (comp as any)?.moonLonDeg ?? 0;
+          
+          // 先应用经纬度调整（纬度绕X轴，经度绕Y轴）
+          m.rotateX(THREE.MathUtils.degToRad(moonLatDeg));
+          m.rotateY(THREE.MathUtils.degToRad(moonLonDeg));
+          
+          // 再应用原有的微调
+          m.rotateY(THREE.MathUtils.degToRad(moonYawDeg));
+          m.rotateX(THREE.MathUtils.degToRad((comp as any)?.moonPitchDeg ?? 0));
+        } 
+      }}>
         <sphereGeometry args={[moonRadius, 64, 64]} />
-        {moonMap ? (
-          <meshStandardMaterial map={moonMap} roughness={1.0} metalness={0.0} />
-        ) : (
-          <meshPhongMaterial color={new THREE.Color('#bdbdbd')} shininess={4} specular={new THREE.Color('#1a1a1a')} />
-        )}
+        <primitive object={moonDisplayMaterial} attach="material" />
       </mesh>
 
       {/* Stars */}
@@ -716,6 +925,22 @@ function SceneContent({ sunEQD, moonEQD, observerEQD, moonDistance, moonRadius, 
           <Stars radius={120} depth={60} count={600} factor={0.8} fade speed={0} saturation={0} />
         </group>
       )}
+      
+      {/* 月球烘焙器 */}
+      <MoonBaker
+        enabled={!!(comp as any)?.moonBakingEnabled}
+        moonRenderTargetSize={(comp as any)?.moonRenderTargetSize ?? 512}
+        onBaked={setBakedMoonTexture}
+        displacementMap={moonDisplacementMap}
+        displacementScale={(comp as any)?.moonDisplacementScale ?? 0.02}
+        displacementBias={(comp as any)?.moonDisplacementBias ?? 0}
+      />
+      
+
+      
+
+      
+
     </group>
   );
 }
@@ -735,6 +960,8 @@ export type Composition = {
   earthYawDeg?: number;   // 地球自转角（对齐贴图经线）
   moonYawDeg?: number;    // 月球自转角微调（潮汐锁定偏移）
   moonPitchDeg?: number;  // 月球俯仰微调
+  moonLatDeg?: number;    // 月球纬度调整（贴图对齐）
+  moonLonDeg?: number;    // 月球经度调整（贴图对齐）
   bgScale?: number;       // 银河经度缩放
   terminatorSoftness?: number; // 晨昏线柔和度
   nightIntensity?: number;     // 夜景强度
@@ -745,9 +972,9 @@ export type Composition = {
   rimRadius?: number;          // 弧光贴合半径差
   haloWidth?: number;          // 近表面halo宽度
   tideLock?: boolean;          // 月球潮汐锁定
-  debugLeftSun?: boolean;      // 调试：使用自定义平行光
-  sunAzDeg?: number;           // 调试：太阳方位角（水平面，0=+X）
-  sunElDeg?: number;           // 调试：太阳仰角（0=水平）
+  earthLightEnabled?: boolean; // 地球光照开关
+  earthLightAzDeg?: number;    // 地球光照方位角（水平面，0=+X）
+  earthLightElDeg?: number;    // 地球光照仰角（0=水平）
   moonSeparateLight?: boolean; // 月球独立光
   moonAzDeg?: number;          // 月光方位
   moonElDeg?: number;          // 月光仰角
@@ -758,6 +985,8 @@ export type Composition = {
   broadShiny?: number;         // Broad 高光锐度
   nightGamma?: number;         // 夜景伽马
   sunIntensity?: number;       // 太阳强度
+  earthLightIntensity?: number; // 地球光照强度
+  sunIntensityMoon?: number;   // 月球太阳强度
   nightFalloff?: number;       // 夜景随终止线距离衰减
   cloudPitchDeg?: number;      // 云层纬度旋转
   exposure?: number;           // 全局曝光（toneMappingExposure）
@@ -766,6 +995,23 @@ export type Composition = {
   cloudBlack?: number;         // 云层黑场（Levels 黑点）
   cloudWhite?: number;         // 云层白场（Levels 白点）
   cloudContrast?: number;      // 云层对比度
+  cloudHeight?: number;        // 云层高度
+  cloudStrength?: number;      // 云层强度
+  cloudYawDeg?: number;        // 云层经度旋转
+  cloudPitchDeg?: number;      // 云层纬度旋转
+  // 地球辉光参数
+  earthGlowStrength?: number;  // 地球辉光强度
+  earthGlowHeight?: number;    // 地球辉光高度
+  // 双通道渲染参数
+  dualChannelEnabled?: boolean; // 是否启用双通道渲染
+  moonRenderTargetSize?: number; // 月球RenderTarget分辨率
+  moonCacheEnabled?: boolean;   // 是否启用月球渲染缓存
+  // 月球烘焙参数
+  moonBakingEnabled?: boolean;  // 是否启用月球烘焙
+  moonOverlayEnabled?: boolean;  // 是否显示烘焙遮罩
+  // 月球高度贴图参数
+  moonDisplacementScale?: number; // 月球高度贴图强度
+  moonDisplacementBias?: number;  // 月球高度贴图偏移
 };
 
 export function EarthMoonScene(props: {
@@ -773,14 +1019,20 @@ export function EarthMoonScene(props: {
   moonEQD: Vec3;
   observerEQD: Vec3;
   composition?: Composition;
-  mode?: 'art' | 'real';
+  mode?: 'debug' | 'celestial';
 }) {
   const { sunEQD, moonEQD, observerEQD } = props;
   const comp = props.composition ?? {};
   const moonDistance = comp.moonDist ?? 14;
   const moonRadius = comp.moonRadius ?? 0.44;
-  const mode = props.mode ?? 'art';
+  const mode = props.mode ?? 'celestial';
 
+  // 计算月球屏幕位置
+  const moonScreen = { x: comp?.moonScreenX ?? 0.5, y: comp?.moonScreenY ?? 0.78, dist: moonDistance };
+
+  // 检测是否为解耦模式
+  const isDecoupled = React.useMemo(() => new URLSearchParams(location.search).get('decoupled') === '1', []);
+  
   const isSafe = React.useMemo(() => new URLSearchParams(location.search).get('safe') === '1', []);
   if (isSafe) {
     console.log('[EarthMoonScene] SAFE MODE canvas');
@@ -788,7 +1040,7 @@ export function EarthMoonScene(props: {
       <Canvas camera={{ position: [0, 0, 6], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={[0x101010]} />
         <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 8, 5]} intensity={1.2} />
+        {/* 移除全局DirectionalLight，使用分层光照 */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[1.5, 1.5, 1.5]} />
           <meshStandardMaterial color={'#44aa88'} />
@@ -803,17 +1055,31 @@ export function EarthMoonScene(props: {
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
       dpr={[1, 2]}
     >
-      {(() => { try { console.log('[Canvas] mounted'); } catch {} return null; })()}
+      {/* 移除调试日志，避免频繁输出 */}
       <color attach="background" args={[0x000000]} />
 
-      <SceneContent
-        sunEQD={sunEQD}
-        moonEQD={moonEQD}
-        observerEQD={observerEQD}
-        moonDistance={moonDistance}
+      <DualChannelRenderer
+        enabled={!!comp.dualChannelEnabled}
+        moonRenderTargetSize={comp.moonRenderTargetSize ?? 512}
+        moonCacheEnabled={comp.moonCacheEnabled ?? true}
+      >
+        <SceneContent
+          sunEQD={sunEQD}
+          moonEQD={moonEQD}
+          observerEQD={observerEQD}
+          moonDistance={moonDistance}
+          moonRadius={moonRadius}
+          comp={comp}
+          mode={mode}
+        />
+      </DualChannelRenderer>
+
+      {/* 月球遮罩层 - 完全独立于双通道渲染器 */}
+      <MoonOverlayWrapper
+        bakedTexture={null}
+        moonScreen={moonScreen}
         moonRadius={moonRadius}
-        comp={comp}
-        mode={mode}
+        enabled={!!(comp as any)?.moonOverlayEnabled}
       />
 
       <OrbitControls enabled={false} />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { EarthMoonScene, type Composition } from '@/scene/Scene';
 import { computeEphemeris, toUTCFromLocal } from '@/astro/ephemeris';
+import * as THREE from 'three';
 
 type FormState = {
   lat: string;
@@ -55,9 +56,9 @@ export default function App() {
     cloudPitchDeg: 0,
     earthTiltDeg: 0,
     earthYawDeg: 0,
-    debugLeftSun: true,
-    sunAzDeg: 180,
-    sunElDeg: 23.44,
+    earthLightEnabled: true,
+    earthLightAzDeg: 180,
+    earthLightElDeg: 23.44,
     lightTempK: 5200,
     shininess: 80,
     specStrength: 0.05,
@@ -68,35 +69,98 @@ export default function App() {
     moonAzDeg: 180,
     moonElDeg: 0,
     sunIntensity: 1.3,
-    sunIntensityEarth: 2.0,
+    earthLightIntensity: 2.0,
     sunIntensityMoon: 1.2,
     exposure: 1.0,
+    moonLatDeg: 0,
+    moonLonDeg: -90, // 设置月球经度调整默认值为 -90°
+    // 双通道渲染参数
+    dualChannelEnabled: false, // 默认关闭，需要时手动开启
+    moonRenderTargetSize: 512,
+    moonCacheEnabled: true,
+    // 月球烘焙参数
+    moonBakingEnabled: false, // 默认关闭，需要时手动开启
+    moonOverlayEnabled: false, // 显示烘焙遮罩的独立开关
   });
-  const [mode, setMode] = React.useState<'art' | 'real'>('real');
+  const [mode, setMode] = React.useState<'debug' | 'celestial'>('celestial');
+  
+  // 模式切换时的参数处理
+  const handleModeChange = React.useCallback((newMode: 'debug' | 'celestial') => {
+    setMode(newMode);
+    
+    // 保存当前模式的参数
+    try {
+      const currentKey = mode === 'celestial' ? 'luBirth.celestial' : 'luBirth.debug';
+      localStorage.setItem(currentKey, JSON.stringify(comp));
+    } catch {}
+    
+    // 加载新模式的参数
+    try {
+      const newKey = newMode === 'celestial' ? 'luBirth.celestial' : 'luBirth.debug';
+      const savedComp = localStorage.getItem(newKey);
+      if (savedComp) {
+        setComp(v => ({ ...v, ...JSON.parse(savedComp) }));
+      }
+    } catch {}
+  }, [mode]); // 移除comp依赖，避免循环
   // 持久化：从 localStorage 读取
   React.useEffect(() => {
     try {
       const savedForm = localStorage.getItem('luBirth.form');
-      const savedComp = localStorage.getItem('luBirth.comp');
-      const savedMode = localStorage.getItem('luBirth.mode') as 'art'|'real'|null;
+      const savedMode = localStorage.getItem('luBirth.mode') as 'debug'|'celestial'|null;
+      
+      // 根据模式加载对应的参数
+      if (savedMode === 'debug' || savedMode === 'celestial') {
+        setMode(savedMode);
+        const savedComp = localStorage.getItem(`luBirth.${savedMode}`);
+        if (savedComp) {
+          const parsedComp = JSON.parse(savedComp);
+          // 强制设置烘焙为关闭，避免之前保存的开启状态
+          parsedComp.moonBakingEnabled = false;
+          parsedComp.moonOverlayEnabled = false;
+          setComp(v => ({ ...v, ...parsedComp }));
+        }
+      }
+      
       if (savedForm) setForm(v => ({ ...v, ...JSON.parse(savedForm) }));
-      if (savedComp) setComp(v => ({ ...v, ...JSON.parse(savedComp) }));
-      if (savedMode === 'art' || savedMode === 'real') setMode(savedMode);
     } catch {}
   }, []);
+  // 参数分离存储：根据模式分别保存参数
   React.useEffect(() => {
     try { localStorage.setItem('luBirth.form', JSON.stringify(form)); } catch {}
   }, [form]);
+  
   React.useEffect(() => {
-    try { localStorage.setItem('luBirth.comp', JSON.stringify(comp)); } catch {}
-  }, [comp]);
+    try { 
+      if (mode === 'celestial') {
+        localStorage.setItem('luBirth.celestial', JSON.stringify(comp)); 
+      } else {
+        localStorage.setItem('luBirth.debug', JSON.stringify(comp)); 
+      }
+    } catch {}
+  }, [comp, mode]);
+  
   React.useEffect(() => {
     try { localStorage.setItem('luBirth.mode', mode); } catch {}
   }, [mode]);
   const debug = React.useMemo(() => new URLSearchParams(location.search).get('debug') === '1', []);
   const clean = React.useMemo(() => new URLSearchParams(location.search).get('clean') === '1', []);
   const decoupled = React.useMemo(() => new URLSearchParams(location.search).get('decoupled') === '1', []);
-  const DualCanvas = React.useMemo(() => React.lazy(() => import('/test/decoupled/DualCanvas').then(m => ({ default: m.DualCanvasShell }))), []);
+  const [DecComp, setDecComp] = React.useState<React.ComponentType<any> | null>(null);
+  const [decErr, setDecErr] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!decoupled) return;
+    try {
+      // 使用相对路径匹配 test 目录文件（相对于 src/App.tsx）
+      const mods: Record<string, () => Promise<any>> = (import.meta as any).glob('../test/decoupled/DualCanvas.tsx');
+      const loader = mods['../test/decoupled/DualCanvas.tsx'];
+      if (!loader) { setDecErr('not-found'); return; }
+      loader().then((m) => { setDecComp(() => m.DualCanvasShell); }).catch((e) => { console.error(e); setDecErr('load-failed'); });
+    } catch (e) {
+      console.error(e);
+      setDecErr('load-exception');
+    }
+  }, [decoupled]);
   const [uiHidden, setUiHidden] = React.useState<boolean>(clean);
   const [canvasRect, setCanvasRect] = React.useState<DOMRect | null>(null);
 
@@ -121,6 +185,39 @@ export default function App() {
     };
   }, [debug]);
 
+  // 天相模式下的参数联动计算
+  const updateCelestialParams = React.useCallback((ephemeris: any) => {
+    if (mode !== 'celestial') return;
+    
+    try {
+      // 基于天文数据计算光照方向
+      const sunVector = new THREE.Vector3(ephemeris.sunEQD.x, ephemeris.sunEQD.y, ephemeris.sunEQD.z);
+      const moonVector = new THREE.Vector3(ephemeris.moonEQD.x, ephemeris.moonEQD.y, ephemeris.moonEQD.z);
+      
+      // 计算太阳方位角和仰角
+      const sunAz = Math.atan2(sunVector.z, sunVector.x) * 180 / Math.PI;
+      const sunEl = Math.asin(sunVector.y / sunVector.length()) * 180 / Math.PI;
+      
+      // 计算月球方位角和仰角
+      const moonAz = Math.atan2(moonVector.z, moonVector.x) * 180 / Math.PI;
+      const moonEl = Math.asin(moonVector.y / moonVector.length()) * 180 / Math.PI;
+      
+      // 自动更新相关参数
+      setComp(prev => ({
+        ...prev,
+        earthLightAzDeg: sunAz,
+        earthLightElDeg: sunEl,
+        moonAzDeg: moonAz,
+        moonElDeg: moonEl,
+        moonSeparateLight: true, // 天相模式下启用独立月球光照
+      }));
+      
+      console.log('[天相模式] 参数已自动更新:', { sunAz, sunEl, moonAz, moonEl });
+    } catch (error) {
+      console.error('[天相模式] 参数更新失败:', error);
+    }
+  }, [mode]);
+
   const onApply = React.useCallback(() => {
     const lat = parseFloat(form.lat);
     const lon = parseFloat(form.lon);
@@ -128,18 +225,21 @@ export default function App() {
     try {
       const e = computeEphemeris(utc, lat, lon);
       setEphem(e);
+      
+      // 天相模式下自动更新参数
+      updateCelestialParams(e);
     } catch (err) {
       console.error(err);
       alert('计算失败，请检查输入。');
     }
-  }, [form]);
+  }, [form, updateCelestialParams]);
 
   const onReset = React.useCallback(() => {
     // 优先使用保存的默认，否则退回内置默认
     try {
       const dForm = localStorage.getItem('luBirth.defaults.form');
       const dComp = localStorage.getItem('luBirth.defaults.comp');
-      const dMode = localStorage.getItem('luBirth.defaults.mode') as 'art'|'real'|null;
+      const dMode = localStorage.getItem('luBirth.defaults.mode') as 'debug'|'celestial'|null;
       if (dForm) setForm(JSON.parse(dForm)); else setForm(DEFAULTS);
       if (dComp) setComp(JSON.parse(dComp)); else setComp({
       earthTopY: 0.333,
@@ -171,9 +271,9 @@ export default function App() {
       cloudPitchDeg: 0,
       earthTiltDeg: 0,
       earthYawDeg: 0,
-      debugLeftSun: true,
-      sunAzDeg: 180,
-      sunElDeg: 23.44,
+      earthLightEnabled: true,
+      earthLightAzDeg: 180,
+      earthLightElDeg: 23.44,
       lightTempK: 5200,
       shininess: 80,
       specStrength: 0.05,
@@ -184,15 +284,17 @@ export default function App() {
       moonAzDeg: 180,
       moonElDeg: 0,
       sunIntensity: 1.3,
-      sunIntensityEarth: 2.0,
+      earthLightIntensity: 2.0,
       sunIntensityMoon: 1.2,
       exposure: 1.0,
+      moonLatDeg: 0,
+      moonLonDeg: -90,
     });
-      if (dMode === 'art' || dMode === 'real') setMode(dMode); else setMode('real');
+      if (dMode === 'debug' || dMode === 'celestial') setMode(dMode); else setMode('celestial');
       return;
     } catch {}
     setForm(DEFAULTS);
-    setMode('real');
+    setMode('celestial');
   }, []);
 
   const onExportPNG = React.useCallback(async () => {
@@ -253,9 +355,19 @@ export default function App() {
 
       {decoupled ? (
         <div style={{ position:'absolute', inset:0 }}>
-          <React.Suspense fallback={null}>
-            <DualCanvas sunEQD={ephem.sunEQD} moonEQD={ephem.moonEQD} observerEQD={ephem.observerEQD} composition={comp} />
-          </React.Suspense>
+          {/* 解耦模式指示（仅用于排查加载状态） */}
+          <div style={{ position:'absolute', top: 8, left: 8, color:'#fff', fontSize: 12, opacity: 0.8, pointerEvents:'none', zIndex: 100 }}>Decoupled: loading {DecComp? 'ok' : (decErr || '...')}</div>
+          {DecComp ? (
+            <DecComp 
+              sunEQD={ephem.sunEQD} 
+              moonEQD={ephem.moonEQD} 
+              observerEQD={ephem.observerEQD} 
+              composition={comp}
+              disableHemisphere={true} // 添加半球光禁用参数
+            />
+          ) : decErr ? (
+            <div style={{ color:'#fff', position:'absolute', top:16, left:16, zIndex: 100 }}>解耦模块加载失败：{decErr}</div>
+          ) : null}
         </div>
       ) : (
         <EarthMoonScene
@@ -291,10 +403,10 @@ export default function App() {
             <label className="label">构图模式</label>
             <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
               <label>
-                <input type="radio" name="mode" checked={mode==='art'} onChange={()=>setMode('art')} /> 艺术构图
+                <input type="radio" name="mode" checked={mode==='celestial'} onChange={()=>handleModeChange('celestial')} /> 天相模式
               </label>
               <label>
-                <input type="radio" name="mode" checked={mode==='real'} onChange={()=>setMode('real')} /> 真实方位（光照）
+                <input type="radio" name="mode" checked={mode==='debug'} onChange={()=>handleModeChange('debug')} /> 调试模式
               </label>
             </div>
           </div>
@@ -327,14 +439,14 @@ export default function App() {
             </div>
           </div>
           <div className="col">
-            <label className="label">太阳方位/仰角: {Math.round(((comp as any).sunAzDeg ?? 180))}° / {Math.round(((comp as any).sunElDeg ?? 0))}°</label>
+            <label className="label">地球光照方位/仰角: {Math.round(((comp as any).earthLightAzDeg ?? 180))}° / {Math.round(((comp as any).earthLightElDeg ?? 0))}°</label>
             <div className="row">
               <input className="input" type="range" min={0} max={360} step={1}
-                     value={(comp as any).sunAzDeg ?? 180}
-                     onChange={(e) => setComp(v => ({ ...v, sunAzDeg: parseFloat(e.target.value) }))} />
+                     value={(comp as any).earthLightAzDeg ?? 180}
+                     onChange={(e) => setComp(v => ({ ...v, earthLightAzDeg: parseFloat(e.target.value) }))} />
               <input className="input" type="range" min={-45} max={45} step={1}
-                     value={(comp as any).sunElDeg ?? 0}
-                     onChange={(e) => setComp(v => ({ ...v, sunElDeg: parseFloat(e.target.value) }))} />
+                     value={(comp as any).earthLightElDeg ?? 0}
+                     onChange={(e) => setComp(v => ({ ...v, earthLightElDeg: parseFloat(e.target.value) }))} />
             </div>
           </div>
         </div>
@@ -404,12 +516,6 @@ export default function App() {
             <input className="input" type="range" min={50} max={200} step={1}
                    value={Math.round((((comp as any)?.bgScale ?? 0.5)*100))}
                    onChange={(e) => setComp(v => ({ ...v, bgScale: parseFloat(e.target.value)/100 }))} />
-          </div>
-          <div className="col">
-            <label className="label">月球俯仰微调: {Math.round(((comp as any)?.moonPitchDeg ?? 0))}°</label>
-            <input className="input" type="range" min={-90} max={90} step={1}
-                   value={(comp as any)?.moonPitchDeg ?? 0}
-                   onChange={(e) => setComp(v => ({ ...v, moonPitchDeg: parseFloat(e.target.value) }))} />
           </div>
         </div>
         <div className="row" style={{ marginBottom: 8 }}>
@@ -491,12 +597,53 @@ export default function App() {
         </div>
         <div className="row" style={{ marginBottom: 8 }}>
           <div className="col">
-            <label className="label">调试: 左侧太阳</label>
+            <label className="label">调试: 地月光照</label>
             <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
               <label>
-                <input type="checkbox" checked={!!(comp as any)?.debugLeftSun} onChange={(e)=>setComp(v=>({...v, debugLeftSun: e.target.checked}))} /> 左侧平行光
+                <input type="checkbox" checked={!!(comp as any)?.earthLightEnabled} onChange={(e)=>setComp(v=>({...v, earthLightEnabled: e.target.checked}))} /> 地球光照
               </label>
             </div>
+          </div>
+          <div className="col">
+            <label className="label">双通道渲染</label>
+            <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
+              <label>
+                <input type="checkbox" checked={!!(comp as any)?.dualChannelEnabled} onChange={(e)=>setComp(v=>({...v, dualChannelEnabled: e.target.checked}))} /> 启用
+              </label>
+              <label>
+                <input type="checkbox" checked={!!(comp as any)?.moonCacheEnabled} onChange={(e)=>setComp(v=>({...v, moonCacheEnabled: e.target.checked}))} /> 月球缓存
+              </label>
+            </div>
+          </div>
+          <div className="col">
+            <label className="label">月球烘焙</label>
+            <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
+              <label>
+                <input type="checkbox" checked={!!(comp as any)?.moonBakingEnabled} onChange={(e)=>setComp(v=>({...v, moonBakingEnabled: e.target.checked}))} /> 启用
+              </label>
+            </div>
+          </div>
+          <div className="col">
+            <label className="label">显示烘焙遮罩</label>
+            <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
+              <label>
+                <input type="checkbox" checked={!!(comp as any)?.moonOverlayEnabled} onChange={(e)=>setComp(v=>({...v, moonOverlayEnabled: e.target.checked}))} /> 启用
+              </label>
+            </div>
+          </div>
+          <div className="col">
+            <label className="label">月球高度贴图: 强度 {((comp as any)?.moonDisplacementScale ?? 0.02).toFixed(2)}</label>
+            <input className="input" type="range" min={0} max={0.5} step={0.01}
+                   value={(comp as any)?.moonDisplacementScale ?? 0.02}
+                   onChange={(e) => setComp(v => ({ ...v, moonDisplacementScale: parseFloat(e.target.value) }))} />
+          </div>
+        </div>
+        <div className="row" style={{ marginBottom: 8 }}>
+          <div className="col">
+            <label className="label">月球RenderTarget分辨率: {comp.moonRenderTargetSize ?? 512}</label>
+            <input className="input" type="range" min={256} max={1024} step={128}
+                   value={comp.moonRenderTargetSize ?? 512}
+                   onChange={(e) => setComp(v => ({ ...v, moonRenderTargetSize: parseInt(e.target.value) }))} />
           </div>
           <div className="col">
             <label className="label">镜面高光: 强度 {Math.round((((comp as any)?.specStrength ?? 0.8)*100))}% · 锐度 {Math.round(((comp as any)?.shininess ?? 80))}</label>
@@ -512,10 +659,10 @@ export default function App() {
         </div>
         <div className="row" style={{ marginBottom: 8 }}>
           <div className="col">
-            <label className="label">阳光强度（地球）: {((comp as any)?.sunIntensityEarth ?? 1.3).toFixed(2)}</label>
+            <label className="label">地球光照强度: {((comp as any)?.earthLightIntensity ?? 1.3).toFixed(2)}</label>
             <input className="input" type="range" min={0} max={6} step={0.05}
-                   value={(comp as any)?.sunIntensityEarth ?? 1.3}
-                   onChange={(e) => setComp(v => ({ ...v, sunIntensityEarth: parseFloat(e.target.value) }))} />
+                   value={(comp as any)?.earthLightIntensity ?? 1.3}
+                   onChange={(e) => setComp(v => ({ ...v, earthLightIntensity: parseFloat(e.target.value) }))} />
           </div>
           <div className="col">
             <label className="label">阳光强度（月球）: {((comp as any)?.sunIntensityMoon ?? 1.2).toFixed(2)}</label>
@@ -610,12 +757,19 @@ export default function App() {
                    onChange={(e) => setComp(v => ({ ...v, earthGlowHeight: parseFloat(e.target.value)/100 }))} />
           </div>
         </div>
+
         <div className="row" style={{ marginBottom: 8 }}>
           <div className="col">
-            <label className="label">月球朝向微调: {Math.round((comp.moonYawDeg ?? 0))}°</label>
+            <label className="label">月球纬度调整: {Math.round(((comp as any)?.moonLatDeg ?? 0))}°</label>
+            <input className="input" type="range" min={-90} max={90} step={1}
+                   value={(comp as any)?.moonLatDeg ?? 0}
+                   onChange={(e) => setComp(v => ({ ...v, moonLatDeg: parseFloat(e.target.value) }))} />
+          </div>
+          <div className="col">
+            <label className="label">月球经度调整: {Math.round(((comp as any)?.moonLonDeg ?? 0))}°</label>
             <input className="input" type="range" min={-180} max={180} step={1}
-                   value={comp.moonYawDeg ?? 0}
-                   onChange={(e) => setComp(v => ({ ...v, moonYawDeg: parseFloat(e.target.value) }))} />
+                   value={(comp as any)?.moonLonDeg ?? 0}
+                   onChange={(e) => setComp(v => ({ ...v, moonLonDeg: parseFloat(e.target.value) }))} />
           </div>
         </div>
         <div className="row" style={{ marginBottom: 8 }}>

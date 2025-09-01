@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简化双通道渲染测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        .test-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        .test-panel label {
+            display: block;
+            margin: 10px 0;
+        }
+        .test-panel input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-panel">
+        <h3>简化双通道渲染测试</h3>
+        <label>
+            <input type="checkbox" id="dualChannelEnabled"> 启用双通道渲染
+        </label>
+        <div class="status" id="status">
+            状态: 未启用双通道渲染
+        </div>
+    </div>
+
+    <div id="app"></div>
+
+    <script type="module">
+        import { createRoot } from 'react-dom/client';
+        import React from 'react';
+        import { Canvas } from '@react-three/fiber';
+        import { Stars } from '@react-three/drei';
+        import * as THREE from 'three';
+
+        // 简化的测试组件
+        function SimpleTestScene() {
+            const [dualChannelEnabled, setDualChannelEnabled] = React.useState(false);
+            
+            React.useEffect(() => {
+                const checkbox = document.getElementById('dualChannelEnabled');
+                const status = document.getElementById('status');
+                
+                checkbox.addEventListener('change', (e) => {
+                    setDualChannelEnabled(e.target.checked);
+                    status.textContent = `状态: ${e.target.checked ? '已启用' : '未启用'}双通道渲染`;
+                });
+            }, []);
+
+            // 简化的双通道渲染逻辑
+            const sceneContent = [
+                React.createElement(Stars, { 
+                    key: 'stars',
+                    radius: 100, 
+                    depth: 50, 
+                    count: 5000, 
+                    factor: 4, 
+                    saturation: 0, 
+                    fade: true 
+                }),
+                React.createElement('mesh', { 
+                    key: 'earth',
+                    position: [0, 0, 0],
+                    ref: (mesh) => {
+                        if (mesh) mesh.layers.set(1); // 地球层
+                    }
+                }, [
+                    React.createElement('sphereGeometry', { args: [1, 32, 32] }),
+                    React.createElement('meshStandardMaterial', { color: '#4a90e2' })
+                ]),
+                React.createElement('mesh', { 
+                    key: 'moon',
+                    position: [2, 0, 0],
+                    ref: (mesh) => {
+                        if (mesh) mesh.layers.set(2); // 月球层
+                    }
+                }, [
+                    React.createElement('sphereGeometry', { args: [0.3, 32, 32] }),
+                    React.createElement('meshStandardMaterial', { color: '#cccccc' })
+                ]),
+                React.createElement('ambientLight', { intensity: 0.5 }),
+                React.createElement('directionalLight', { 
+                    position: [5, 5, 5], 
+                    intensity: 1 
+                })
+            ];
+
+            return React.createElement(Canvas, {
+                camera: { position: [0, 0, 5], fov: 50 },
+                style: { background: '#000' }
+            }, sceneContent);
+        }
+
+        // 渲染应用
+        const container = document.getElementById('app');
+        const root = createRoot(container);
+        root.render(React.createElement(SimpleTestScene));
+    </script>
+</body>
+</html>
