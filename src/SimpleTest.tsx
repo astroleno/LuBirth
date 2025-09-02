@@ -1,560 +1,570 @@
-import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { useMemo, useState } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { SimpleComposition, DEFAULT_SIMPLE_COMPOSITION } from './types/SimpleComposition';
+import { useLightDirection, useLightColor, useLightIntensity, useAmbientIntensity } from './scenes/simple/utils/lightingUtils';
+import { useCameraControl, useEarthPosition, useMoonPosition, useExposureControl } from './scenes/simple/utils/positionUtils';
+import { useTextureLoader } from './scenes/simple/utils/textureLoader';
+import { Earth } from './scenes/simple/components/Earth';
+import { Moon } from './scenes/simple/components/Moon';
+import { Clouds } from './scenes/simple/components/Clouds';
+import { CloudsOverlayFix } from './scenes/simple/components/Clouds';
+import { AtmosphereEffects } from './scenes/simple/components/AtmosphereEffects';
 
-// Simplified Composition interface for testing
-export interface SimpleComposition {
-  earthSize: number;        // Earth size (0.5-3.0)
-  earthY: number;          // Earth Y position (-2 to 2)
-  moonX: number;           // Moon X position (-5 to 5)
-  moonY: number;           // Moon Y position (-3 to 3)
-  moonDistance: number;    // Moon distance from camera (8-20)
-  moonRadius: number;      // Moon radius (0.2-1.0)
-  lightIntensity: number;  // Directional light intensity (0.5-3.0)
-  lightAzimuth: number;    // Light azimuth in degrees (0-360)
-  lightElevation: number;  // Light elevation in degrees (-45 to 45)
-  useStars: boolean;       // Enable star background
-  enableControls: boolean; // Enable orbit controls
-}
-
-// Default composition settings
-const DEFAULT_COMPOSITION: SimpleComposition = {
-  earthSize: 1.5,
-  earthY: -0.5,
-  moonX: 2.5,
-  moonY: 1.2,
-  moonDistance: 12,
-  moonRadius: 0.35,
-  lightIntensity: 1.8,
-  lightAzimuth: 135,
-  lightElevation: 25,
-  useStars: true,
-  enableControls: true,
-};
-
-// Simple Earth component with basic material
-function SimpleEarth({ 
-  radius, 
-  position, 
-  lightDirection, 
-  lightColor, 
-  lightIntensity 
-}: {
-  radius: number;
-  position: [number, number, number];
-  lightDirection: THREE.Vector3;
-  lightColor: THREE.Color;
-  lightIntensity: number;
+// 场景内容组件
+function SceneContent({ 
+  composition, 
+  mode, 
+  sunEQD 
+}: { 
+  composition: SimpleComposition;
+  mode: 'debug' | 'celestial';
+  sunEQD: { x: number; y: number; z: number };
 }) {
-  const earthRef = useRef<THREE.Mesh>(null);
-  
-  // Basic earth material with day/night simulation
-  const earthMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        lightDir: { value: lightDirection.clone() },
-        lightColor: { value: lightColor.clone() },
-        lightIntensity: { value: lightIntensity },
-        dayColor: { value: new THREE.Color('#4a90e2') },
-        nightColor: { value: new THREE.Color('#0f1419') },
-        atmosphereColor: { value: new THREE.Color('#87ceeb') }
-      },
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          vPosition = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 lightDir;
-        uniform vec3 lightColor;
-        uniform float lightIntensity;
-        uniform vec3 dayColor;
-        uniform vec3 nightColor;
-        uniform vec3 atmosphereColor;
-        
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        
-        void main() {
-          vec3 normal = normalize(vNormal);
-          float lightDot = dot(normal, normalize(lightDir));
-          
-          // Day/night transition
-          float dayFactor = smoothstep(-0.1, 0.1, lightDot);
-          vec3 baseColor = mix(nightColor, dayColor, dayFactor);
-          
-          // Basic lighting
-          float diffuse = max(lightDot, 0.1); // Minimum ambient
-          vec3 color = baseColor * diffuse * lightColor * lightIntensity;
-          
-          // Simple atmosphere effect
-          float fresnel = 1.0 - abs(dot(normal, vec3(0.0, 0.0, 1.0)));
-          vec3 atmosphere = atmosphereColor * fresnel * 0.3;
-          
-          gl_FragColor = vec4(color + atmosphere, 1.0);
-        }
-      `
-    });
-  }, [lightDirection, lightColor, lightIntensity]);
-
-  // Update uniforms when props change
-  React.useEffect(() => {
-    if (earthMaterial.uniforms) {
-      earthMaterial.uniforms.lightDir.value.copy(lightDirection);
-      earthMaterial.uniforms.lightColor.value.copy(lightColor);
-      earthMaterial.uniforms.lightIntensity.value = lightIntensity;
-    }
-  }, [earthMaterial, lightDirection, lightColor, lightIntensity]);
-
-  // Simple rotation animation
-  useFrame((_, delta) => {
-    if (earthRef.current) {
-      earthRef.current.rotation.y += delta * 0.1;
-    }
-  });
-
-  return (
-    <mesh ref={earthRef} position={position}>
-      <sphereGeometry args={[radius, 64, 64]} />
-      <primitive object={earthMaterial} />
-    </mesh>
-  );
-}
-
-// Simple Moon component with basic material
-function SimpleMoon({ 
-  radius, 
-  position, 
-  lightDirection, 
-  lightColor, 
-  lightIntensity 
-}: {
-  radius: number;
-  position: [number, number, number];
-  lightDirection: THREE.Vector3;
-  lightColor: THREE.Color;
-  lightIntensity: number;
-}) {
-  return (
-    <mesh position={position}>
-      <sphereGeometry args={[radius, 32, 32]} />
-      <meshPhongMaterial 
-        color="#c0c0c0" 
-        shininess={4}
-        specular="#404040"
-      />
-    </mesh>
-  );
-}
-
-// Scene content component
-function SceneContent({ composition }: { composition: SimpleComposition }) {
   const { camera } = useThree();
   
-  // Calculate light direction from azimuth and elevation
-  const lightDirection = useMemo(() => {
-    const azRad = THREE.MathUtils.degToRad(composition.lightAzimuth);
-    const elRad = THREE.MathUtils.degToRad(composition.lightElevation);
-    
-    const x = Math.cos(elRad) * Math.cos(azRad);
-    const z = Math.cos(elRad) * Math.sin(azRad);
-    const y = Math.sin(elRad);
-    
-    return new THREE.Vector3(x, y, z).normalize();
-  }, [composition.lightAzimuth, composition.lightElevation]);
-
-  const lightColor = useMemo(() => new THREE.Color('#ffffff'), []);
-
-  // Set camera position
+  // 光照系统 - 单光照，与日期时间计算耦合
+  const lightDirection = useLightDirection(mode, sunEQD, composition);
+  const lightColor = useLightColor(composition);
+  const lightIntensity = useLightIntensity(composition);
+  const ambientIntensity = useAmbientIntensity(composition);
+  
+  // 相机控制
+  useCameraControl(composition);
+  useExposureControl(composition);
+  
+  // 位置计算
+  const earthInfo = useEarthPosition(composition, composition.cameraDistance);
+  const moonInfo = useMoonPosition(composition, camera);
+  
+  // 纹理加载
+  const {
+    earthClouds,
+    starsMilky
+  } = useTextureLoader(composition);
+  
+  // 调试信息
   React.useEffect(() => {
-    camera.position.set(0, 0, 8);
-    camera.lookAt(0, 0, 0);
-    camera.updateProjectionMatrix();
-  }, [camera]);
+    if (new URLSearchParams(location.search).get('debug') === '1') {
+      console.log('[SimpleTest] Scene initialized:', {
+        mode,
+        lightDirection: lightDirection.toArray(),
+        lightColor: lightColor.getHexString(),
+        lightIntensity,
+        earthPosition: earthInfo.position,
+        earthSize: earthInfo.size,
+        moonPosition: moonInfo.position,
+        moonDistance: moonInfo.distance,
+        composition
+      });
+    }
+  }, [mode, lightDirection, lightColor, lightIntensity, earthInfo, moonInfo, composition]);
 
   return (
-    <group>
-      {/* Lighting */}
+    <>
+      {/* 统一光照系统 - 单光照 */}
       <directionalLight 
-        position={[lightDirection.x * 20, lightDirection.y * 20, lightDirection.z * 20]}
-        intensity={composition.lightIntensity}
+        position={[
+          lightDirection.x * 50, 
+          lightDirection.y * 50, 
+          lightDirection.z * 50
+        ]}
+        intensity={lightIntensity}
         color={lightColor}
+        castShadow
       />
-      <ambientLight intensity={0.1} />
-
-      {/* Earth */}
-      <SimpleEarth
-        radius={composition.earthSize}
-        position={[0, composition.earthY, 0]}
-        lightDirection={lightDirection}
+      
+      <ambientLight intensity={ambientIntensity} />
+      
+      {/* 地球组 */}
+      <group 
+        position={earthInfo.position}
+        rotation={[
+          THREE.MathUtils.degToRad(composition.earthTiltDeg), 
+          0, 
+          THREE.MathUtils.degToRad(composition.earthYawDeg)
+        ]}
+      >
+        {/* 地球核心 */}
+        <Earth 
+          position={[0, 0, 0]}
+          size={earthInfo.size}
+          lightDirection={lightDirection}
+          tiltDeg={0}
+          yawDeg={0}
+          useTextures={composition.useTextures}
+          lightColor={lightColor}
+          sunIntensity={lightIntensity}
+          terminatorSoftness={composition.terminatorSoftness}
+          nightIntensity={composition.nightIntensity}
+          shininess={composition.shininess}
+          specStrength={composition.specStrength}
+          broadStrength={composition.broadStrength}
+        />
+        
+        {/* 大气效果 */}
+        <AtmosphereEffects
+          earthSize={earthInfo.size}
+          earthY={0}
+          rimStrength={composition.rimStrength}
+          rimWidth={composition.rimWidth}
+          rimRadius={composition.rimRadius}
+          haloWidth={composition.haloWidth}
+          earthGlowStrength={composition.earthGlowStrength}
+          earthGlowHeight={composition.earthGlowHeight}
+          lightDirection={lightDirection}
+        />
+        
+        {/* 云层 */}
+        {composition.useClouds && earthClouds && (
+          <>
+            <Clouds
+              radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
+              texture={earthClouds}
+              position={[0, 0, 0]}
+              yawDeg={composition.cloudYawDeg}
+              pitchDeg={composition.cloudPitchDeg}
+              lightDir={lightDirection}
         lightColor={lightColor}
-        lightIntensity={composition.lightIntensity}
-      />
-
-      {/* Moon */}
-      <SimpleMoon
+              strength={composition.cloudStrength}
+              sunI={lightIntensity}
+              cloudGamma={composition.cloudGamma}
+              cloudBlack={composition.cloudBlack}
+              cloudWhite={composition.cloudWhite}
+              cloudContrast={composition.cloudContrast}
+            />
+            
+            {/* 云层叠加修正 */}
+            <CloudsOverlayFix
+              radius={earthInfo.size * (1.0 + composition.cloudHeight)}
+              strength={0.15}
+              color="#ffffff"
+              position={[0, 0, 0]}
+              lightDir={lightDirection}
+            />
+          </>
+        )}
+      </group>
+      
+      {/* 月球 */}
+      <Moon
+        position={moonInfo.position}
         radius={composition.moonRadius}
-        position={[composition.moonX, composition.moonY, -composition.moonDistance]}
         lightDirection={lightDirection}
+        useTextures={composition.useTextures}
         lightColor={lightColor}
-        lightIntensity={composition.lightIntensity}
+        sunIntensity={lightIntensity}
+        tiltDeg={0}
+        yawDeg={0}
+        latDeg={composition.moonLatDeg}
+        lonDeg={composition.moonLonDeg}
       />
-
-      {/* Stars background */}
-      {composition.useStars && (
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
+      
+      {/* 星空背景 */}
+      {composition.showStars && (
+        composition.useMilkyWay && starsMilky ? (
+          <mesh>
+            <sphereGeometry args={[220, 64, 64]} />
+            <meshBasicMaterial 
+              map={starsMilky}
+              side={THREE.BackSide}
+            />
+          </mesh>
+        ) : (
+          <Stars 
+            radius={120} 
+            depth={60} 
+            count={600} 
+            factor={0.8} 
+            fade 
+            speed={0} 
+            saturation={0} 
+          />
+        )
       )}
-
-      {/* Camera controls */}
+      
+      {/* 相机控制 */}
       {composition.enableControls && (
         <OrbitControls 
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
+          enablePan={false}
           minDistance={3}
-          maxDistance={20}
+          maxDistance={50}
         />
       )}
-    </group>
+    </>
   );
 }
 
-// Control panel component
-function ControlPanel({ 
-  composition, 
-  onChange 
-}: { 
-  composition: SimpleComposition; 
-  onChange: (comp: SimpleComposition) => void;
-}) {
-  const [isVisible, setIsVisible] = React.useState(true);
-
-  if (!isVisible) {
-    return (
-      <button
-        onClick={() => setIsVisible(true)}
-        style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          padding: '8px 16px',
-          background: 'rgba(0,0,0,0.7)',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '12px',
-          zIndex: 1000,
-        }}
-      >
-        Show Controls
-      </button>
-    );
-  }
-
-  return (
-    <div style={{
-      position: 'absolute',
-      top: '10px',
-      left: '10px',
-      background: 'rgba(0,0,0,0.8)',
-      color: 'white',
-      padding: '15px',
-      borderRadius: '8px',
-      fontSize: '12px',
-      maxWidth: '300px',
-      zIndex: 1000,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h3 style={{ margin: 0, fontSize: '14px' }}>Simple Earth-Moon Test</h3>
-        <button
-          onClick={() => setIsVisible(false)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          ×
-        </button>
-      </div>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        {/* Earth controls */}
-        <label>
-          Earth Size: {composition.earthSize.toFixed(1)}
-          <input
-            type="range"
-            min={0.5}
-            max={3.0}
-            step={0.1}
-            value={composition.earthSize}
-            onChange={(e) => onChange({ ...composition, earthSize: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        <label>
-          Earth Y: {composition.earthY.toFixed(1)}
-          <input
-            type="range"
-            min={-2}
-            max={2}
-            step={0.1}
-            value={composition.earthY}
-            onChange={(e) => onChange({ ...composition, earthY: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        {/* Moon controls */}
-        <label>
-          Moon X: {composition.moonX.toFixed(1)}
-          <input
-            type="range"
-            min={-5}
-            max={5}
-            step={0.1}
-            value={composition.moonX}
-            onChange={(e) => onChange({ ...composition, moonX: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        <label>
-          Moon Y: {composition.moonY.toFixed(1)}
-          <input
-            type="range"
-            min={-3}
-            max={3}
-            step={0.1}
-            value={composition.moonY}
-            onChange={(e) => onChange({ ...composition, moonY: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        <label>
-          Moon Distance: {composition.moonDistance.toFixed(1)}
-          <input
-            type="range"
-            min={8}
-            max={20}
-            step={0.5}
-            value={composition.moonDistance}
-            onChange={(e) => onChange({ ...composition, moonDistance: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        <label>
-          Moon Radius: {composition.moonRadius.toFixed(2)}
-          <input
-            type="range"
-            min={0.2}
-            max={1.0}
-            step={0.05}
-            value={composition.moonRadius}
-            onChange={(e) => onChange({ ...composition, moonRadius: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        {/* Light controls */}
-        <label>
-          Light Intensity: {composition.lightIntensity.toFixed(1)}
-          <input
-            type="range"
-            min={0.5}
-            max={3.0}
-            step={0.1}
-            value={composition.lightIntensity}
-            onChange={(e) => onChange({ ...composition, lightIntensity: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-        
-        <label>
-          Light Azimuth: {composition.lightAzimuth}°
-          <input
-            type="range"
-            min={0}
-            max={360}
-            step={15}
-            value={composition.lightAzimuth}
-            onChange={(e) => onChange({ ...composition, lightAzimuth: parseInt(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-        </label>
-      </div>
-      
-      <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <input
-            type="checkbox"
-            checked={composition.useStars}
-            onChange={(e) => onChange({ ...composition, useStars: e.target.checked })}
-          />
-          Stars
-        </label>
-        
-        <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <input
-            type="checkbox"
-            checked={composition.enableControls}
-            onChange={(e) => onChange({ ...composition, enableControls: e.target.checked })}
-          />
-          Controls
-        </label>
-      </div>
-      
-      <button
-        onClick={() => onChange(DEFAULT_COMPOSITION)}
-        style={{
-          marginTop: '10px',
-          width: '100%',
-          padding: '6px',
-          background: '#4a90e2',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
-      >
-        Reset to Default
-      </button>
-    </div>
-  );
-}
-
-// Main SimpleTest component
+// 主测试组件
 export default function SimpleTest() {
-  const [composition, setComposition] = React.useState<SimpleComposition>(DEFAULT_COMPOSITION);
-
-  return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas
-        camera={{ position: [0, 0, 8], fov: 45 }}
-        gl={{ 
-          antialias: true, 
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0 
-        }}
-        dpr={[1, 2]}
-      >
-        <color attach="background" args={['#000011']} />
-        <SceneContent composition={composition} />
-      </Canvas>
-      
-      <ControlPanel 
-        composition={composition} 
-        onChange={setComposition}
-      />
-      
-      {/* Info panel */}
-      <div style={{
-        position: 'absolute',
-        bottom: '10px',
-        right: '10px',
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '10px',
-        borderRadius: '4px',
-        fontSize: '11px',
-        maxWidth: '200px',
-      }}>
-        <div>Simple Earth-Moon Scene Test</div>
-        <div style={{ marginTop: '5px', opacity: 0.7 }}>
-          • Drag to orbit camera<br/>
-          • Scroll to zoom<br/>
-          • Use controls to adjust scene
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Usage example component with presets
-export function SimpleTestWithPresets() {
-  const [currentPreset, setCurrentPreset] = React.useState(0);
+  const [composition, setComposition] = useState<SimpleComposition>(DEFAULT_SIMPLE_COMPOSITION);
+  const [uiHidden, setUiHidden] = useState(false);
   
-  const presets: SimpleComposition[] = [
-    DEFAULT_COMPOSITION,
-    {
-      ...DEFAULT_COMPOSITION,
-      earthSize: 2.2,
-      earthY: -0.8,
-      moonX: 1.8,
-      moonY: 1.8,
-      lightAzimuth: 180,
-      lightElevation: 30,
-    },
-    {
-      ...DEFAULT_COMPOSITION,
-      earthSize: 1.0,
-      earthY: 0,
-      moonX: -3.0,
-      moonY: 0.5,
-      moonDistance: 15,
-      lightAzimuth: 90,
-      lightElevation: 10,
-    }
-  ];
+  // 模拟天文数据
+  const sunEQD = { x: 1, y: 0, z: 0 };
+  const [mode, setMode] = useState<'debug' | 'celestial'>('debug');
+
+  const updateValue = (key: keyof SimpleComposition, value: number | boolean) => {
+    setComposition(prev => ({ ...prev, [key]: value }));
+  };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+    <div className="canvas-wrap">
       <Canvas
-        camera={{ position: [0, 0, 8], fov: 45 }}
+        camera={{ 
+          position: [0, 0, composition.cameraDistance], 
+          fov: 45 
+        }}
+        style={{ background: '#000011' }}
         gl={{ 
           antialias: true, 
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0 
+          toneMappingExposure: composition.exposure 
         }}
-        dpr={[1, 2]}
       >
-        <color attach="background" args={['#000011']} />
-        <SceneContent composition={presets[currentPreset]} />
+        <SceneContent 
+          composition={composition} 
+          mode={mode}
+          sunEQD={sunEQD}
+        />
       </Canvas>
       
-      {/* Preset selector */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '10px',
-        borderRadius: '4px',
-        fontSize: '12px',
-      }}>
-        <div style={{ marginBottom: '8px' }}>Presets:</div>
-        {presets.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentPreset(index)}
-            style={{
-              margin: '2px',
-              padding: '4px 8px',
-              background: currentPreset === index ? '#4a90e2' : 'rgba(255,255,255,0.2)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            {index + 1}
-          </button>
-        ))}
+      {/* 控制面板 - 使用与原版本一致的样式 */}
+      {uiHidden && (
+        <div style={{ position:'absolute', top: 10, left: 10, zIndex: 40 }}>
+          <button className="btn" onClick={()=>setUiHidden(false)}>显示 UI</button>
+        </div>
+      )}
+
+      {!uiHidden && (
+        <div className="panel">
+          {/* 顶部控制栏 */}
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}>
+            <div className="row" style={{ gap: 12 }}>
+              <span className="label">构图模式</span>
+              <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
+                <label>
+                  <input type="radio" name="mode" checked={mode === 'celestial'} onChange={() => setMode('celestial')} /> 天相模式
+                </label>
+                <label>
+                  <input type="radio" name="mode" checked={mode === 'debug'} onChange={() => setMode('debug')} /> 调试模式
+                </label>
+              </div>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn" onClick={() => setComposition(DEFAULT_SIMPLE_COMPOSITION)}>重置默认</button>
+              <button className="btn" onClick={() => setUiHidden(true)}>隐藏 UI</button>
+            </div>
+          </div>
+
+          {/* 地球位置控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">地球上沿位置 (0-1): {composition.earthTopY.toFixed(3)}</label>
+              <input className="input" type="range" min={0.05} max={0.8} step={0.005}
+                     value={composition.earthTopY}
+                     onChange={(e) => updateValue('earthTopY', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">地球大小(占屏): {Math.round((composition.earthSize * 100))}%</label>
+              <input className="input" type="range" min={0.08} max={3.0} step={0.01}
+                     value={composition.earthSize}
+                     onChange={(e) => updateValue('earthSize', parseFloat(e.target.value))} />
+            </div>
+          </div>
+
+          {/* 地球姿态控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">地轴倾角: {composition.earthTiltDeg.toFixed(2)}°</label>
+              <input className="input" type="range" min={-45} max={45} step={0.1}
+                     value={composition.earthTiltDeg}
+                     onChange={(e) => updateValue('earthTiltDeg', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">地球经线对齐(自转角): {composition.earthYawDeg}°</label>
+              <input className="input" type="range" min={-180} max={180} step={1}
+                     value={composition.earthYawDeg}
+                     onChange={(e) => updateValue('earthYawDeg', parseInt(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 月球位置控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">月球距离: {composition.moonDistance.toFixed(1)}</label>
+              <input className="input" type="range" min={3} max={20} step={0.5}
+                     value={composition.moonDistance}
+                     onChange={(e) => updateValue('moonDistance', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">月球半径: {composition.moonRadius.toFixed(2)}</label>
+              <input className="input" type="range" min={0.1} max={1.0} step={0.01}
+                     value={composition.moonRadius}
+                     onChange={(e) => updateValue('moonRadius', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 月球姿态控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">月球纬度调整: {composition.moonLatDeg}°</label>
+              <input className="input" type="range" min={-90} max={90} step={1}
+                     value={composition.moonLatDeg}
+                     onChange={(e) => updateValue('moonLatDeg', parseInt(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">月球经度调整: {composition.moonLonDeg}°</label>
+              <input className="input" type="range" min={-180} max={180} step={1}
+                     value={composition.moonLonDeg}
+                     onChange={(e) => updateValue('moonLonDeg', parseInt(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 光照控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">阳光强度: {composition.sunIntensity.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={6} step={0.05}
+                     value={composition.sunIntensity}
+                     onChange={(e) => updateValue('sunIntensity', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">光照方位角: {composition.lightAzimuth}°</label>
+              <input className="input" type="range" min={0} max={360} step={5}
+                     value={composition.lightAzimuth}
+                     onChange={(e) => updateValue('lightAzimuth', parseInt(e.target.value))} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">光照仰角: {composition.lightElevation}°</label>
+              <input className="input" type="range" min={-90} max={90} step={5}
+                     value={composition.lightElevation}
+                     onChange={(e) => updateValue('lightElevation', parseInt(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">色温: {composition.lightTempK}K</label>
+              <input className="input" type="range" min={2000} max={10000} step={100}
+                     value={composition.lightTempK}
+                     onChange={(e) => updateValue('lightTempK', parseInt(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 地球材质控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">镜面高光: 强度 {Math.round((composition.specStrength * 100))}% · 锐度 {composition.shininess}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={300} step={1}
+                       value={Math.round((composition.specStrength * 100))}
+                       onChange={(e) => updateValue('specStrength', parseFloat(e.target.value) / 100)} />
+                <input className="input" type="range" min={1} max={400} step={1}
+                       value={composition.shininess}
+                       onChange={(e) => updateValue('shininess', parseInt(e.target.value))} />
+              </div>
+            </div>
+            <div className="col">
+              <label className="label">高光铺展: 强度 {Math.round((composition.broadStrength * 100))}%</label>
+              <input className="input" type="range" min={0} max={200} step={1}
+                     value={Math.round((composition.broadStrength * 100))}
+                     onChange={(e) => updateValue('broadStrength', parseFloat(e.target.value) / 100)} />
+            </div>
+          </div>
+          
+          {/* 晨昏线控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">晨昏线柔和度: {composition.terminatorSoftness.toFixed(3)}</label>
+              <input className="input" type="range" min={0} max={0.3} step={0.005}
+                     value={composition.terminatorSoftness}
+                     onChange={(e) => updateValue('terminatorSoftness', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">夜景强度: {composition.nightIntensity.toFixed(1)}</label>
+              <input className="input" type="range" min={0} max={10} step={0.1}
+                     value={composition.nightIntensity}
+                     onChange={(e) => updateValue('nightIntensity', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 大气效果控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">大气弧光: 强度 {composition.rimStrength.toFixed(2)} · 宽度 {composition.rimWidth.toFixed(2)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={2} step={0.01}
+                       value={composition.rimStrength}
+                       onChange={(e) => updateValue('rimStrength', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0} max={0.5} step={0.01}
+                       value={composition.rimWidth}
+                       onChange={(e) => updateValue('rimWidth', parseFloat(e.target.value))} />
+              </div>
+            </div>
+            <div className="col">
+              <label className="label">地球辉光: 强度 {composition.earthGlowStrength.toFixed(2)} · 高度 {composition.earthGlowHeight.toFixed(3)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={1} step={0.01}
+                       value={composition.earthGlowStrength}
+                       onChange={(e) => updateValue('earthGlowStrength', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0.001} max={0.1} step={0.001}
+                       value={composition.earthGlowHeight}
+                       onChange={(e) => updateValue('earthGlowHeight', parseFloat(e.target.value))} />
+              </div>
+            </div>
+          </div>
+          
+          {/* 地球材质控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">地球材质亮度: {composition.earthLightIntensity.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={3} step={0.05}
+                     value={composition.earthLightIntensity}
+                     onChange={(e) => updateValue('earthLightIntensity', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">地球材质色温: {composition.earthLightTempK}K</label>
+              <input className="input" type="range" min={2000} max={10000} step={100}
+                     value={composition.earthLightTempK}
+                     onChange={(e) => updateValue('earthLightTempK', parseInt(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 月球材质控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">月球材质亮度: {composition.moonLightIntensity.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={3} step={0.05}
+                     value={composition.moonLightIntensity}
+                     onChange={(e) => updateValue('moonLightIntensity', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">月球材质色温: {composition.moonLightTempK}K</label>
+              <input className="input" type="range" min={2000} max={10000} step={100}
+                     value={composition.moonLightTempK}
+                     onChange={(e) => updateValue('moonLightTempK', parseInt(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 保存和重置按钮 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <button className="btn" onClick={() => setComposition(DEFAULT_SIMPLE_COMPOSITION)}>
+                重置为默认
+              </button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                localStorage.setItem('simpleComposition', JSON.stringify(composition));
+                alert('参数已保存为默认值！');
+              }}>
+                保存为默认
+              </button>
+            </div>
+          </div>
+          
+          {/* 云层控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">云层强度: {composition.cloudStrength.toFixed(2)} · 高度: {composition.cloudHeight.toFixed(3)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={1} step={0.01}
+                       value={composition.cloudStrength}
+                       onChange={(e) => updateValue('cloudStrength', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0.0005} max={0.03} step={0.0005}
+                       value={composition.cloudHeight}
+                       onChange={(e) => updateValue('cloudHeight', parseFloat(e.target.value))} />
+              </div>
+            </div>
+            <div className="col">
+              <label className="label">云层旋转: 经度 {composition.cloudYawDeg}° · 纬度 {composition.cloudPitchDeg}°</label>
+              <div className="row">
+                <input className="input" type="range" min={-180} max={180} step={1}
+                       value={composition.cloudYawDeg}
+                       onChange={(e) => updateValue('cloudYawDeg', parseInt(e.target.value))} />
+                <input className="input" type="range" min={-90} max={90} step={1}
+                       value={composition.cloudPitchDeg}
+                       onChange={(e) => updateValue('cloudPitchDeg', parseInt(e.target.value))} />
+              </div>
+            </div>
+          </div>
+          
+          {/* 云层材质控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">云层Gamma: {composition.cloudGamma.toFixed(2)} · 对比度: {composition.cloudContrast.toFixed(1)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0.5} max={2} step={0.01}
+                       value={composition.cloudGamma}
+                       onChange={(e) => updateValue('cloudGamma', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0.5} max={2} step={0.1}
+                       value={composition.cloudContrast}
+                       onChange={(e) => updateValue('cloudContrast', parseFloat(e.target.value))} />
+              </div>
+            </div>
+            <div className="col">
+              <label className="label">云层黑点: {composition.cloudBlack.toFixed(2)} · 白点: {composition.cloudWhite.toFixed(2)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={1} step={0.01}
+                       value={composition.cloudBlack}
+                       onChange={(e) => updateValue('cloudBlack', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0} max={1} step={0.01}
+                       value={composition.cloudWhite}
+                       onChange={(e) => updateValue('cloudWhite', parseFloat(e.target.value))} />
+              </div>
+            </div>
+          </div>
+          
+          {/* 相机和曝光控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">曝光: {composition.exposure.toFixed(2)}</label>
+              <input className="input" type="range" min={0.2} max={3.0} step={0.05}
+                     value={composition.exposure}
+                     onChange={(e) => updateValue('exposure', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">相机距离: {composition.cameraDistance.toFixed(1)}</label>
+              <input className="input" type="range" min={3} max={50} step={0.5}
+                     value={composition.cameraDistance}
+                     onChange={(e) => updateValue('cameraDistance', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 显示选项 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <span className="label">显示选项</span>
+              <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
+                <label>
+                  <input type="checkbox" checked={composition.useTextures} onChange={(e) => updateValue('useTextures', e.target.checked)} /> 使用贴图
+                </label>
+                <label>
+                  <input type="checkbox" checked={composition.useClouds} onChange={(e) => updateValue('useClouds', e.target.checked)} /> 显示云层
+                </label>
+                <label>
+                  <input type="checkbox" checked={composition.showStars} onChange={(e) => updateValue('showStars', e.target.checked)} /> 显示星空
+                </label>
+                <label>
+                  <input type="checkbox" checked={composition.useMilkyWay} onChange={(e) => updateValue('useMilkyWay', e.target.checked)} /> 银河星空
+                </label>
+                <label>
+                  <input type="checkbox" checked={false} disabled readOnly /> 相机控制 (已禁用，保持理想构图)
+                </label>
+              </div>
+            </div>
+          </div>
       </div>
+      )}
+
+      {!uiHidden && (
+        <>
+          <div className="credit">视觉基调：极简·低饱和·苹果风（MVP） · 构图：地球下1/3 + 右上小月亮</div>
+          <div className="caption">SimpleTest v2.0 | 地球-月球完整场景测试 | 单光照系统 | 相机锁定保持理想构图</div>
+        </>
+      )}
     </div>
   );
 }

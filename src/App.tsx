@@ -2,6 +2,7 @@ import React from 'react';
 import { EarthMoonScene, type Composition } from '@/scene/Scene';
 import { computeEphemeris, toUTCFromLocal } from '@/astro/ephemeris';
 import * as THREE from 'three';
+import SimpleTest from './SimpleTest';
 
 type FormState = {
   lat: string;
@@ -19,6 +20,13 @@ const DEFAULTS: FormState = {
 
 export default function App() {
   React.useEffect(() => { try { console.log('[App] mounted'); } catch {} }, []);
+  
+  // 检查是否为测试模式
+  const isTestMode = new URLSearchParams(location.search).get('test') === '1';
+  if (isTestMode) {
+    return <SimpleTest />;
+  }
+  
   const [form, setForm] = React.useState<FormState>(DEFAULTS);
   const [ephem, setEphem] = React.useState(() => {
     const utc = toUTCFromLocal(`${DEFAULTS.date}T${DEFAULTS.time}`, parseFloat(DEFAULTS.lon));
