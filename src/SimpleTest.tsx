@@ -11,6 +11,9 @@ import { Moon } from './scenes/simple/components/Moon';
 import { Clouds } from './scenes/simple/components/Clouds';
 import { CloudsOverlayFix } from './scenes/simple/components/Clouds';
 import { AtmosphereEffects } from './scenes/simple/components/AtmosphereEffects';
+import { getEarthState } from './scenes/simple/api/earthState';
+import { createShotRig } from './scenes/simple/api/shotRig';
+import { getMoonPhase } from './scenes/simple/api/moonPhase';
 
 // 场景内容组件
 function SceneContent({ 
@@ -85,6 +88,7 @@ function SceneContent({
           0, 
           THREE.MathUtils.degToRad(composition.earthYawDeg)
         ]}
+        name="earthRoot"
       >
         {/* 地球核心 */}
         <Earth 
@@ -114,7 +118,7 @@ function SceneContent({
           earthGlowStrength={composition.earthGlowStrength}
           earthGlowHeight={composition.earthGlowHeight}
           earthGlowDayNightRatio={composition.earthGlowDayNightRatio}
-          lightDirection={lightDirection}
+        lightDirection={lightDirection}
         />
         
         {/* 云层 */}
@@ -197,14 +201,51 @@ function SceneContent({
   );
 }
 
+// 在Canvas内部按需触发一次对齐，将指定经纬旋到屏幕上沿并居中
+function AlignOnDemand({ tick }: { tick: number }) {
+  const { scene, camera } = useThree();
+  React.useEffect(() => {
+    try {
+      const earth = scene.getObjectByName('earthRoot');
+      if (earth) {
+        const { alignToLatLon } = createShotRig();
+        alignToLatLon(earth as THREE.Object3D, camera, { targetLatDeg: 80, targetLonDeg: 180 });
+      }
+    } catch (err) {
+      console.error('[AlignOnDemand] failed:', err);
+    }
+  }, [tick, scene, camera]);
+  return null;
+}
+
 // 主测试组件
 export default function SimpleTest() {
   const [composition, setComposition] = useState<SimpleComposition>(DEFAULT_SIMPLE_COMPOSITION);
   const [uiHidden, setUiHidden] = useState(false);
+  // 本地时间转 input[type=datetime-local] 的值（不带时区偏移）
+  const toLocalInputValue = (d: Date) => {
+    const tz = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - tz * 60000);
+    return local.toISOString().slice(0, 16);
+  };
+  const [dateISO, setDateISO] = useState(() => toLocalInputValue(new Date()));
+  const [latDeg, setLatDeg] = useState<number>(31.2);   // 上海默认
+  const [lonDeg, setLonDeg] = useState<number>(121.5);
   
   // 模拟天文数据
-  const sunEQD = { x: 1, y: 0, z: 0 };
-  const [mode, setMode] = useState<'debug' | 'celestial'>('debug');
+  const [sunEQD, setSunEQD] = useState<{ x:number; y:number; z:number }>({ x: 1, y: 0, z: 0 });
+  const [mode, setMode] = useState<'debug' | 'celestial'>('celestial');
+  const [alignTick, setAlignTick] = useState(0);
+
+  // 当日期或经纬度变化时，自动计算 sunEQD 以驱动光照（默认工作流）
+  React.useEffect(() => {
+    try {
+      const state = getEarthState(dateISO, latDeg, lonDeg);
+      setSunEQD({ x: state.sunDirEQD.x, y: state.sunDirEQD.y, z: state.sunDirEQD.z });
+    } catch (err) {
+      console.error('[Auto Sun Update] failed:', err);
+    }
+  }, [dateISO, latDeg, lonDeg]);
 
   const updateValue = (key: keyof SimpleComposition, value: number | boolean) => {
     setComposition(prev => ({ ...prev, [key]: value }));
@@ -229,6 +270,7 @@ export default function SimpleTest() {
           mode={mode}
           sunEQD={sunEQD}
         />
+        <AlignOnDemand tick={alignTick} />
       </Canvas>
       
       {/* 控制面板 - 使用与原版本一致的样式 */}
@@ -256,6 +298,50 @@ export default function SimpleTest() {
             <div className="row" style={{ gap: 8 }}>
               <button className="btn" onClick={() => setComposition(DEFAULT_SIMPLE_COMPOSITION)}>重置默认</button>
               <button className="btn" onClick={() => setUiHidden(true)}>隐藏 UI</button>
+      </div>
+    </div>
+
+          {/* 天文与构图 - 新增接口接入 */}
+          <div className="row" style={{ gap: 12, alignItems: 'flex-end', marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">日期时间(本地)</label>
+              <input className="input" type="datetime-local" value={dateISO} onChange={(e)=>setDateISO(e.target.value)} />
+            </div>
+            <div className="col">
+              <label className="label">出生地纬度(°)</label>
+              <input className="input" type="number" step={0.1} value={latDeg}
+                     onChange={(e)=>setLatDeg(parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">出生地经度(°E为正)</label>
+              <input className="input" type="number" step={0.1} value={lonDeg}
+                     onChange={(e)=>setLonDeg(parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                try {
+                  // 显式应用日期并切换为天相模式（若当前是调试模式）
+                  const state = getEarthState(dateISO, latDeg, lonDeg);
+                  setSunEQD({ x: state.sunDirEQD.x, y: state.sunDirEQD.y, z: state.sunDirEQD.z });
+                  setMode('celestial');
+                } catch (err) {
+                  console.error(err);
+                }
+              }}>应用日期/更新光照</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                try {
+                  const phase = getMoonPhase(dateISO, latDeg, lonDeg);
+                  console.log('[MoonPhase]', phase);
+                  alert(`月相明亮比例: ${phase.illumination.toFixed(2)}\n相位角: ${(phase.phaseAngleRad*180/Math.PI).toFixed(1)}°`);
+                } catch (err) {
+                  console.error(err);
+                }
+              }}>计算月相</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => setAlignTick(t=>t+1)}>对齐出生点到 80°N, 180°E 并居中</button>
             </div>
           </div>
 
@@ -490,7 +576,7 @@ export default function SimpleTest() {
                 alert('参数已保存为默认值！');
               }}>
                 保存为默认
-              </button>
+          </button>
             </div>
           </div>
           
