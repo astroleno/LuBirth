@@ -121,6 +121,110 @@ import { EarthMoonScene } from './scene/Scene';
 ### 3. 手动模式
 手动模式允许精确控制光照方向和强度，适合艺术创作和教学演示。
 
+## 🧩 新增接口与接入指南（2024-12-19）
+
+本版本在移除“地球辉光”渲染后，新增了三套可直接调用的接口，分别用于：
+
+- 日期→地球/日月状态（世界系方向向量）
+- 构图对齐：将某经纬度（如出生点）旋到画面上沿并居中（ShotRig）
+- 日期→月相（明亮比例与相位角）
+
+### 1) 日期→地球状态
+
+文件：`src/scenes/simple/api/earthState.ts`
+
+导出：
+
+```ts
+type EarthState = {
+  sunDirEQD: { x: number; y: number; z: number };
+  moonDirEQD: { x: number; y: number; z: number };
+  illumination: number; // 月面明亮比例 0..1
+};
+
+function getEarthState(localISO: string, latDeg: number, lonDeg: number): EarthState;
+```
+
+说明：
+- 传入“本地时间字符串（形如 YYYY-MM-DDTHH:mm）+ 观察者经纬度”，自动换算为 UTC 并调用 `astronomy-engine`，返回世界系（EQD）中的太阳/日月方向向量（已归一化）与月相明亮比例。
+- 这些向量可直接用于单光照系统（如 `directionalLight` 的方向或材质 uniform）。
+
+使用示例：
+
+```ts
+import { getEarthState } from '@/scenes/simple/api/earthState';
+
+const state = getEarthState('2024-12-19T12:00', 31.2, 121.5);
+// state.sunDirEQD 可直接作为光照方向来源
+```
+
+### 2) 构图对齐 ShotRig（将经纬度旋到屏幕上沿并居中）
+
+文件：`src/scenes/simple/api/shotRig.ts`
+
+导出：
+
+```ts
+type ShotRigParams = { targetLatDeg: number; targetLonDeg: number };
+
+function createShotRig(): {
+  rig: THREE.Group;
+  alignToLatLon: (earth: THREE.Object3D, camera: THREE.Camera, params: ShotRigParams) => void;
+};
+```
+
+说明：
+- 两步四元数对齐：先把目标地面法线旋到世界 +Y（画面上沿），再绕世界 +Y 旋转，使经线指向屏幕正前，从而保证“目标经纬位于画面上沿且地球居中”。
+- 适用于一键“出生点→80°N, 180°E 并居中”的构图需求。
+
+使用示例：
+
+```ts
+import { createShotRig } from '@/scenes/simple/api/shotRig';
+
+const { rig, alignToLatLon } = createShotRig();
+// 假设 earthMesh 是地球根节点对象，camera 为主相机
+alignToLatLon(earthMesh, camera, { targetLatDeg: 80, targetLonDeg: 180 });
+```
+
+### 3) 日期→月相
+
+文件：`src/scenes/simple/api/moonPhase.ts`
+
+导出：
+
+```ts
+type MoonPhaseInfo = {
+  illumination: number;     // 0..1 明亮比例
+  phaseAngleRad: number;    // 相位角（弧度）
+};
+
+function getMoonPhase(localISO: string, latDeg: number, lonDeg: number): MoonPhaseInfo;
+```
+
+说明：
+- 基于 `astronomy-engine` 的太阳/月球几何关系计算得到月相；明亮比例与相位角可直接驱动 UI 或材质参数。
+
+使用示例：
+
+```ts
+import { getMoonPhase } from '@/scenes/simple/api/moonPhase';
+
+const phase = getMoonPhase('2024-12-19T12:00', 31.2, 121.5);
+// phase.illumination / phase.phaseAngleRad
+```
+
+### 4) 接入主程序建议
+
+在 `SimpleTest.tsx` 中：
+- 使用 `getEarthState()` 更新光照方向（例如保存到 `sunEQD` 状态后传入 `useLightDirection`）。
+- 提供按钮调用 `createShotRig().alignToLatLon(earth, camera, { targetLatDeg: 80, targetLonDeg: 180 })` 完成一键构图。
+- 使用 `getMoonPhase()` 将 `illumination/phaseAngle` 同步到 UI，或透传给月球材质以控制明暗过渡与高光。
+
+### 5) 变更说明
+
+- 按需求“完全移除地球辉光渲染”。保留大气弧光与近表面软光晕。UI 如需同步隐藏辉光滑条，可在 `SimpleTest.tsx` 去除对应控件。
+
 ## 🎯 迁移说明
 
 ### 从原项目迁移的优势
