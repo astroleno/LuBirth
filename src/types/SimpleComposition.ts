@@ -32,6 +32,7 @@ export interface SimpleComposition {
   haloWidth: number;           // 近表面halo宽度
   earthGlowStrength: number;   // 地球辉光强度
   earthGlowHeight: number;     // 地球辉光高度
+  earthGlowDayNightRatio: number; // 地球辉光日侧夜侧对比度 (0=无对比, 1=完全对比)
   
   // 地球材质控制
   earthLightIntensity: number; // 地球材质亮度
@@ -97,6 +98,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   haloWidth: 0.01,             // 近表面halo宽度
   earthGlowStrength: 0.8,      // 地球辉光强度 (调整到更明显的值)
   earthGlowHeight: 0.05,       // 地球辉光高度 (调整到更明显的值)
+  earthGlowDayNightRatio: 0.5, // 地球辉光日侧夜侧对比度 (0=无对比, 1=完全对比)
   
   // 地球材质控制
   earthLightIntensity: 1.0,    // 地球材质亮度
@@ -163,6 +165,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     haloWidth: original.haloWidth ?? DEFAULT_SIMPLE_COMPOSITION.haloWidth,
     earthGlowStrength: original.earthGlowStrength ?? DEFAULT_SIMPLE_COMPOSITION.earthGlowStrength,
     earthGlowHeight: original.earthGlowHeight ?? DEFAULT_SIMPLE_COMPOSITION.earthGlowHeight,
+    earthGlowDayNightRatio: original.earthGlowDayNightRatio ?? DEFAULT_SIMPLE_COMPOSITION.earthGlowDayNightRatio,
     
     // 地球材质控制
     earthLightIntensity: original.earthLightIntensity ?? DEFAULT_SIMPLE_COMPOSITION.earthLightIntensity,

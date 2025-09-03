@@ -6,12 +6,12 @@ interface AtmosphereEffectsProps {
   earthY: number;
   rimStrength: number;
   rimWidth: number;
+  rimRadius: number;
+  haloWidth: number;
   earthGlowStrength: number;
   earthGlowHeight: number;
+  earthGlowDayNightRatio: number;
   lightDirection: THREE.Vector3;
-  // 新增：原版本的精细控制参数
-  rimRadius?: number;
-  haloWidth?: number;
 }
 
 // 大气效果组件 - 完整移植rimMaterial和earthGlowMaterial，移除分层渲染
@@ -20,12 +20,12 @@ export function AtmosphereEffects({
   earthY,
   rimStrength,
   rimWidth,
+  rimRadius,
+  haloWidth,
   earthGlowStrength,
   earthGlowHeight,
-  lightDirection,
-  // 新增：原版本的精细控制参数
-  rimRadius = 0.002,
-  haloWidth = 0.006
+  earthGlowDayNightRatio,
+  lightDirection
 }: AtmosphereEffectsProps) {
   // 定向大气弧光（依光照方向 + Fresnel）- 完整移植自原Scene.tsx
   const rimMaterial = useMemo(() => {
@@ -70,24 +70,26 @@ export function AtmosphereEffects({
     });
   }, [lightDirection, rimStrength, rimWidth]);
 
-  // 地光（径向渐变）：从地表向外逐渐消失，受"高度/强度"控制 - 完整移植自原Scene.tsx
+  // 地光（圆环辉光）：从地球表面向外扩散的发光圆环
   const earthGlowMaterial = useMemo(() => {
     const material = new THREE.ShaderMaterial({
       uniforms: {
         strength: { value: earthGlowStrength },
         color: { value: new THREE.Color('#6ea6ff') },
         center: { value: new THREE.Vector3(0, earthY, 0) },
-        innerR: { value: earthSize },
-        outerR: { value: earthSize * (1.0 + earthGlowHeight) },
+        earthRadius: { value: earthSize },
+        glowHeight: { value: earthGlowHeight },
+        dayNightRatio: { value: earthGlowDayNightRatio },
         lightDir: { value: new THREE.Vector3(lightDirection.x, lightDirection.y, lightDirection.z) },
       },
       vertexShader: `
         varying vec3 vPosW; 
-        varying vec3 vViewW;
+        varying vec3 vNormal;
+        
         void main(){
           vec4 wp = modelMatrix * vec4(position,1.0);
           vPosW = wp.xyz;
-          vViewW = normalize(cameraPosition - wp.xyz);
+          vNormal = normalize(normalMatrix * normal);
           gl_Position = projectionMatrix * viewMatrix * wp;
         }
       `,
@@ -95,39 +97,41 @@ export function AtmosphereEffects({
         uniform float strength; 
         uniform vec3 color; 
         uniform vec3 center; 
-        uniform float innerR; 
-        uniform float outerR; 
+        uniform float earthRadius; 
+        uniform float glowHeight; 
+        uniform float dayNightRatio;
         uniform vec3 lightDir;
         varying vec3 vPosW; 
-        varying vec3 vViewW;
-        // 日侧边缘地光：仅在日侧边缘高亮，向外径向渐隐
+        varying vec3 vNormal;
+        
         void main(){
-          // 方向与边缘
-          vec3 n = normalize(vPosW - center);            // 地表外法线
-          float fres = pow(1.0 - max(dot(n, normalize(vViewW)), 0.0), 1.5); // 降低Fresnel指数，增强效果
+          // 1. 圆环辉光：基于视线方向创建圆环效果
+          vec3 viewDir = normalize(cameraPosition - vPosW);
+          vec3 toCenter = normalize(vPosW - center);
           
-          // 日侧权重：只在日侧起效，并在日侧中心逐步抑制，强调边缘
-          float day = max(dot(n, normalize(lightDir)), 0.0);
-          float w1 = smoothstep(0.01, 0.15, day);        // 更早开始日侧权重
-          float w2 = 1.0 - smoothstep(0.6, 0.9, day);    // 更晚抑制中心
-          float dayEdge = clamp(w1 * w2, 0.0, 1.0);
-          float limb = fres * dayEdge;
-
-          // 径向渐隐（屏幕环带）：基于"视线到球心的最近距离"映射 annulus [innerR..outerR]
-          vec3 ro = cameraPosition;
-          vec3 rd = normalize(vPosW - cameraPosition);
-          vec3 oc = ro - center;
-          float b2 = dot(oc - rd * dot(oc, rd), oc - rd * dot(oc, rd));
-          float b = sqrt(max(b2, 0.0));
-          float t = clamp((b - innerR) / max(outerR - innerR, 1e-3), 0.0, 1.0);
-          float radial = pow(1.0 - t, 1.8); // 降低径向衰减指数，增强效果
-
-          // 物理规律：日侧亮，夜侧暗
-          float physicalWeight = smoothstep(0.0, 0.25, day); // 更早开始日侧权重
+          // 计算视线与地球表面的切点距离
+          float viewDotCenter = dot(viewDir, toCenter);
+          float distanceFromSurface = length(vPosW - center) - earthRadius;
           
-          // 增强整体效果
-          float a = strength * limb * radial * physicalWeight * 1.5; // 乘以1.5增强效果
-          gl_FragColor = vec4(color * a, a);
+          // 圆环效果：在视线切点附近产生辉光
+          float ringEffect = 1.0 - smoothstep(0.0, glowHeight, distanceFromSurface);
+          
+          // 2. 日侧夜侧对比
+          vec3 n = normalize(vPosW - center);
+          float dayWeight = max(dot(n, normalize(lightDir)), 0.0);
+          float dayNightContrast = mix(1.0, smoothstep(0.0, 0.3, dayWeight), dayNightRatio);
+          
+          // 3. 边缘增强：在圆环边缘产生更强的辉光
+          float edgeEnhance = 1.0 - smoothstep(0.0, glowHeight * 0.5, distanceFromSurface);
+          
+          // 4. 组合效果：圆环辉光 × 日侧夜侧对比 × 边缘增强
+          float alpha = strength * ringEffect * dayNightContrast * edgeEnhance;
+          
+          // 确保最小可见性
+          alpha = max(alpha, 0.1);
+          alpha = min(alpha, 1.0);
+          
+          gl_FragColor = vec4(color * alpha, alpha);
         }
       `,
       transparent: true,
@@ -135,8 +139,19 @@ export function AtmosphereEffects({
       blending: THREE.AdditiveBlending,
       side: THREE.FrontSide,
     });
+    
+    // 调试信息
+    console.log('[AtmosphereEffects] 创建地球圆环辉光材质:', {
+      strength: earthGlowStrength,
+      height: earthGlowHeight,
+      dayNightRatio: earthGlowDayNightRatio,
+      earthSize,
+      earthRadius: earthSize,
+      glowHeight: earthGlowHeight
+    });
+    
     return material;
-  }, [earthGlowStrength, earthGlowHeight, earthSize, earthY, lightDirection]);
+  }, [earthGlowStrength, earthGlowHeight, earthGlowDayNightRatio, earthSize, earthY, lightDirection]);
 
   // 更新着色器uniforms
   useEffect(() => {
@@ -189,7 +204,7 @@ export function AtmosphereEffects({
         </mesh>
       )}
       
-      {/* 地球辉光 (径向渐隐) */}
+      {/* 地球辉光 (真正的渐变消失) */}
       {earthGlowStrength > 0 && earthGlowHeight > 0 && (
         <mesh>
           <sphereGeometry args={[earthSize * (1.0 + earthGlowHeight), 72, 72]} />

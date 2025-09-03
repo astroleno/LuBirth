@@ -113,6 +113,7 @@ function SceneContent({
           haloWidth={composition.haloWidth}
           earthGlowStrength={composition.earthGlowStrength}
           earthGlowHeight={composition.earthGlowHeight}
+          earthGlowDayNightRatio={composition.earthGlowDayNightRatio}
           lightDirection={lightDirection}
         />
         
@@ -403,15 +404,43 @@ export default function SimpleTest() {
                        onChange={(e) => updateValue('rimWidth', parseFloat(e.target.value))} />
               </div>
             </div>
-            <div className="col">
-              <label className="label">地球辉光: 强度 {composition.earthGlowStrength.toFixed(2)} · 高度 {composition.earthGlowHeight.toFixed(3)}</label>
-              <div className="row">
-                <input className="input" type="range" min={0} max={1} step={0.01}
-                       value={composition.earthGlowStrength}
-                       onChange={(e) => updateValue('earthGlowStrength', parseFloat(e.target.value))} />
-                <input className="input" type="range" min={0.001} max={0.1} step={0.001}
-                       value={composition.earthGlowHeight}
-                       onChange={(e) => updateValue('earthGlowHeight', parseFloat(e.target.value))} />
+            {/* 地球辉光控制 */}
+            <div className="row" style={{ marginBottom: 20, padding: '12px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="col" style={{ flex: 1, marginRight: 16 }}>
+                <div className="label" style={{ marginBottom: 8, fontSize: '14px', fontWeight: 500 }}>地球辉光: 强度</div>
+                <input
+                  type="range"
+                  min={0} max={3} step={0.01}
+                  value={composition.earthGlowStrength}
+                  onChange={(e) => updateValue('earthGlowStrength', parseFloat(e.target.value))}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+                <span style={{ fontSize: '12px', opacity: 0.8 }}>{composition.earthGlowStrength.toFixed(2)}</span>
+              </div>
+              <div className="col" style={{ flex: 1, marginRight: 16 }}>
+                <div className="label" style={{ marginBottom: 8, fontSize: '14px', fontWeight: 500 }}>高度</div>
+                <input
+                  type="range"
+                  min={0.001} max={0.2} step={0.001}
+                  value={composition.earthGlowHeight}
+                  onChange={(e) => updateValue('earthGlowHeight', parseFloat(e.target.value))}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+                <span style={{ fontSize: '12px', opacity: 0.8 }}>{composition.earthGlowHeight.toFixed(3)}</span>
+              </div>
+              <div className="col" style={{ flex: 1 }}>
+                <div className="label" style={{ marginBottom: 8, fontSize: '14px', fontWeight: 500 }}>日侧夜侧对比</div>
+                <input
+                  type="range"
+                  min={0} max={1} step={0.01}
+                  value={composition.earthGlowDayNightRatio}
+                  onChange={(e) => updateValue('earthGlowDayNightRatio', parseFloat(e.target.value))}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+                <span style={{ fontSize: '12px', opacity: 0.8 }}>{composition.earthGlowDayNightRatio.toFixed(2)}</span>
               </div>
             </div>
           </div>
