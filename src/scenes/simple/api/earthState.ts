@@ -11,9 +11,19 @@ export type EarthState = {
 
 // 根据本地时间字符串与经纬度，计算地球相关的世界系状态
 // localISO 例如 '2000-01-01T12:00'
-export function getEarthState(localISO: string, latDeg: number, lonDeg: number): EarthState {
+export type TimeInterpretation = 'byLongitude' | 'bySystem';
+
+// 根据时间解释模式计算天文状态
+export function getEarthState(
+  localISO: string,
+  latDeg: number,
+  lonDeg: number,
+  timeMode: TimeInterpretation = 'byLongitude'
+): EarthState {
   try {
-    const utc = toUTCFromLocal(localISO, lonDeg);
+    const utc = timeMode === 'byLongitude'
+      ? toUTCFromLocal(localISO, lonDeg)
+      : new Date(localISO); // 直接按系统本地时间解释
     const eph = computeEphemeris(utc, latDeg, lonDeg);
     return {
       sunDirWorld: eph.sunWorld,

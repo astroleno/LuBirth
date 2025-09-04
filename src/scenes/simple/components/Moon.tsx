@@ -75,22 +75,16 @@ export function Moon({
   return (
     <mesh 
       position={position}
-      rotation={[
-        THREE.MathUtils.degToRad(tiltDeg),
-        THREE.MathUtils.degToRad(yawDeg),
-        0
-      ]}
+      // 🔧 关键修复：移除rotation prop，避免与四元数旋转冲突
+      // 月球旋转现在完全由position控制
     >
       <sphereGeometry args={[radius, 64, 64]} />
       <primitive object={moonMaterial} attach="material" />
       
       {/* 月球经纬度调整 - 贴图对齐 */}
       <group
-        rotation={[
-          THREE.MathUtils.degToRad(latDeg),
-          THREE.MathUtils.degToRad(lonDeg),
-          0
-        ]}
+        // 🔧 关键修复：移除rotation prop，避免与四元数旋转冲突
+        // 月球贴图对齐现在通过position计算
       >
         {/* 月球表面细节可以在这里添加 */}
       </group>

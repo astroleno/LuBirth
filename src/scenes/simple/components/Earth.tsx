@@ -221,11 +221,8 @@ export function Earth({
   return (
     <group 
       position={position} 
-      rotation={[
-        THREE.MathUtils.degToRad(tiltDeg), 
-        0, 
-        THREE.MathUtils.degToRad(yawDeg)
-      ]}
+      // 🔧 关键修复：移除rotation prop，避免与四元数旋转冲突
+      // 地球旋转现在完全由earthRoot的四元数控制
     >
       {/* 地球核心 */}
       <mesh>

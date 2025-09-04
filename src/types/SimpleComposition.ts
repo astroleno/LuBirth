@@ -2,7 +2,7 @@
 export interface SimpleComposition {
   // 地球参数
   earthSize: number;           // 地球大小
-  earthTiltDeg: number;        // 地球倾角
+  earthTiltDeg: number;        // 地球倾角（固定为0，我们转阳光）
   earthYawDeg: number;         // 地球自转角
   earthTopY: number;           // 地球上沿位置 (0-1)
   
@@ -68,7 +68,7 @@ export interface SimpleComposition {
 export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 地球参数
   earthSize: 0.33,             // 占屏33%
-  earthTiltDeg: 23.44,         // 地球实际倾角
+  earthTiltDeg: 0,             // 固定为0（我们转阳光，不再可调）
   earthYawDeg: 0,              // 自转角
   earthTopY: 0.333,            // 地球下1/3位置
   
@@ -133,11 +133,11 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
 // 从原始Composition转换为SimpleComposition
 export function convertToSimpleComposition(original: any): SimpleComposition {
   return {
-    // 地球参数
-    earthSize: original.earthSize ?? DEFAULT_SIMPLE_COMPOSITION.earthSize,
-    earthTiltDeg: original.earthTiltDeg ?? DEFAULT_SIMPLE_COMPOSITION.earthTiltDeg,
-    earthYawDeg: original.earthYawDeg ?? DEFAULT_SIMPLE_COMPOSITION.earthYawDeg,
-    earthTopY: original.earthTopY ?? DEFAULT_SIMPLE_COMPOSITION.earthTopY,
+      // 地球参数
+  earthSize: original.earthSize ?? DEFAULT_SIMPLE_COMPOSITION.earthSize,
+  earthTiltDeg: 0, // 🔧 关键修复：始终为0，避免与阳光旋转冲突
+  earthYawDeg: original.earthYawDeg ?? DEFAULT_SIMPLE_COMPOSITION.earthYawDeg,
+  earthTopY: original.earthTopY ?? DEFAULT_SIMPLE_COMPOSITION.earthTopY,
     
     // 月球参数
     moonDistance: original.moonDistance ?? DEFAULT_SIMPLE_COMPOSITION.moonDistance,

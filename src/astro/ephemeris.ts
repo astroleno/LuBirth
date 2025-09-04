@@ -1,14 +1,5 @@
-import {
-  AstroTime,
-  Body,
-  GeoVector,
-  Observer,
-  ObserverVector,
-  RotateVector,
-  Rotation_EQJ_EQD,
-  Vector,
-  Horizon
-} from 'astronomy-engine';
+import { AstroTime, Body, Observer, Equator as EquatorFn, Horizon as HorizonFn } from 'astronomy-engine';
+import { logger } from '../utils/logger';
 
 // 导入验证函数
 import { validateAstronomicalConstants, validatePhysicalLimits, validateSeasonalConsistency } from './constants';
@@ -123,7 +114,7 @@ function solarAltAz(dateUtc: Date, latDeg: number, lonDeg: number) {
   // 时角 = 当地恒星时 - 太阳赤经
   let H = theta - alpha;  // 时角
   
-  // 确保时角在-180到+180度范围内（标准天文做法）
+  // 🔧 关键修复：确保时角在-180到+180度范围内（标准天文做法）
   while (H > Math.PI) H -= 2 * Math.PI;
   while (H < -Math.PI) H += 2 * Math.PI;
   
@@ -148,7 +139,7 @@ function solarAltAz(dateUtc: Date, latDeg: number, lonDeg: number) {
   const cosAz = (Math.sin(delta) - Math.sin(φ) * Math.sin(altitude)) / (Math.cos(φ) * Math.cos(altitude));
   let azimuth = Math.atan2(sinAz, cosAz);
   
-  // 方位角转换为0-360度范围（0°=北，顺时针）
+  // 🔧 关键修复：方位角转换为0-360度范围（0°=北，顺时针）
   if (azimuth < 0) azimuth += 2 * Math.PI;
   
   // 调试信息
@@ -202,28 +193,108 @@ function enuToECEF(enu: {x:number;y:number;z:number}, latDeg: number, lonDeg: nu
   };
 }
 
+// 新实现：更正恒星时/时角的太阳高度/方位角计算（修复GMST/LST）
+function solarAltAz2(dateUtc: Date, latDeg: number, lonDeg: number) {
+  const phi = latDeg * Math.PI / 180;
+  // 1) 儒略日/世纪
+  const jd = dateToJulianDay(dateUtc);
+  const T = (jd - 2451545.0) / 36525.0;
+  // 2) 太阳平黄经/近点角
+  const L0 = (280.46646 + T * (36000.76983 + T * 0.0003032)) % 360;
+  const M = (357.52911 + T * (35999.05029 - T * 0.0001537)) % 360;
+  const Mrad = M * Math.PI / 180;
+  // 3) 椭圆轨道修正
+  const C = (1.914602 - T * (0.004817 + T * 0.000014)) * Math.sin(Mrad)
+          + (0.019993 - T * 0.000101) * Math.sin(2 * Mrad)
+          + 0.000289 * Math.sin(3 * Mrad);
+  // 4) 真黄经与黄赤交角
+  const L = (L0 + C) % 360;
+  const Lrad = L * Math.PI / 180;
+  const epsilon = (23.439291 - 0.0130042 * T) * Math.PI / 180;
+  // 5) 赤经/赤纬
+  const alpha = Math.atan2(Math.cos(epsilon) * Math.sin(Lrad), Math.cos(Lrad));
+  const delta = Math.asin(Math.sin(epsilon) * Math.sin(Lrad));
+  // 6) 恒星时（度）与时角 - 使用更精确的GMST公式
+  const D = jd - 2451545.0;
+  // 🔧 使用更精确的GMST公式：280.46061837 + 360.98564736629·D
+  let theta0Deg = 280.46061837 + 360.98564736629 * D;
+  theta0Deg = ((theta0Deg % 360) + 360) % 360;
+  let lstDeg = theta0Deg + lonDeg;
+  lstDeg = ((lstDeg % 360) + 360) % 360;
+  let H = (lstDeg * Math.PI / 180) - alpha;
+  while (H > Math.PI) H -= 2 * Math.PI;
+  while (H < -Math.PI) H += 2 * Math.PI;
+  // 调试：打印关键天文量
+  logger.log('solarAltAz2/key', {
+    GMST_deg: +theta0Deg.toFixed(2),
+    LST_deg: +lstDeg.toFixed(2),
+    H_deg: +(H * 180 / Math.PI).toFixed(2),
+    ra_deg: +(alpha * 180 / Math.PI).toFixed(2),
+    dec_deg: +(delta * 180 / Math.PI).toFixed(2)
+  });
+  // 7) 地平坐标（矢量法，确保方位角以北为0°顺时针增加）
+  const x_east = Math.cos(delta) * Math.sin(H);
+  const y_north = Math.cos(phi) * Math.sin(delta) - Math.sin(phi) * Math.cos(delta) * Math.cos(H);
+  const z_up = Math.sin(phi) * Math.sin(delta) + Math.cos(phi) * Math.cos(delta) * Math.cos(H);
+  const altitude = Math.asin(Math.max(-1, Math.min(1, z_up)));
+  let az = Math.atan2(x_east, y_north); // 0=北, 90=东, 180=南, 270=西
+  if (az < 0) az += 2 * Math.PI;
+  const azDeg = az * 180 / Math.PI;
+  const altDeg = altitude * 180 / Math.PI;
+  const res = { azDeg, altDeg };
+  logger.log('solarAltAz2/altaz', {
+    alt_deg: +altDeg.toFixed(2),
+    az_deg: +azDeg.toFixed(2),
+    lat_deg: +latDeg.toFixed(2),
+    lon_deg: +lonDeg.toFixed(2)
+  });
+  return res;
+}
+
+// 更稳健：使用 astronomy-engine 直接计算地平坐标（优先使用）
+function solarAltAzEngine(dateUtc: Date, latDeg: number, lonDeg: number) {
+  try {
+    const t = new AstroTime(dateUtc);
+    const obs = new (Observer as unknown as { new(lat:number, lon:number, height:number): Observer })(latDeg, lonDeg, 0);
+    // 先计算太阳的赤道坐标（对日期的RA/DEC，含像差）
+    const equator = (EquatorFn as unknown as (body: Body, time: AstroTime, observer?: Observer, ofdate?: boolean, aberration?: boolean) => any)(Body.Sun, t, obs, true, true);
+    const ra = equator.ra as number;
+    const dec = equator.dec as number;
+    // 再从RA/DEC 转为地平坐标 Alt/Az
+    const horizon = (HorizonFn as unknown as (time: AstroTime, obs: Observer, ra: number, dec: number, refraction: string) => any)(t, obs, ra, dec, 'normal');
+    const azDeg = ((horizon.azimuth % 360) + 360) % 360;
+    const altDeg = horizon.altitude as number;
+    logger.log('solarAltAzEngine/altaz', { alt_deg: +altDeg.toFixed(2), az_deg: +azDeg.toFixed(2) });
+    return { azDeg, altDeg };
+  } catch (e) {
+    logger.warn('solarAltAzEngine/fallback', String(e));
+    return solarAltAz2(dateUtc, latDeg, lonDeg);
+  }
+}
+
 export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephemeris {
   // 验证天文常数
   if (!validateAstronomicalConstants()) {
     console.error('[computeEphemeris] 天文常数验证失败');
   }
   
-  console.log(`[computeEphemeris] ${dateUtc.toISOString()} at ${lat}°N,${lon}°E:`);
+  logger.log('computeEphemeris/begin', { utc: dateUtc.toISOString(), lat, lon });
   
   // === 标准化天文学坐标转换算法 ===
   // 基于advice建议的稳定坐标转换链：Alt/Az → ENU → ECEF → World
   
   // 1. 标准太阳高度角/方位角计算
-  const { azDeg, altDeg } = solarAltAz(dateUtc, lat, lon);
-  console.log(`  Solar position: az=${azDeg.toFixed(1)}°, alt=${altDeg.toFixed(1)}°`);
+  // 使用 astronomy-engine（优先），失败时回退本地实现
+  const { azDeg, altDeg } = solarAltAzEngine(dateUtc, lat, lon);
+  logger.log('computeEphemeris/altaz', { az_deg: +azDeg.toFixed(1), alt_deg: +altDeg.toFixed(1) });
   
   // 2. 转为ENU本地坐标系
   const sunENU = altAzToENU(azDeg, altDeg);
-  console.log(`  Sun ENU: [${sunENU.x.toFixed(3)}, ${sunENU.y.toFixed(3)}, ${sunENU.z.toFixed(3)}]`);
+  logger.log('computeEphemeris/sunENU', { x: +sunENU.x.toFixed(3), y: +sunENU.y.toFixed(3), z: +sunENU.z.toFixed(3) });
   
   // 3. ENU → ECEF（地心地固坐标系）
   const sunECEF = enuToECEF(sunENU, lat, lon);
-  console.log(`  Sun ECEF: [${sunECEF.x.toFixed(3)}, ${sunECEF.y.toFixed(3)}, ${sunECEF.z.toFixed(3)}]`);
+  logger.log('computeEphemeris/sunECEF', { x: +sunECEF.x.toFixed(3), y: +sunECEF.y.toFixed(3), z: +sunECEF.z.toFixed(3) });
   
   // 4. ECEF即为我们的世界坐标系（目前不施加构图旋转）
   const sunWorld = { ...sunECEF };
@@ -257,7 +328,7 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
   const phaseAngle = Math.acos(Math.min(1, Math.max(-1, cosPhase)));
   const illumination = (1 + Math.cos(phaseAngle)) / 2;
   
-  console.log(`  Sun world direction: [${sunWorld.x.toFixed(3)}, ${sunWorld.y.toFixed(3)}, ${sunWorld.z.toFixed(3)}]`);
+  logger.log('computeEphemeris/sunWorld', { x: +sunWorld.x.toFixed(3), y: +sunWorld.y.toFixed(3), z: +sunWorld.z.toFixed(3) });
   
   return {
     time: dateUtc,

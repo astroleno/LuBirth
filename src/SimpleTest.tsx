@@ -11,8 +11,9 @@ import { Moon } from './scenes/simple/components/Moon';
 import { Clouds } from './scenes/simple/components/Clouds';
 import { CloudsOverlayFix } from './scenes/simple/components/Clouds';
 import { AtmosphereEffects } from './scenes/simple/components/AtmosphereEffects';
-import { getEarthState } from './scenes/simple/api/earthState';
-import { createShotRig } from './scenes/simple/api/shotRig';
+import { getEarthState, type TimeInterpretation } from './scenes/simple/api/earthState';
+import { logger } from './utils/logger';
+import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
 
 // 场景内容组件
@@ -47,30 +48,30 @@ function SceneContent({
     starsMilky
   } = useTextureLoader(composition);
   
-  // 调试信息
+  // 调试信息（统一经 logger 输出）
   React.useEffect(() => {
-    if (new URLSearchParams(location.search).get('debug') === '1') {
-      console.log('[SimpleTest] Scene initialized:', {
-        mode,
-        lightDirection: lightDirection.toArray(),
-        lightColor: lightColor.getHexString(),
-        lightIntensity,
-        earthPosition: earthInfo.position,
-        earthSize: earthInfo.size,
-        moonPosition: moonInfo.position,
-        moonDistance: moonInfo.distance,
-        composition
-      });
-    }
+    if (!logger.isEnabled()) return;
+    logger.log('scene/init', {
+      mode,
+      lightDirection: lightDirection.toArray(),
+      lightColor: lightColor.getHexString(),
+      lightIntensity,
+      earthPosition: earthInfo.position,
+      earthSize: earthInfo.size,
+      moonPosition: moonInfo.position,
+      moonDistance: moonInfo.distance,
+      composition
+    });
   }, [mode, lightDirection, lightColor, lightIntensity, earthInfo, moonInfo, composition]);
 
   // 光照方向变化监听
   React.useEffect(() => {
-    console.log('[SceneContent] Light direction updated:', {
-      direction: lightDirection.toArray(),
-      position: [lightDirection.x * 50, lightDirection.y * 50, lightDirection.z * 50],
+    if (!logger.isEnabled()) return;
+    logger.log('lighting/updated', {
+      dir: lightDirection.toArray(),
+      pos: [lightDirection.x * 50, lightDirection.y * 50, lightDirection.z * 50],
       mode,
-      timestamp: new Date().toLocaleTimeString()
+      t: new Date().toISOString()
     });
   }, [lightDirection, mode]);
 
@@ -93,12 +94,9 @@ function SceneContent({
       {/* 地球组 */}
       <group 
         position={earthInfo.position}
-        rotation={[
-          THREE.MathUtils.degToRad(composition.earthTiltDeg), 
-          0, 
-          THREE.MathUtils.degToRad(composition.earthYawDeg)
-        ]}
         name="earthRoot"
+        // 🔧 关键修复：不使用rotation prop，完全通过四元数控制旋转
+        // 这样可以避免与alignLongitudeOnly的四元数操作冲突
       >
         {/* 地球核心 */}
         <Earth 
@@ -211,20 +209,23 @@ function SceneContent({
   );
 }
 
-// 在Canvas内部按需触发一次对齐，将指定经纬旋到屏幕上沿并居中
-function AlignOnDemand({ tick }: { tick: number }) {
+// 🔧 关键修复：在Canvas内部按需触发一次对齐，将指定经度旋到屏幕中心
+// 只依赖tick避免重复对齐，不依赖latDeg/lonDeg避免叠加旋转
+function AlignOnDemand({ tick, latDeg, lonDeg }: { tick: number; latDeg: number; lonDeg: number }) {
   const { scene, camera } = useThree();
   React.useEffect(() => {
     try {
       const earth = scene.getObjectByName('earthRoot');
       if (earth) {
-        const { alignToLatLon } = createShotRig();
-        alignToLatLon(earth as THREE.Object3D, camera, { targetLatDeg: 80, targetLonDeg: 180 });
+        if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg });
+        alignLongitudeOnly(earth as THREE.Object3D, camera, lonDeg);
+      } else {
+        if (logger.isEnabled()) logger.warn('align/earthRoot-missing');
       }
     } catch (err) {
-      console.error('[AlignOnDemand] failed:', err);
+      if (logger.isEnabled()) logger.error('align/fail', String(err));
     }
-  }, [tick, scene, camera]);
+  }, [tick]); // 🔧 只依赖tick，不依赖latDeg/lonDeg
   return null;
 }
 
@@ -251,6 +252,7 @@ export default function SimpleTest() {
   const [dateISO, setDateISO] = useState(() => getCurrentLocalTime());
   const [latDeg, setLatDeg] = useState<number>(31.2);   // 上海默认
   const [lonDeg, setLonDeg] = useState<number>(121.5);
+  const [timeMode, setTimeMode] = useState<TimeInterpretation>('byLongitude');
   
   // 天文数据状态
   const [sunWorld, setSunWorld] = useState<{ x:number; y:number; z:number }>({ x: 1, y: 0, z: 0 });
@@ -263,17 +265,23 @@ export default function SimpleTest() {
   
   // 新增：实时更新控制
   const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
+  const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
   const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(false);
   const [realTimeInterval, setRealTimeInterval] = useState<number | null>(null);
 
+  // 统一调试日志开关
+  React.useEffect(() => {
+    logger.setEnabled(debugEnabled);
+  }, [debugEnabled]);
+
   // 改进的光照更新函数 - 使用 useRef 避免无限循环
   const updateSunlight = React.useCallback(() => {
     try {
-      console.log('[Sunlight Update] Starting update for:', { dateISO, latDeg, lonDeg });
+      if (logger.isEnabled()) logger.log('sunlight/start', { dateISO, latDeg, lonDeg, timeMode });
       
-      const state = getEarthState(dateISO, latDeg, lonDeg);
-      console.log('[Sunlight Update] Raw ephemeris result:', state);
+      const state = getEarthState(dateISO, latDeg, lonDeg, timeMode);
+      if (logger.isEnabled()) logger.log('sunlight/ephemeris', state);
       
       const newSunWorld = { 
         x: state.sunDirWorld.x, 
@@ -288,10 +296,10 @@ export default function SimpleTest() {
       
       // 验证光照方向数据
       const sunMagnitude = Math.sqrt(newSunWorld.x * newSunWorld.x + newSunWorld.y * newSunWorld.y + newSunWorld.z * newSunWorld.z);
-      console.log('[Sunlight Update] Sun direction magnitude:', sunMagnitude);
+      if (logger.isEnabled()) logger.log('sunlight/magnitude', { sunMagnitude });
       
       if (sunMagnitude < 0.1) {
-        console.warn('[Sunlight Update] Warning: Sun direction magnitude too small, using fallback');
+        if (logger.isEnabled()) logger.warn('sunlight/fallback-small-mag');
         // 使用兜底值
         setSunWorld({ x: 1, y: 0, z: 0 });
         setMoonEQD({ x: 0, y: 0, z: 0 });
@@ -310,9 +318,8 @@ export default function SimpleTest() {
         setIllumination(state.illumination);
         setSunAngles({ azDeg: state.azDeg, altDeg: state.altDeg });
         
-        console.log('[Sunlight Update] Normalized sun direction:', normalizedSunWorld);
-        console.log('[Sunlight Update] Real sun angles:', { az: state.azDeg.toFixed(1), alt: state.altDeg.toFixed(1) });
-        console.log('[Sunlight Update] Setting sunAngles state:', { azDeg: state.azDeg, altDeg: state.altDeg });
+        if (logger.isEnabled()) logger.log('sunlight/normalized', normalizedSunWorld);
+        if (logger.isEnabled()) logger.log('sunlight/angles', { az: +state.azDeg.toFixed(1), alt: +state.altDeg.toFixed(1) });
       }
       
       setLastUpdateTime(new Date().toLocaleTimeString());
@@ -324,22 +331,22 @@ export default function SimpleTest() {
       }
       
       // 计算并显示光照角度信息
-      console.log('[Sunlight Update] Light direction info calculated');
+      if (logger.isEnabled()) logger.log('sunlight/done');
       
     } catch (err) {
-      console.error('[Sunlight Update] failed:', err);
+      if (logger.isEnabled()) logger.error('sunlight/error', String(err));
       // 使用兜底值
       setSunWorld({ x: 1, y: 0, z: 0 });
       setMoonEQD({ x: 0, y: 0, z: 0 });
       setIllumination(0.5);
       setSunAngles({ azDeg: 0, altDeg: 0 });
     }
-  }, [dateISO, latDeg, lonDeg, mode]);
+  }, [dateISO, latDeg, lonDeg, mode, timeMode]);
 
   // 当日期或经纬度变化时，自动计算 sunWorld 以驱动光照
   React.useEffect(() => {
     if (autoUpdate) {
-      console.log('[Effect] Auto-updating sunlight due to change in:', { dateISO, latDeg, lonDeg, autoUpdate });
+      if (logger.isEnabled()) logger.log('effect/auto-update', { dateISO, latDeg, lonDeg, autoUpdate });
       updateSunlight();
     }
   }, [dateISO, latDeg, lonDeg, autoUpdate]); // 移除 updateSunlight 依赖项避免无限循环
@@ -347,12 +354,12 @@ export default function SimpleTest() {
   // 实时时间更新逻辑 - 优化依赖项管理
   React.useEffect(() => {
     if (realTimeUpdate) {
-      console.log('[Effect] Starting real-time updates');
+      if (logger.isEnabled()) logger.log('realtime/start');
       // 启动实时更新
       const interval = setInterval(() => {
         const now = new Date();
         const newTime = toLocalInputValue(now);
-        console.log('[RealTime] Updating time to:', newTime);
+        if (logger.isEnabled()) logger.log('realtime/tick', { newTime });
         setDateISO(newTime);
       }, 60000); // 每分钟更新一次
       
@@ -367,7 +374,7 @@ export default function SimpleTest() {
     } else {
       // 停止实时更新
       if (realTimeInterval) {
-        console.log('[RealTime] Stopping real-time updates');
+        if (logger.isEnabled()) logger.log('realtime/stop');
         clearInterval(realTimeInterval);
         setRealTimeInterval(null);
       }
@@ -385,13 +392,13 @@ export default function SimpleTest() {
 
   // 手动更新光照
   const handleManualUpdate = () => {
-    console.log('[Manual] Manual update triggered');
+    if (logger.isEnabled()) logger.log('manual/update');
     updateSunlight();
   };
 
   // 重置为当前时间
   const handleResetToCurrentTime = () => {
-    console.log('[Reset] Resetting to current time');
+    if (logger.isEnabled()) logger.log('manual/reset-to-now');
     setDateISO(getCurrentLocalTime());
   };
 
@@ -419,7 +426,7 @@ export default function SimpleTest() {
         console.log(`[Consistency Test] ${index + 1}/${testCases.length}: Testing ${testCase.name}...`);
         
         try {
-          const state = getEarthState(testCase.time, testCase.lat, testCase.lon);
+          const state = getEarthState(testCase.time, testCase.lat, testCase.lon, timeMode);
           const sunElevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
           const sunAzimuth = Math.atan2(state.sunDirWorld.x, state.sunDirWorld.z) * 180 / Math.PI;
           const azimuthNorm = sunAzimuth < 0 ? sunAzimuth + 360 : sunAzimuth;
@@ -500,7 +507,7 @@ export default function SimpleTest() {
     testCases.forEach((testCase, index) => {
       setTimeout(() => {
         try {
-          const state = getEarthState(testCase.time, testCase.lat, testCase.lon);
+          const state = getEarthState(testCase.time, testCase.lat, testCase.lon, timeMode);
           const sunElevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
           
           console.log(`[Quick Test] ${testCase.name}:`, {
@@ -559,7 +566,7 @@ export default function SimpleTest() {
           mode={mode}
           sunWorld={sunWorld}
         />
-        <AlignOnDemand tick={alignTick} />
+        <AlignOnDemand tick={alignTick} latDeg={latDeg} lonDeg={lonDeg} />
       </Canvas>
       
       {/* 控制面板 - 使用与原版本一致的样式 */}
@@ -606,6 +613,19 @@ export default function SimpleTest() {
             <div className="col">
               <span className="label">模式: {mode === 'celestial' ? '🌞 天相模式' : '🔧 调试模式'}</span>
             </div>
+            <div className="col">
+              <span className="label">时间解释: {timeMode === 'byLongitude' ? '按经度推时区' : '按系统时区'}</span>
+            </div>
+            <div className="col">
+              <label>
+                <input type="checkbox" checked={debugEnabled} onChange={(e)=>setDebugEnabled(e.target.checked)} /> 调试日志
+              </label>
+              {debugEnabled && (
+                <>
+                  <button className="btn" style={{marginLeft:8}} onClick={()=>{ try{ navigator.clipboard.writeText(JSON.stringify((window as any).__LuBirthLogs ?? [], null, 2)); }catch{} }}>复制日志</button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* 天文与构图 - 真实光照系统 */}
@@ -623,6 +643,17 @@ export default function SimpleTest() {
               <label className="label">出生地经度(°E为正)</label>
               <input className="input" type="number" step={0.1} value={lonDeg}
                      onChange={(e)=>setLonDeg(parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">时间解释模式</label>
+              <div className="row" style={{ gap: 8 }}>
+                <label>
+                  <input type="radio" name="timeMode" checked={timeMode==='byLongitude'} onChange={()=>setTimeMode('byLongitude')} /> 按经度
+                </label>
+                <label>
+                  <input type="radio" name="timeMode" checked={timeMode==='bySystem'} onChange={()=>setTimeMode('bySystem')} /> 按系统
+                </label>
+              </div>
             </div>
             <div className="col">
               <button className="btn" onClick={handleManualUpdate}>手动更新光照</button>
@@ -766,7 +797,21 @@ export default function SimpleTest() {
               }}>计算月相</button>
             </div>
             <div className="col">
-              <button className="btn" onClick={() => setAlignTick(t=>t+1)}>对齐出生点到 80°N, 180°E 并居中</button>
+              <button className="btn" onClick={() => setAlignTick(t=>t+1)}>对齐到当前经度（仅方位角）</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                // 显示当前地球四元数状态
+                const earth = document.querySelector('canvas')?.parentElement?.querySelector('[name="earthRoot"]');
+                if (earth) {
+                  console.log('[Debug] 当前earthRoot状态:', {
+                    position: earth.getAttribute('position'),
+                    quaternion: (earth as any).quaternion,
+                    matrix: (earth as any).matrix,
+                    matrixWorld: (earth as any).matrixWorld
+                  });
+                }
+              }}>显示地球状态</button>
             </div>
             <div className="col">
               <button className="btn" onClick={() => {
@@ -805,7 +850,7 @@ export default function SimpleTest() {
                   try {
                     console.log(`[Test] Setting time to ${time}...`);
                     setDateISO(time);
-                    const state = getEarthState(time, latDeg, lonDeg);
+                    const state = getEarthState(time, latDeg, lonDeg, timeMode);
                     const azimuth = Math.atan2(state.sunDirWorld.z, state.sunDirWorld.x) * 180 / Math.PI;
                     const elevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
                     console.log(`[Test] ${time}:`, {
@@ -887,16 +932,22 @@ export default function SimpleTest() {
           {/* 地球姿态控制 */}
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">
-              <label className="label">地轴倾角: {composition.earthTiltDeg.toFixed(2)}°</label>
-              <input className="input" type="range" min={-45} max={45} step={0.1}
-                     value={composition.earthTiltDeg}
-                     onChange={(e) => updateValue('earthTiltDeg', parseFloat(e.target.value))} />
+              <label className="label">地轴倾角: 0°（固定）</label>
+              <input className="input" type="range" min={0} max={0} step={0.1}
+                     value={0}
+                     disabled />
             </div>
             <div className="col">
               <label className="label">地球经线对齐(自转角): {composition.earthYawDeg}°</label>
               <input className="input" type="range" min={-180} max={180} step={1}
                      value={composition.earthYawDeg}
                      onChange={(e) => updateValue('earthYawDeg', parseInt(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">🔧 当前真实经度: {lonDeg.toFixed(1)}°E</label>
+              <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+                基于天文计算的真实位置
+              </div>
             </div>
           </div>
           
@@ -970,11 +1021,21 @@ export default function SimpleTest() {
             <div className="row" style={{ marginBottom: 16, padding: '12px', background: 'rgba(0,255,0,0.05)', borderRadius: '4px', border: '1px solid rgba(0,255,0,0.2)' }}>
               <div className="col">
                 <label className="label" style={{ color: '#00ff00' }}>🌞 实时光照方位角: {lightInfo.azimuth}°</label>
-                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>基于当前时间自动计算</div>
+                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+                  基于当前时间自动计算 · 0°=北，顺时针为正
+                </div>
               </div>
               <div className="col">
                 <label className="label" style={{ color: '#00ff00' }}>🌞 实时光照仰角: {lightInfo.elevation}°</label>
-                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>基于当前时间自动计算</div>
+                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+                  基于当前时间自动计算 · 正值=地平线上，负值=地平线下
+                </div>
+              </div>
+              <div className="col">
+                <label className="label" style={{ color: '#00ff00' }}>🔧 坐标约定</label>
+                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+                  方位角：北=0°，东=90°，南=180°，西=270°
+                </div>
               </div>
             </div>
           )}

@@ -35,13 +35,14 @@ export function Clouds({
 }) {
   const ref = useRef<THREE.Mesh>(null!);
   
-  // 云层旋转动画
-  useFrame((_, delta) => { 
-    if (ref.current) { 
-      ref.current.rotation.y = THREE.MathUtils.degToRad(yawDeg); 
-      ref.current.rotation.x = THREE.MathUtils.degToRad(pitchDeg); 
-    } 
-  });
+  // 🔧 关键修复：移除useFrame旋转，避免与四元数控制冲突
+  // 云层旋转现在通过position计算，不再使用rotation
+  // useFrame((_, delta) => { 
+  //   if (ref.current) { 
+  //     ref.current.rotation.y = THREE.MathUtils.degToRad(yawDeg); 
+  //     ref.current.rotation.x = THREE.MathUtils.degToRad(pitchDeg); 
+  //   } 
+  // });
   
   // 云层着色器材质 - 完整移植自原Scene.tsx
   const cloudMaterial = useMemo(() => {

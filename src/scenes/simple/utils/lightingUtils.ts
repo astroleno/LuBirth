@@ -1,6 +1,7 @@
 import React from 'react';
 import * as THREE from 'three';
 import { kelvinToRGB } from './textureLoader';
+import { logger } from '../../../utils/logger';
 
 // 光照方向计算 - 与日期时间计算耦合
 export function useLightDirection(
@@ -9,12 +10,12 @@ export function useLightDirection(
   composition: any
 ) {
   return React.useMemo(() => {
-    console.log('[useLightDirection] Recalculating light direction:', { 
-      mode, 
-      sunWorld: { x: sunWorld.x, y: sunWorld.y, z: sunWorld.z },
-      lightAzimuth: composition.lightAzimuth,
-      lightElevation: composition.lightElevation
-    });
+    // console.log('[useLightDirection] Recalculating light direction:', { 
+    //   mode, 
+    //   sunWorld: { x: sunWorld.x, y: sunWorld.y, z: sunWorld.z },
+    //   lightAzimuth: composition.lightAzimuth,
+    //   lightElevation: composition.lightElevation
+    // });
     
     if (mode === 'celestial') {
       // 修复：使用 -sunWorld 作为光照方向（太阳光从太阳射向地球）
@@ -24,15 +25,15 @@ export function useLightDirection(
       const elevation = Math.asin(sunWorld.y) * 180 / Math.PI;
       const isSunBelowHorizon = elevation < 0;
       
-      console.log('[useLightDirection] Celestial mode result:', {
-        direction: result.toArray(),
-        elevation: elevation.toFixed(2) + '°',
-        belowHorizon: isSunBelowHorizon
-      });
+      // console.log('[useLightDirection] Celestial mode result:', {
+      //   direction: result.toArray(),
+      //   elevation: elevation.toFixed(2) + '°',
+      //   belowHorizon: isSunBelowHorizon
+      // });
       
       // 如果太阳在地平线下，可能需要调整光照强度或方向
       if (isSunBelowHorizon) {
-        console.log('[useLightDirection] WARNING: Sun is below horizon! Elevation:', elevation);
+        // console.log('[useLightDirection] WARNING: Sun is below horizon! Elevation:', elevation);
       }
       
       return result;
@@ -45,7 +46,7 @@ export function useLightDirection(
         Math.sin(elRad),
         Math.cos(elRad) * Math.sin(azRad)
       );
-      console.log('[useLightDirection] Debug mode result:', result.toArray());
+      // console.log('[useLightDirection] Debug mode result:', result.toArray());
       return result;
     }
   }, [mode, sunWorld, composition.lightAzimuth, composition.lightElevation]);
