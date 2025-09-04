@@ -21,12 +21,6 @@ const DEFAULTS: FormState = {
 export default function App() {
   React.useEffect(() => { try { console.log('[App] mounted'); } catch {} }, []);
   
-  // 检查是否为测试模式
-  const isTestMode = new URLSearchParams(location.search).get('test') === '1';
-  if (isTestMode) {
-    return <SimpleTest />;
-  }
-  
   const [form, setForm] = React.useState<FormState>(DEFAULTS);
   const [ephem, setEphem] = React.useState(() => {
     const utc = toUTCFromLocal(`${DEFAULTS.date}T${DEFAULTS.time}`, parseFloat(DEFAULTS.lon));
@@ -88,11 +82,24 @@ export default function App() {
     moonRenderTargetSize: 512,
           // 月球缓存已不再使用
       // moonCacheEnabled: true,
-    // 月球烘焙参数
-    moonBakingEnabled: false, // 默认关闭，需要时手动开启
-          moonOverlayEnabled: false, // 遮罩功能已关闭，使用包裹球方案
+
   });
   const [mode, setMode] = React.useState<'debug' | 'celestial'>('celestial');
+  
+  // 检查是否为旧场景模式
+  const isLegacyMode = new URLSearchParams(location.search).get('legacy') === '1';
+  if (isLegacyMode) {
+    return <EarthMoonScene 
+      sunEQD={ephem.sunEQD}
+      moonEQD={ephem.moonEQD}
+      observerEQD={ephem.observerEQD}
+      composition={comp}
+      mode={mode}
+    />;
+  }
+  
+  // 默认使用新的SimpleTest组件
+  return <SimpleTest />;
   
   // 模式切换时的参数处理
   const handleModeChange = React.useCallback((newMode: 'debug' | 'celestial') => {
@@ -125,9 +132,7 @@ export default function App() {
         const savedComp = localStorage.getItem(`luBirth.${savedMode}`);
         if (savedComp) {
           const parsedComp = JSON.parse(savedComp);
-          // 强制设置烘焙为关闭，避免之前保存的开启状态
-          parsedComp.moonBakingEnabled = false;
-          parsedComp.moonOverlayEnabled = false;
+
           setComp(v => ({ ...v, ...parsedComp }));
         }
       }
@@ -626,22 +631,7 @@ export default function App() {
               </label>
             </div>
           </div> */}
-          <div className="col">
-            <label className="label">月球烘焙</label>
-            <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
-              <label>
-                <input type="checkbox" checked={!!(comp as any)?.moonBakingEnabled} onChange={(e)=>setComp(v=>({...v, moonBakingEnabled: e.target.checked}))} /> 启用
-              </label>
-            </div>
-          </div>
-          <div className="col">
-            <label className="label">显示包裹球</label>
-            <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
-              <label>
-                <input type="checkbox" checked={!!(comp as any)?.moonOverlayEnabled} onChange={(e)=>setComp(v=>({...v, moonOverlayEnabled: e.target.checked}))} /> 启用
-              </label>
-            </div>
-          </div>
+
           <div className="col">
             <label className="label">月球高度贴图: 强度 {((comp as any)?.moonDisplacementScale ?? 0.02).toFixed(2)}</label>
             <input className="input" type="range" min={0} max={0.5} step={0.01}

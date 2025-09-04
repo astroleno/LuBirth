@@ -19,16 +19,16 @@ import { getMoonPhase } from './scenes/simple/api/moonPhase';
 function SceneContent({ 
   composition, 
   mode, 
-  sunEQD 
+  sunWorld 
 }: { 
   composition: SimpleComposition;
   mode: 'debug' | 'celestial';
-  sunEQD: { x: number; y: number; z: number };
+  sunWorld: { x: number; y: number; z: number };
 }) {
   const { camera } = useThree();
   
   // 光照系统 - 单光照，与日期时间计算耦合
-  const lightDirection = useLightDirection(mode, sunEQD, composition);
+  const lightDirection = useLightDirection(mode, sunWorld, composition);
   const lightColor = useLightColor(composition);
   const lightIntensity = useLightIntensity(composition);
   const ambientIntensity = useAmbientIntensity(composition);
@@ -63,6 +63,16 @@ function SceneContent({
       });
     }
   }, [mode, lightDirection, lightColor, lightIntensity, earthInfo, moonInfo, composition]);
+
+  // 光照方向变化监听
+  React.useEffect(() => {
+    console.log('[SceneContent] Light direction updated:', {
+      direction: lightDirection.toArray(),
+      position: [lightDirection.x * 50, lightDirection.y * 50, lightDirection.z * 50],
+      mode,
+      timestamp: new Date().toLocaleTimeString()
+    });
+  }, [lightDirection, mode]);
 
   return (
     <>
@@ -222,30 +232,262 @@ function AlignOnDemand({ tick }: { tick: number }) {
 export default function SimpleTest() {
   const [composition, setComposition] = useState<SimpleComposition>(DEFAULT_SIMPLE_COMPOSITION);
   const [uiHidden, setUiHidden] = useState(false);
-  // 本地时间转 input[type=datetime-local] 的值（不带时区偏移）
+  // 改进的本地时间转换函数
   const toLocalInputValue = (d: Date) => {
-    const tz = d.getTimezoneOffset();
-    const local = new Date(d.getTime() - tz * 60000);
-    return local.toISOString().slice(0, 16);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
-  const [dateISO, setDateISO] = useState(() => toLocalInputValue(new Date()));
+  
+  // 获取当前本地时间（考虑时区）
+  const getCurrentLocalTime = () => {
+    const now = new Date();
+    return toLocalInputValue(now);
+  };
+  
+  const [dateISO, setDateISO] = useState(() => getCurrentLocalTime());
   const [latDeg, setLatDeg] = useState<number>(31.2);   // 上海默认
   const [lonDeg, setLonDeg] = useState<number>(121.5);
   
-  // 模拟天文数据
-  const [sunEQD, setSunEQD] = useState<{ x:number; y:number; z:number }>({ x: 1, y: 0, z: 0 });
+  // 天文数据状态
+  const [sunWorld, setSunWorld] = useState<{ x:number; y:number; z:number }>({ x: 1, y: 0, z: 0 });
+  const [moonEQD, setMoonEQD] = useState<{ x:number; y:number; z:number }>({ x: 0, y: 0, z: 0 });
+  const [illumination, setIllumination] = useState<number>(0.5);
+  // 存储真实的太阳角度信息
+  const [sunAngles, setSunAngles] = useState<{ azDeg: number; altDeg: number }>({ azDeg: 0, altDeg: 0 });
   const [mode, setMode] = useState<'debug' | 'celestial'>('celestial');
   const [alignTick, setAlignTick] = useState(0);
+  
+  // 新增：实时更新控制
+  const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
+  const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(false);
+  const [realTimeInterval, setRealTimeInterval] = useState<number | null>(null);
 
-  // 当日期或经纬度变化时，自动计算 sunEQD 以驱动光照（默认工作流）
-  React.useEffect(() => {
+  // 改进的光照更新函数 - 使用 useRef 避免无限循环
+  const updateSunlight = React.useCallback(() => {
     try {
+      console.log('[Sunlight Update] Starting update for:', { dateISO, latDeg, lonDeg });
+      
       const state = getEarthState(dateISO, latDeg, lonDeg);
-      setSunEQD({ x: state.sunDirEQD.x, y: state.sunDirEQD.y, z: state.sunDirEQD.z });
+      console.log('[Sunlight Update] Raw ephemeris result:', state);
+      
+      const newSunWorld = { 
+        x: state.sunDirWorld.x, 
+        y: state.sunDirWorld.y, 
+        z: state.sunDirWorld.z 
+      };
+      const newMoonEQD = { 
+        x: state.moonDirWorld.x, 
+        y: state.moonDirWorld.y, 
+        z: state.moonDirWorld.z 
+      };
+      
+      // 验证光照方向数据
+      const sunMagnitude = Math.sqrt(newSunWorld.x * newSunWorld.x + newSunWorld.y * newSunWorld.y + newSunWorld.z * newSunWorld.z);
+      console.log('[Sunlight Update] Sun direction magnitude:', sunMagnitude);
+      
+      if (sunMagnitude < 0.1) {
+        console.warn('[Sunlight Update] Warning: Sun direction magnitude too small, using fallback');
+        // 使用兜底值
+        setSunWorld({ x: 1, y: 0, z: 0 });
+        setMoonEQD({ x: 0, y: 0, z: 0 });
+        setIllumination(0.5);
+        setSunAngles({ azDeg: 0, altDeg: 0 });
+      } else {
+        // 归一化光照方向
+        const normalizedSunWorld = {
+          x: newSunWorld.x / sunMagnitude,
+          y: newSunWorld.y / sunMagnitude,
+          z: newSunWorld.z / sunMagnitude
+        };
+        
+        setSunWorld(normalizedSunWorld);
+        setMoonEQD(newMoonEQD);
+        setIllumination(state.illumination);
+        setSunAngles({ azDeg: state.azDeg, altDeg: state.altDeg });
+        
+        console.log('[Sunlight Update] Normalized sun direction:', normalizedSunWorld);
+        console.log('[Sunlight Update] Real sun angles:', { az: state.azDeg.toFixed(1), alt: state.altDeg.toFixed(1) });
+        console.log('[Sunlight Update] Setting sunAngles state:', { azDeg: state.azDeg, altDeg: state.altDeg });
+      }
+      
+      setLastUpdateTime(new Date().toLocaleTimeString());
+      
+      // 自动切换到天相模式
+      if (mode === 'debug') {
+        setMode('celestial');
+        console.log('[Sunlight Update] Auto-switched to celestial mode');
+      }
+      
+      // 计算并显示光照角度信息
+      console.log('[Sunlight Update] Light direction info calculated');
+      
     } catch (err) {
-      console.error('[Auto Sun Update] failed:', err);
+      console.error('[Sunlight Update] failed:', err);
+      // 使用兜底值
+      setSunWorld({ x: 1, y: 0, z: 0 });
+      setMoonEQD({ x: 0, y: 0, z: 0 });
+      setIllumination(0.5);
+      setSunAngles({ azDeg: 0, altDeg: 0 });
     }
-  }, [dateISO, latDeg, lonDeg]);
+  }, [dateISO, latDeg, lonDeg, mode]);
+
+  // 当日期或经纬度变化时，自动计算 sunWorld 以驱动光照
+  React.useEffect(() => {
+    if (autoUpdate) {
+      console.log('[Effect] Auto-updating sunlight due to change in:', { dateISO, latDeg, lonDeg, autoUpdate });
+      updateSunlight();
+    }
+  }, [dateISO, latDeg, lonDeg, autoUpdate]); // 移除 updateSunlight 依赖项避免无限循环
+
+  // 实时时间更新逻辑 - 优化依赖项管理
+  React.useEffect(() => {
+    if (realTimeUpdate) {
+      console.log('[Effect] Starting real-time updates');
+      // 启动实时更新
+      const interval = setInterval(() => {
+        const now = new Date();
+        const newTime = toLocalInputValue(now);
+        console.log('[RealTime] Updating time to:', newTime);
+        setDateISO(newTime);
+      }, 60000); // 每分钟更新一次
+      
+      setRealTimeInterval(interval);
+      
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+          setRealTimeInterval(null);
+        }
+      };
+    } else {
+      // 停止实时更新
+      if (realTimeInterval) {
+        console.log('[RealTime] Stopping real-time updates');
+        clearInterval(realTimeInterval);
+        setRealTimeInterval(null);
+      }
+    }
+  }, [realTimeUpdate]); // 移除 realTimeInterval 依赖项避免无限循环
+
+  // 清理定时器
+  React.useEffect(() => {
+    return () => {
+      if (realTimeInterval) {
+        clearInterval(realTimeInterval);
+      }
+    };
+  }, [realTimeInterval]);
+
+  // 手动更新光照
+  const handleManualUpdate = () => {
+    console.log('[Manual] Manual update triggered');
+    updateSunlight();
+  };
+
+  // 重置为当前时间
+  const handleResetToCurrentTime = () => {
+    console.log('[Reset] Resetting to current time');
+    setDateISO(getCurrentLocalTime());
+  };
+
+  // 物理一致性测试
+  const consistencyTest = () => {
+    console.log('[Consistency Test] Starting physical consistency validation...');
+    
+    const testCases = [
+      // 春分日测试 - 同一时刻全球太阳方向应该一致
+      { name: '春分赤道正午', time: '2024-03-20T12:00', lat: 0, lon: 0 },
+      { name: '春分北半球正午', time: '2024-03-20T12:00', lat: 45, lon: 0 },
+      { name: '春分南半球正午', time: '2024-03-20T12:00', lat: -45, lon: 0 },
+      
+      // 夏至极圈测试 - 北极圈夏至应该有午夜太阳
+      { name: '北极圈夏至午夜', time: '2024-06-21T00:00', lat: 66.55, lon: 0 },
+      { name: '北极圈夏至正午', time: '2024-06-21T12:00', lat: 66.55, lon: 0 },
+      
+      // 经度测试 - 同一纬度不同经度的日夜循环
+      { name: '赤道0°E午夜', time: '2024-03-20T00:00', lat: 0, lon: 0 },
+      { name: '赤道180°E午夜', time: '2024-03-20T00:00', lat: 0, lon: 180 },
+    ];
+    
+    testCases.forEach((testCase, index) => {
+      setTimeout(() => {
+        console.log(`[Consistency Test] ${index + 1}/${testCases.length}: Testing ${testCase.name}...`);
+        
+        try {
+          const state = getEarthState(testCase.time, testCase.lat, testCase.lon);
+          const sunElevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
+          const sunAzimuth = Math.atan2(state.sunDirWorld.x, state.sunDirWorld.z) * 180 / Math.PI;
+          const azimuthNorm = sunAzimuth < 0 ? sunAzimuth + 360 : sunAzimuth;
+          
+          // 物理一致性检查
+          const issues = [];
+          
+          // 检查极端仰角
+          if (Math.abs(sunElevation) > 90.1) {
+            issues.push(`异常仰角: ${sunElevation.toFixed(1)}° (应在-90°到+90°之间)`);
+          }
+          
+          // 检查春分日极端情况
+          if (testCase.time.includes('2024-03-20') && testCase.lat === 0) {
+            if (testCase.time.includes('T12:00') && sunElevation < 85) {
+              issues.push(`春分赤道正午仰角过低: ${sunElevation.toFixed(1)}° (应接近90°)`);
+            }
+            if (testCase.time.includes('T00:00') && Math.abs(sunElevation) > 30) {
+              issues.push(`春分赤道午夜仰角异常: ${sunElevation.toFixed(1)}° (应接近0°)`);
+            }
+          }
+          
+          // 检查北极圈夏至午夜太阳
+          if (testCase.time.includes('2024-06-21T00:00') && testCase.lat >= 66) {
+            if (sunElevation < 0) {
+              issues.push(`北极圈夏至午夜太阳在地平线下: ${sunElevation.toFixed(1)}° (应为正值)`);
+            }
+          }
+          
+          console.log(`[Consistency Test] ${testCase.name}:`, {
+            elevation: sunElevation.toFixed(1) + '°',
+            azimuth: azimuthNorm.toFixed(1) + '°',
+            sunDir: [state.sunDirWorld.x.toFixed(3), state.sunDirWorld.y.toFixed(3), state.sunDirWorld.z.toFixed(3)],
+            issues: issues.length > 0 ? issues : '✓ 物理合理'
+          });
+          
+          // 最后一个测试用例时设置到界面
+          if (index === testCases.length - 1) {
+            setLatDeg(testCase.lat);
+            setLonDeg(testCase.lon);
+            setDateISO(testCase.time);
+          }
+          
+        } catch (err) {
+          console.error(`[Consistency Test] ${testCase.name} 失败:`, err);
+        }
+      }, index * 1000); // 每秒一个测试
+    });
+    
+    setTimeout(() => {
+      console.log('[Consistency Test] 物理一致性测试完成，请查看控制台结果');
+    }, testCases.length * 1000 + 500);
+  };
+
+  // 计算光照方向的角度信息 - 使用真实的天文角度数据
+  const lightInfo = React.useMemo(() => {
+    const { x, y, z } = sunWorld;
+    const { azDeg, altDeg } = sunAngles;
+    
+    console.log('[LightInfo] Raw sunWorld:', { x, y, z });
+    console.log('[LightInfo] Real sun angles from ephemeris:', { azimuth: azDeg.toFixed(1), altitude: altDeg.toFixed(1) });
+    
+    return {
+      azimuth: azDeg.toFixed(1),
+      elevation: altDeg.toFixed(1),
+      intensity: Math.sqrt(x*x + y*y + z*z).toFixed(3)
+    };
+  }, [sunWorld, sunAngles]);
 
   const updateValue = (key: keyof SimpleComposition, value: number | boolean) => {
     setComposition(prev => ({ ...prev, [key]: value }));
@@ -268,7 +510,7 @@ export default function SimpleTest() {
         <SceneContent 
           composition={composition} 
           mode={mode}
-          sunEQD={sunEQD}
+          sunWorld={sunWorld}
         />
         <AlignOnDemand tick={alignTick} />
       </Canvas>
@@ -298,10 +540,28 @@ export default function SimpleTest() {
             <div className="row" style={{ gap: 8 }}>
               <button className="btn" onClick={() => setComposition(DEFAULT_SIMPLE_COMPOSITION)}>重置默认</button>
               <button className="btn" onClick={() => setUiHidden(true)}>隐藏 UI</button>
-      </div>
-    </div>
+            </div>
+          </div>
 
-          {/* 天文与构图 - 新增接口接入 */}
+          {/* 时间同步状态指示器 */}
+          <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 16, padding: '8px 12px', background: realTimeUpdate ? 'rgba(0,255,0,0.1)' : 'rgba(255,255,255,0.05)', borderRadius: '4px', border: realTimeUpdate ? '1px solid rgba(0,255,0,0.3)' : '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="col">
+              <span className="label" style={{ color: realTimeUpdate ? '#00ff00' : 'inherit' }}>
+                {realTimeUpdate ? '🕐 实时同步中' : '⏰ 手动控制'}
+              </span>
+            </div>
+            <div className="col">
+              <span className="label">当前时间: {dateISO}</span>
+            </div>
+            <div className="col">
+              <span className="label">位置: {latDeg.toFixed(1)}°N, {lonDeg.toFixed(1)}°E</span>
+            </div>
+            <div className="col">
+              <span className="label">模式: {mode === 'celestial' ? '🌞 天相模式' : '🔧 调试模式'}</span>
+            </div>
+          </div>
+
+          {/* 天文与构图 - 真实光照系统 */}
           <div className="row" style={{ gap: 12, alignItems: 'flex-end', marginBottom: 16 }}>
             <div className="col">
               <label className="label">日期时间(本地)</label>
@@ -318,17 +578,135 @@ export default function SimpleTest() {
                      onChange={(e)=>setLonDeg(parseFloat(e.target.value))} />
             </div>
             <div className="col">
-              <button className="btn" onClick={() => {
-                try {
-                  // 显式应用日期并切换为天相模式（若当前是调试模式）
-                  const state = getEarthState(dateISO, latDeg, lonDeg);
-                  setSunEQD({ x: state.sunDirEQD.x, y: state.sunDirEQD.y, z: state.sunDirEQD.z });
-                  setMode('celestial');
-                } catch (err) {
-                  console.error(err);
-                }
-              }}>应用日期/更新光照</button>
+              <button className="btn" onClick={handleManualUpdate}>手动更新光照</button>
             </div>
+            <div className="col">
+              <button className="btn" onClick={handleResetToCurrentTime}>重置当前时间</button>
+            </div>
+          </div>
+
+          {/* 快速时间跳转 - 测试明显光照变化 */}
+          <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+            <div className="col">
+              <span className="label">快速测试明显光照变化：</span>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
+                      onClick={() => setDateISO('2024-03-21T07:00')}>春分日出</button>
+            </div>
+            <div className="col">  
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => setDateISO('2024-06-21T12:00')}>夏至正午</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => setDateISO('2024-09-23T18:00')}>秋分日落</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => setDateISO('2024-12-21T12:00')}>冬至正午</button>
+            </div>
+          </div>
+
+          {/* 极地测试 - 验证极端纬度的日夜变化 */}
+          <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+            <div className="col">
+              <span className="label">极地测试 - 北极圈(66°N)：</span>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
+                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T06:00');}}>夏至06:00</button>
+            </div>
+            <div className="col">  
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T12:00');}}>夏至正午</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T18:00');}}>夏至18:00</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T00:00');}}>夏至午夜</button>
+            </div>
+          </div>
+
+          {/* 赤道测试 - 应该有明显的东西方向变化 */}
+          <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+            <div className="col">
+              <span className="label">赤道测试(0°N)：</span>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
+                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T06:00');}}>春分06:00</button>
+            </div>
+            <div className="col">  
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T12:00');}}>春分正午</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T18:00');}}>春分18:00</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T00:00');}}>春分午夜</button>
+            </div>
+          </div>
+          
+          {/* 高纬度测试 - 应该有明显的日夜差异 */}
+          <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+            <div className="col">
+              <span className="label">北京纬度测试(40°N)：</span>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
+                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T06:00');}}>冬至日出</button>
+            </div>
+            <div className="col">  
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T12:00');}}>冬至正午</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T18:00');}}>冬至日落</button>
+            </div>
+            <div className="col">
+              <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
+                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T00:00');}}>冬至午夜</button>
+            </div>
+          </div>
+
+          {/* 光照状态显示 */}
+          <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 16, padding: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="col">
+              <span className="label">光照方向: 方位角 {lightInfo.azimuth}° · 仰角 {lightInfo.elevation}°</span>
+            </div>
+            <div className="col">
+              <span className="label">光照强度: {lightInfo.intensity}</span>
+            </div>
+            <div className="col">
+              <span className="label">月面明暗: {(illumination * 100).toFixed(1)}%</span>
+            </div>
+            <div className="col">
+              <span className="label">最后更新: {lastUpdateTime || '未更新'}</span>
+            </div>
+            <div className="col">
+              <label>
+                <input type="checkbox" checked={autoUpdate} onChange={(e) => setAutoUpdate(e.target.checked)} />
+                自动更新
+              </label>
+            </div>
+            <div className="col">
+              <label>
+                <input type="checkbox" checked={realTimeUpdate} onChange={(e) => setRealTimeUpdate(e.target.checked)} />
+                实时时间
+              </label>
+            </div>
+          </div>
+
+          {/* 功能按钮行 */}
+          <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 16 }}>
             <div className="col">
               <button className="btn" onClick={() => {
                 try {
@@ -342,6 +720,88 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <button className="btn" onClick={() => setAlignTick(t=>t+1)}>对齐出生点到 80°N, 180°E 并居中</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                console.log('[Current State]', {
+                  dateISO,
+                  latDeg,
+                  lonDeg,
+                  sunWorld,
+                  moonEQD,
+                  illumination,
+                  mode
+                });
+              }}>打印当前状态</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                // 测试真正有明显差异的时间点 - 重点测试方位角变化
+                const testTimes = [
+                  '2024-03-21T07:00', // 春分日出 (东方)
+                  '2024-03-21T12:00', // 春分正午 (南方)
+                  '2024-03-21T18:00', // 春分日落 (西方)  
+                  '2024-06-21T12:00', // 夏至正午 (高角度南方)
+                  '2024-12-21T12:00'  // 冬至正午 (低角度或地平线下)
+                ];
+                console.log('[Test] Testing dramatically different sun positions...');
+                
+                let index = 0;
+                const testInterval = setInterval(() => {
+                  if (index >= testTimes.length) {
+                    clearInterval(testInterval);
+                    console.log('[Test] Dramatic sun position test completed');
+                    return;
+                  }
+                  
+                  const time = testTimes[index];
+                  try {
+                    console.log(`[Test] Setting time to ${time}...`);
+                    setDateISO(time);
+                    const state = getEarthState(time, latDeg, lonDeg);
+                    const azimuth = Math.atan2(state.sunDirWorld.z, state.sunDirWorld.x) * 180 / Math.PI;
+                    const elevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
+                    console.log(`[Test] ${time}:`, {
+                      sunWorld: state.sunDirWorld,
+                      azimuth: azimuth < 0 ? azimuth + 360 : azimuth,
+                      elevation
+                    });
+                  } catch (err) {
+                    console.error(`[Test] ${time} failed:`, err);
+                  }
+                  index++;
+                }, 3000); // 每3秒切换一次
+              }}>测试季节光照</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                console.log('[Extreme Test] Setting extreme sunWorld positions...');
+                // 测试极端光照位置以验证视觉变化
+                const positions = [
+                  { x: 1, y: 0, z: 0, name: '东方' },   // 东方
+                  { x: 0, y: 1, z: 0, name: '正上方' }, // 正上方
+                  { x: -1, y: 0, z: 0, name: '西方' },  // 西方
+                  { x: 0, y: -1, z: 0, name: '正下方' } // 正下方
+                ];
+                
+                let index = 0;
+                const testInterval = setInterval(() => {
+                  if (index >= positions.length) {
+                    clearInterval(testInterval);
+                    console.log('[Extreme Test] Test completed');
+                    return;
+                  }
+                  
+                  const pos = positions[index];
+                  console.log(`[Extreme Test] Setting sunWorld to ${pos.name}:`, pos);
+                  setSunWorld({ x: pos.x, y: pos.y, z: pos.z });
+                  setMode('celestial'); // 确保在天相模式
+                  index++;
+                }, 2000); // 每2秒切换一次
+              }}>极端光照测试</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={consistencyTest}>物理一致性测试</button>
             </div>
           </div>
 
@@ -418,27 +878,43 @@ export default function SimpleTest() {
                      onChange={(e) => updateValue('sunIntensity', parseFloat(e.target.value))} />
             </div>
             <div className="col">
-              <label className="label">光照方位角: {composition.lightAzimuth}°</label>
-              <input className="input" type="range" min={0} max={360} step={5}
-                     value={composition.lightAzimuth}
-                     onChange={(e) => updateValue('lightAzimuth', parseInt(e.target.value))} />
-            </div>
-          </div>
-          
-          <div className="row" style={{ marginBottom: 16 }}>
-            <div className="col">
-              <label className="label">光照仰角: {composition.lightElevation}°</label>
-              <input className="input" type="range" min={-90} max={90} step={5}
-                     value={composition.lightElevation}
-                     onChange={(e) => updateValue('lightElevation', parseInt(e.target.value))} />
-            </div>
-            <div className="col">
               <label className="label">色温: {composition.lightTempK}K</label>
               <input className="input" type="range" min={2000} max={10000} step={100}
                      value={composition.lightTempK}
                      onChange={(e) => updateValue('lightTempK', parseInt(e.target.value))} />
             </div>
           </div>
+          
+          {/* 光照方向控制 - 根据模式显示不同内容 */}
+          {mode === 'debug' ? (
+            // 调试模式：显示手动控制滑块
+            <div className="row" style={{ marginBottom: 16 }}>
+              <div className="col">
+                <label className="label">手动光照方位角: {composition.lightAzimuth}°</label>
+                <input className="input" type="range" min={0} max={360} step={5}
+                       value={composition.lightAzimuth}
+                       onChange={(e) => updateValue('lightAzimuth', parseInt(e.target.value))} />
+              </div>
+              <div className="col">
+                <label className="label">手动光照仰角: {composition.lightElevation}°</label>
+                <input className="input" type="range" min={-90} max={90} step={5}
+                       value={composition.lightElevation}
+                       onChange={(e) => updateValue('lightElevation', parseInt(e.target.value))} />
+              </div>
+            </div>
+          ) : (
+            // 天相模式：显示实时计算的光照方向（只读）
+            <div className="row" style={{ marginBottom: 16, padding: '12px', background: 'rgba(0,255,0,0.05)', borderRadius: '4px', border: '1px solid rgba(0,255,0,0.2)' }}>
+              <div className="col">
+                <label className="label" style={{ color: '#00ff00' }}>🌞 实时光照方位角: {lightInfo.azimuth}°</label>
+                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>基于当前时间自动计算</div>
+              </div>
+              <div className="col">
+                <label className="label" style={{ color: '#00ff00' }}>🌞 实时光照仰角: {lightInfo.elevation}°</label>
+                <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>基于当前时间自动计算</div>
+              </div>
+            </div>
+          )}
           
           {/* 地球材质控制 */}
           <div className="row" style={{ marginBottom: 16 }}>
@@ -677,7 +1153,7 @@ export default function SimpleTest() {
       {!uiHidden && (
         <>
           <div className="credit">视觉基调：极简·低饱和·苹果风（MVP） · 构图：地球下1/3 + 右上小月亮</div>
-          <div className="caption">SimpleTest v2.0 | 地球-月球完整场景测试 | 单光照系统 | 相机锁定保持理想构图</div>
+          <div className="caption">SimpleTest v2.1 | 地球-月球完整场景测试 | 真实光照系统 | 相机锁定保持理想构图</div>
         </>
       )}
     </div>

@@ -5,24 +5,50 @@ import { kelvinToRGB } from './textureLoader';
 // 光照方向计算 - 与日期时间计算耦合
 export function useLightDirection(
   mode: 'debug' | 'celestial',
-  sunEQD: { x: number; y: number; z: number },
+  sunWorld: { x: number; y: number; z: number },
   composition: any
 ) {
   return React.useMemo(() => {
+    console.log('[useLightDirection] Recalculating light direction:', { 
+      mode, 
+      sunWorld: { x: sunWorld.x, y: sunWorld.y, z: sunWorld.z },
+      lightAzimuth: composition.lightAzimuth,
+      lightElevation: composition.lightElevation
+    });
+    
     if (mode === 'celestial') {
-      // 使用真实天文计算的光照方向
-      return new THREE.Vector3(sunEQD.x, sunEQD.y, sunEQD.z).normalize();
+      // 使用真实天文计算的光照方向（世界坐标系）
+      const result = new THREE.Vector3(sunWorld.x, sunWorld.y, sunWorld.z).normalize();
+      
+      // 检查太阳是否在地平线下
+      const elevation = Math.asin(sunWorld.y) * 180 / Math.PI;
+      const isSunBelowHorizon = elevation < 0;
+      
+      console.log('[useLightDirection] Celestial mode result:', {
+        direction: result.toArray(),
+        elevation: elevation.toFixed(2) + '°',
+        belowHorizon: isSunBelowHorizon
+      });
+      
+      // 如果太阳在地平线下，可能需要调整光照强度或方向
+      if (isSunBelowHorizon) {
+        console.log('[useLightDirection] WARNING: Sun is below horizon! Elevation:', elevation);
+      }
+      
+      return result;
     } else {
       // 使用手动控制的光照方向
       const azRad = (composition.lightAzimuth * Math.PI) / 180;
       const elRad = (composition.lightElevation * Math.PI) / 180;
-      return new THREE.Vector3(
+      const result = new THREE.Vector3(
         Math.cos(elRad) * Math.cos(azRad),
         Math.sin(elRad),
         Math.cos(elRad) * Math.sin(azRad)
       );
+      console.log('[useLightDirection] Debug mode result:', result.toArray());
+      return result;
     }
-  }, [mode, sunEQD.x, sunEQD.y, sunEQD.z, composition.lightAzimuth, composition.lightElevation]);
+  }, [mode, sunWorld, composition.lightAzimuth, composition.lightElevation]);
 }
 
 // 光照颜色计算 (色温控制)
