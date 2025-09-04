@@ -474,6 +474,53 @@ export default function SimpleTest() {
     }, testCases.length * 1000 + 500);
   };
 
+  // 新增：关键验证测试（使用修复后的算法）
+  const criticalValidationTest = () => {
+    console.log('🚀 开始运行关键验证测试...');
+    
+    // 动态导入验证函数
+    import('./astro/validation').then(({ runCriticalValidationTests }) => {
+      runCriticalValidationTests();
+    }).catch(error => {
+      console.error('❌ 导入验证模块失败:', error);
+    });
+  };
+
+  // 新增：快速验证测试
+  const quickValidationTest = () => {
+    console.log('🔍 快速验证测试...');
+    
+    // 测试关键时间点
+    const testCases = [
+      { name: '夏至中午上海', time: '2024-06-21T12:00', lat: 31.2, lon: 121.5 },
+      { name: '冬至中午上海', time: '2024-12-21T12:00', lat: 31.2, lon: 121.5 },
+      { name: '春分中午上海', time: '2024-03-21T12:00', lat: 31.2, lon: 121.5 }
+    ];
+    
+    testCases.forEach((testCase, index) => {
+      setTimeout(() => {
+        try {
+          const state = getEarthState(testCase.time, testCase.lat, testCase.lon);
+          const sunElevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
+          
+          console.log(`[Quick Test] ${testCase.name}:`, {
+            elevation: sunElevation.toFixed(1) + '°',
+            sunDir: [state.sunDirWorld.x.toFixed(3), state.sunDirWorld.y.toFixed(3), state.sunDirWorld.z.toFixed(3)],
+            status: sunElevation > 0 ? '✅ 白天' : '❌ 黑夜'
+          });
+          
+          // 检查关键问题是否修复
+          if (testCase.name.includes('夏至中午') && sunElevation < 0) {
+            console.error(`❌ 严重问题：${testCase.name} 太阳在地平线下！`);
+          }
+          
+        } catch (err) {
+          console.error(`[Quick Test] ${testCase.name} 失败:`, err);
+        }
+      }, index * 500);
+    });
+  };
+
   // 计算光照方向的角度信息 - 使用真实的天文角度数据
   const lightInfo = React.useMemo(() => {
     const { x, y, z } = sunWorld;
@@ -802,6 +849,22 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <button className="btn" onClick={consistencyTest}>物理一致性测试</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={criticalValidationTest}>关键验证测试</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={quickValidationTest}>快速验证测试</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={() => {
+                console.log('🔍 运行快速测试...');
+                import('./astro/quickTest').then(({ runQuickTest }) => {
+                  runQuickTest();
+                }).catch(error => {
+                  console.error('❌ 导入快速测试模块失败:', error);
+                });
+              }}>快速测试</button>
             </div>
           </div>
 

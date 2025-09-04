@@ -17,8 +17,8 @@ export function useLightDirection(
     });
     
     if (mode === 'celestial') {
-      // 使用真实天文计算的光照方向（世界坐标系）
-      const result = new THREE.Vector3(sunWorld.x, sunWorld.y, sunWorld.z).normalize();
+      // 修复：使用 -sunWorld 作为光照方向（太阳光从太阳射向地球）
+      const result = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
       
       // 检查太阳是否在地平线下
       const elevation = Math.asin(sunWorld.y) * 180 / Math.PI;

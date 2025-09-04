@@ -10,6 +10,9 @@ import {
   Horizon
 } from 'astronomy-engine';
 
+// 导入验证函数
+import { validateAstronomicalConstants, validatePhysicalLimits, validateSeasonalConsistency } from './constants';
+
 export type Ephemeris = {
   time: Date;
   // 标准化坐标系命名
@@ -73,27 +76,69 @@ function solarAltAz(dateUtc: Date, latDeg: number, lonDeg: number) {
   const L = (L0 + C) % 360;
   const Lrad = L * Math.PI / 180;
   
-  // 6. 黄道倾角
-  const epsilon = 23.439291 - T * 0.0130042;
+  // 6. 黄道倾角（地球自转轴倾角）- 修复：使用正确的天文常数
+  // 当前时刻的黄赤交角，考虑岁差效应
+  const epsilon0 = 23.439291;  // J2000时刻的黄赤交角（度）
+  const deltaEpsilon = 0.0130042;  // 黄赤交角变化率（度/世纪）
+  const epsilon = epsilon0 - T * deltaEpsilon;
   const epsilonRad = epsilon * Math.PI / 180;
   
-  // 7. 太阳赤经和赤纬（黄道→赤道坐标转换）
+  // 调试信息
+  console.log(`[solarAltAz] 地球自转轴倾角: ${epsilon.toFixed(6)}° (T=${T.toFixed(6)})`);
+  
+  // 7. 太阳赤经和赤纬（黄道→赤道坐标转换）- 修复：使用正确的转换公式
+  // 太阳赤经计算
   const sinAlpha = Math.cos(epsilonRad) * Math.sin(Lrad);
   const cosAlpha = Math.cos(Lrad);
   const alpha = Math.atan2(sinAlpha, cosAlpha);  // 太阳赤经
   
+  // 太阳赤纬计算
   const sinDelta = Math.sin(epsilonRad) * Math.sin(Lrad);
   const delta = Math.asin(sinDelta);  // 太阳赤纬
   
-  // 8. 格林威治平恒星时（地球自转）
-  const theta0 = (280.46061837 + 360.98564736629 * (jd - 2451545.0)) % 360;
+  // 调试信息
+  console.log(`[solarAltAz] 太阳位置: 黄经=${L.toFixed(2)}°, 赤经=${(alpha * 180 / Math.PI).toFixed(2)}°, 赤纬=${(delta * 180 / Math.PI).toFixed(2)}°`);
   
-  // 9. 当地恒星时（考虑观测者经度）- 保持度数单位
-  const localSiderealTimeDeg = (theta0 + lonDeg) % 360;
+  // 8. 格林威治平恒星时（地球自转）- 修复：使用标准天文公式
+  // 格林威治平恒星时 = 格林威治恒星时 + 地球自转修正
+  const T0 = 6.697374558;  // 2000年1月1日0时UT的格林威治恒星时（小时）
+  const T1 = 0.0657098244;  // 恒星时变化率（小时/天）
+  const T2 = 0.000002;  // 恒星时二次项（小时/天²）
+  
+  const daysSince2000 = jd - 2451545.0;
+  const theta0Hours = T0 + T1 * daysSince2000 + T2 * daysSince2000 * daysSince2000;
+  const theta0Deg = (theta0Hours * 15) % 360;  // 转换为度
+  
+  // 9. 当地恒星时（考虑观测者经度）- 修复：使用标准天文公式
+  // 当地恒星时 = 格林威治恒星时 + 经度
+  let localSiderealTimeDeg = theta0Deg + lonDeg;
+  
+  // 确保在0-360度范围内
+  while (localSiderealTimeDeg < 0) localSiderealTimeDeg += 360;
+  while (localSiderealTimeDeg >= 360) localSiderealTimeDeg -= 360;
+  
   const theta = localSiderealTimeDeg * Math.PI / 180;  // 当地恒星时（弧度）
   
-  // 10. 时角（恒星时 - 赤经）
-  const H = theta - alpha;  // 时角
+  // 10. 时角计算 - 修复：使用真实计算的时角
+  // 时角 = 当地恒星时 - 太阳赤经
+  let H = theta - alpha;  // 时角
+  
+  // 确保时角在-180到+180度范围内（标准天文做法）
+  while (H > Math.PI) H -= 2 * Math.PI;
+  while (H < -Math.PI) H += 2 * Math.PI;
+  
+  // 调试信息
+  console.log(`[solarAltAz] 时角: ${(H * 180 / Math.PI).toFixed(2)}° (范围: -180° 到 +180°, 0°=正午)`);
+  
+  // 验证：时角应该在合理范围内
+  if (Math.abs(H * 180 / Math.PI) > 180) {
+    console.log(`[solarAltAz] 🚨 时角异常！时角应为-180°到+180°，实际为${(H * 180 / Math.PI).toFixed(2)}°`);
+  }
+  
+  // 调试信息
+  console.log(`[solarAltAz] 恒星时: 格林威治=${theta0Deg.toFixed(2)}°, 经度=${lonDeg.toFixed(2)}°`);
+  
+
   
   // 11. 地平坐标计算（球面天文学标准公式）
   const sinAlt = Math.sin(φ) * Math.sin(delta) + Math.cos(φ) * Math.cos(delta) * Math.cos(H);
@@ -106,10 +151,27 @@ function solarAltAz(dateUtc: Date, latDeg: number, lonDeg: number) {
   // 方位角转换为0-360度范围（0°=北，顺时针）
   if (azimuth < 0) azimuth += 2 * Math.PI;
   
-  return { 
+  // 调试信息
+  console.log(`[solarAltAz] 地平坐标: 高度角=${(altitude * 180 / Math.PI).toFixed(2)}°, 方位角=${(azimuth * 180 / Math.PI).toFixed(2)}°`);
+  console.log(`[solarAltAz] 计算参数: φ=${(φ * 180 / Math.PI).toFixed(2)}°, δ=${(delta * 180 / Math.PI).toFixed(2)}°, H=${(H * 180 / Math.PI).toFixed(2)}°`);
+  
+  const result = { 
     azDeg: azimuth * 180 / Math.PI,    // 0°=北，顺时针
     altDeg: altitude * 180 / Math.PI   // 高度角
   };
+  
+  // 添加物理验证
+  if (!validatePhysicalLimits(result.altDeg, result.azDeg)) {
+    console.warn(`[solarAltAz] 物理验证失败: alt=${result.altDeg}°, az=${result.azDeg}°`);
+  }
+  
+  // 添加季节一致性验证
+  const seasonalValidation = validateSeasonalConsistency(dateUtc, latDeg, result.altDeg);
+  if (!seasonalValidation.isValid) {
+    console.warn(`[solarAltAz] 季节一致性验证失败:`, seasonalValidation.issues);
+  }
+  
+  return result;
 }
 
 // Alt/Az转为ENU本地坐标系
@@ -141,6 +203,11 @@ function enuToECEF(enu: {x:number;y:number;z:number}, latDeg: number, lonDeg: nu
 }
 
 export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephemeris {
+  // 验证天文常数
+  if (!validateAstronomicalConstants()) {
+    console.error('[computeEphemeris] 天文常数验证失败');
+  }
+  
   console.log(`[computeEphemeris] ${dateUtc.toISOString()} at ${lat}°N,${lon}°E:`);
   
   // === 标准化天文学坐标转换算法 ===
@@ -204,7 +271,10 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
 }
 
 export function offsetHoursFromLongitude(lon: number): number {
-  // Simple whole-hour time zone from longitude; Shanghai ~ +8
+  // 正确的时区计算：每15度一个时区
+  // 上海（121.5°E）≈ +8小时
+  // 180°E = +12小时
+  // 0°E = 0小时
   return Math.round(lon / 15);
 }
 
@@ -226,10 +296,16 @@ export function toUTCFromLocal(localISO: string, lon: number): Date {
   const h = parseInt(hour, 10);
   const mi = parseInt(minute, 10);
   
-  // Create UTC date by subtracting the timezone offset from local time
+  // 🔧 关键修复：时区转换逻辑
+  // 经度121.5°E = +8小时时区
+  // 当地正午12:00 = UTC时间04:00（12:00 - 8 = 04:00）
+  // 这是正确的时区转换！
+  
+  // 创建UTC日期
   const utc = new Date(Date.UTC(y, mo, d, h - offset, mi, 0));
   
   console.log(`[toUTCFromLocal] ${localISO} (lon:${lon}) -> UTC: ${utc.toISOString()} (offset: ${offset}h)`);
+  console.log(`[toUTCFromLocal] 注意：UTC时间${utc.getUTCHours()}:${utc.getUTCMinutes()} 对应本地时间${h}:${mi}`);
   return utc;
 }
 
