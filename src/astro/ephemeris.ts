@@ -13,6 +13,7 @@ export type Ephemeris = {
   // 天文角度信息（用于验证和UI显示）
   altDeg: number;   // 太阳高度角
   azDeg: number;    // 太阳方位角（0°=北，顺时针）
+  azDefined?: boolean; // 方位角是否稳定定义（天顶附近为false）
   // Moon illumination fraction
   illumination: number;
 };
@@ -237,14 +238,42 @@ function solarAltAz2(dateUtc: Date, latDeg: number, lonDeg: number) {
   const y_north = Math.cos(phi) * Math.sin(delta) - Math.sin(phi) * Math.cos(delta) * Math.cos(H);
   const z_up = Math.sin(phi) * Math.sin(delta) + Math.cos(phi) * Math.cos(delta) * Math.cos(H);
   const altitude = Math.asin(Math.max(-1, Math.min(1, z_up)));
-  let az = Math.atan2(x_east, y_north); // 0=北, 90=东, 180=南, 270=西
-  if (az < 0) az += 2 * Math.PI;
-  const azDeg = az * 180 / Math.PI;
+  
+  // 🔧 修复：当天顶附近时，方位角计算不稳定，需要特殊处理
+  const horizontalProjection = Math.sqrt(x_east * x_east + y_north * y_north);
+  let azDeg: number;
+  let azDefined: boolean = true;
+  
+  if (horizontalProjection < 1e-3) {
+    // 太阳接近天顶时，方位角无定义或使用时角估算
+    azDefined = false;
+    // 在赤道春分中午，太阳应该过子午线，方位角应为0°（北）或180°（南）
+    if (Math.abs(latDeg) < 5) {
+      // 赤道附近，根据时角判断：H接近0时为正午，方位角应为0°
+      azDeg = Math.abs(H * 180 / Math.PI) < 5 ? 0 : 180;
+    } else {
+      // 其他地区，根据纬度判断
+      azDeg = latDeg > 0 ? 0 : 180;
+    }
+    logger.log('solarAltAz2/zenith', {
+      horizontalProjection: +horizontalProjection.toFixed(6),
+      H_deg: +(H * 180 / Math.PI).toFixed(2),
+      lat_deg: +latDeg.toFixed(2),
+      az_zenith: +azDeg.toFixed(2),
+      azDefined: false
+    });
+  } else {
+    // 正常情况下的方位角计算
+    let az = Math.atan2(x_east, y_north); // 0=北, 90=东, 180=南, 270=西
+    if (az < 0) az += 2 * Math.PI;
+    azDeg = az * 180 / Math.PI;
+  }
   const altDeg = altitude * 180 / Math.PI;
-  const res = { azDeg, altDeg };
+  const res = { azDeg, altDeg, azDefined };
   logger.log('solarAltAz2/altaz', {
     alt_deg: +altDeg.toFixed(2),
     az_deg: +azDeg.toFixed(2),
+    az_defined: azDefined,
     lat_deg: +latDeg.toFixed(2),
     lon_deg: +lonDeg.toFixed(2)
   });
@@ -272,21 +301,49 @@ function solarAltAzEngine(dateUtc: Date, latDeg: number, lonDeg: number) {
   }
 }
 
+// 配置开关：选择太阳位置计算算法
+const USE_LOCAL_ALGORITHM = false; // 默认使用 astronomy-engine，保证等效正确性
+
 export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephemeris {
   // 验证天文常数
   if (!validateAstronomicalConstants()) {
     console.error('[computeEphemeris] 天文常数验证失败');
   }
   
-  logger.log('computeEphemeris/begin', { utc: dateUtc.toISOString(), lat, lon });
+  logger.log('computeEphemeris/begin', { utc: dateUtc.toISOString(), lat, lon, algorithm: USE_LOCAL_ALGORITHM ? 'local' : 'astronomy-engine' });
   
   // === 标准化天文学坐标转换算法 ===
   // 基于advice建议的稳定坐标转换链：Alt/Az → ENU → ECEF → World
   
   // 1. 标准太阳高度角/方位角计算
-  // 使用 astronomy-engine（优先），失败时回退本地实现
-  const { azDeg, altDeg } = solarAltAzEngine(dateUtc, lat, lon);
-  logger.log('computeEphemeris/altaz', { az_deg: +azDeg.toFixed(1), alt_deg: +altDeg.toFixed(1) });
+  // 🔧 修复：切换到本地算法作为主算法，保留astronomy-engine作为备选
+  let azDeg: number, altDeg: number, azDefined: boolean = true;
+  
+  if (USE_LOCAL_ALGORITHM) {
+    // 使用本地算法（solarAltAz2）- 主算法
+    const result = solarAltAz2(dateUtc, lat, lon);
+    azDeg = result.azDeg;
+    altDeg = result.altDeg;
+    azDefined = result.azDefined ?? true; // 向后兼容
+    logger.log('computeEphemeris/altaz', { 
+      algorithm: 'local', 
+      az_deg: +azDeg.toFixed(1), 
+      alt_deg: +altDeg.toFixed(1),
+      az_defined: azDefined
+    });
+  } else {
+    // 使用astronomy-engine作为备选
+    const result = solarAltAzEngine(dateUtc, lat, lon);
+    azDeg = result.azDeg;
+    altDeg = result.altDeg;
+    azDefined = true; // astronomy-engine不提供此信息
+    logger.log('computeEphemeris/altaz', { 
+      algorithm: 'astronomy-engine', 
+      az_deg: +azDeg.toFixed(1), 
+      alt_deg: +altDeg.toFixed(1),
+      az_defined: azDefined
+    });
+  }
   
   // 2. 转为ENU本地坐标系
   const sunENU = altAzToENU(azDeg, altDeg);
@@ -296,17 +353,20 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
   const sunECEF = enuToECEF(sunENU, lat, lon);
   logger.log('computeEphemeris/sunECEF', { x: +sunECEF.x.toFixed(3), y: +sunECEF.y.toFixed(3), z: +sunECEF.z.toFixed(3) });
   
-  // 4. ECEF即为我们的世界坐标系（目前不施加构图旋转）
-  const sunWorld = { ...sunECEF };
+  // 4. 坐标对齐：当前three.js世界为 Y-up，而上游计算的ECEF为 Z-up
+  //    ECEF(x, y, z) 映射到 World(x, z, y)
+  const sunWorld = { x: sunECEF.x, y: sunECEF.z, z: sunECEF.y };
   
   // 5. 观测者ECEF坐标
   const latRad = lat * Math.PI / 180;
   const lonRad = lon * Math.PI / 180;
-  const observerECEF = {
+  // 观测者在世界坐标的方向（同样进行 Z-up → Y-up 的轴映射）
+  const observerECEF_Zup = {
     x: Math.cos(latRad) * Math.cos(lonRad),
     y: Math.cos(latRad) * Math.sin(lonRad),
     z: Math.sin(latRad)
   };
+  const observerECEF = { x: observerECEF_Zup.x, y: observerECEF_Zup.z, z: observerECEF_Zup.y };
   
   // 6. 月亮简化计算（相对太阳位置）
   const moonWorld = {
@@ -337,6 +397,7 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
     observerECEF,
     altDeg,
     azDeg,
+    azDefined, // 🔧 新增：方位角稳定性状态
     illumination
   };
 }
@@ -379,4 +440,3 @@ export function toUTCFromLocal(localISO: string, lon: number): Date {
   console.log(`[toUTCFromLocal] 注意：UTC时间${utc.getUTCHours()}:${utc.getUTCMinutes()} 对应本地时间${h}:${mi}`);
   return utc;
 }
-

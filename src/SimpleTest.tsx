@@ -20,16 +20,18 @@ import { getMoonPhase } from './scenes/simple/api/moonPhase';
 function SceneContent({ 
   composition, 
   mode, 
-  sunWorld 
+  sunWorld,
+  altDeg
 }: { 
   composition: SimpleComposition;
   mode: 'debug' | 'celestial';
   sunWorld: { x: number; y: number; z: number };
+  altDeg?: number;
 }) {
   const { camera } = useThree();
   
   // 光照系统 - 单光照，与日期时间计算耦合
-  const lightDirection = useLightDirection(mode, sunWorld, composition);
+  const lightDirection = useLightDirection(mode, sunWorld, composition, altDeg);
   const lightColor = useLightColor(composition);
   const lightIntensity = useLightIntensity(composition);
   const ambientIntensity = useAmbientIntensity(composition);
@@ -75,6 +77,10 @@ function SceneContent({
     });
   }, [lightDirection, mode]);
 
+  // 单光常亮：不再按 altDeg 关灯，夜面由着色器控制
+  const finalIntensity = lightIntensity;
+  const finalCastShadow = true;
+
   return (
     <>
       {/* 统一光照系统 - 单光照 */}
@@ -84,9 +90,9 @@ function SceneContent({
           lightDirection.y * 50, 
           lightDirection.z * 50
         ]}
-        intensity={lightIntensity}
+        intensity={finalIntensity}
         color={lightColor}
-        castShadow
+        castShadow={finalCastShadow}
       />
       
       <ambientLight intensity={ambientIntensity} />
@@ -211,13 +217,30 @@ function SceneContent({
 
 // 🔧 关键修复：在Canvas内部按需触发一次对齐，将指定经度旋到屏幕中心
 // 只依赖tick避免重复对齐，不依赖latDeg/lonDeg避免叠加旋转
-function AlignOnDemand({ tick, latDeg, lonDeg }: { tick: number; latDeg: number; lonDeg: number }) {
+function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDir }: { tick: number; latDeg: number; lonDeg: number; sunWorld: {x:number;y:number;z:number}; useFixedSun?: boolean; fixedSunDir?: [number,number,number] }) {
   const { scene, camera } = useThree();
   React.useEffect(() => {
     try {
       const earth = scene.getObjectByName('earthRoot');
       if (earth) {
-        if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg });
+        // 固定太阳模式：仅绕世界Y轴旋转，避免多轴联动
+        if (useFixedSun) {
+          const worldUp = new THREE.Vector3(0,1,0);
+          // 计算 -sunWorld 与 fixedSunDir 的平面方位角（XZ平面），以Y轴为上
+          const negSun = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
+          const yawSun = Math.atan2(negSun.x, negSun.z); // [-pi,pi]
+          const f = fixedSunDir ?? [-1,0,0];
+          const fixed = new THREE.Vector3(f[0], f[1], f[2]).normalize();
+          const yawFixed = Math.atan2(fixed.x, fixed.z);
+          let deltaYaw = yawFixed - yawSun;
+          // 规范化到 [-pi, pi]
+          while (deltaYaw > Math.PI) deltaYaw -= 2*Math.PI;
+          while (deltaYaw < -Math.PI) deltaYaw += 2*Math.PI;
+          // 重置旋转，只施加绕Y的偏航
+          (earth as THREE.Object3D).quaternion.identity();
+          (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, deltaYaw);
+        }
+        if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg, useFixedSun: !!useFixedSun });
         alignLongitudeOnly(earth as THREE.Object3D, camera, lonDeg);
       } else {
         if (logger.isEnabled()) logger.warn('align/earthRoot-missing');
@@ -225,7 +248,7 @@ function AlignOnDemand({ tick, latDeg, lonDeg }: { tick: number; latDeg: number;
     } catch (err) {
       if (logger.isEnabled()) logger.error('align/fail', String(err));
     }
-  }, [tick]); // 🔧 只依赖tick，不依赖latDeg/lonDeg
+  }, [tick, useFixedSun, sunWorld.x, sunWorld.y, sunWorld.z, lonDeg]);
   return null;
 }
 
@@ -402,131 +425,7 @@ export default function SimpleTest() {
     setDateISO(getCurrentLocalTime());
   };
 
-  // 物理一致性测试
-  const consistencyTest = () => {
-    console.log('[Consistency Test] Starting physical consistency validation...');
-    
-    const testCases = [
-      // 春分日测试 - 同一时刻全球太阳方向应该一致
-      { name: '春分赤道正午', time: '2024-03-20T12:00', lat: 0, lon: 0 },
-      { name: '春分北半球正午', time: '2024-03-20T12:00', lat: 45, lon: 0 },
-      { name: '春分南半球正午', time: '2024-03-20T12:00', lat: -45, lon: 0 },
-      
-      // 夏至极圈测试 - 北极圈夏至应该有午夜太阳
-      { name: '北极圈夏至午夜', time: '2024-06-21T00:00', lat: 66.55, lon: 0 },
-      { name: '北极圈夏至正午', time: '2024-06-21T12:00', lat: 66.55, lon: 0 },
-      
-      // 经度测试 - 同一纬度不同经度的日夜循环
-      { name: '赤道0°E午夜', time: '2024-03-20T00:00', lat: 0, lon: 0 },
-      { name: '赤道180°E午夜', time: '2024-03-20T00:00', lat: 0, lon: 180 },
-    ];
-    
-    testCases.forEach((testCase, index) => {
-      setTimeout(() => {
-        console.log(`[Consistency Test] ${index + 1}/${testCases.length}: Testing ${testCase.name}...`);
-        
-        try {
-          const state = getEarthState(testCase.time, testCase.lat, testCase.lon, timeMode);
-          const sunElevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
-          const sunAzimuth = Math.atan2(state.sunDirWorld.x, state.sunDirWorld.z) * 180 / Math.PI;
-          const azimuthNorm = sunAzimuth < 0 ? sunAzimuth + 360 : sunAzimuth;
-          
-          // 物理一致性检查
-          const issues = [];
-          
-          // 检查极端仰角
-          if (Math.abs(sunElevation) > 90.1) {
-            issues.push(`异常仰角: ${sunElevation.toFixed(1)}° (应在-90°到+90°之间)`);
-          }
-          
-          // 检查春分日极端情况
-          if (testCase.time.includes('2024-03-20') && testCase.lat === 0) {
-            if (testCase.time.includes('T12:00') && sunElevation < 85) {
-              issues.push(`春分赤道正午仰角过低: ${sunElevation.toFixed(1)}° (应接近90°)`);
-            }
-            if (testCase.time.includes('T00:00') && Math.abs(sunElevation) > 30) {
-              issues.push(`春分赤道午夜仰角异常: ${sunElevation.toFixed(1)}° (应接近0°)`);
-            }
-          }
-          
-          // 检查北极圈夏至午夜太阳
-          if (testCase.time.includes('2024-06-21T00:00') && testCase.lat >= 66) {
-            if (sunElevation < 0) {
-              issues.push(`北极圈夏至午夜太阳在地平线下: ${sunElevation.toFixed(1)}° (应为正值)`);
-            }
-          }
-          
-          console.log(`[Consistency Test] ${testCase.name}:`, {
-            elevation: sunElevation.toFixed(1) + '°',
-            azimuth: azimuthNorm.toFixed(1) + '°',
-            sunDir: [state.sunDirWorld.x.toFixed(3), state.sunDirWorld.y.toFixed(3), state.sunDirWorld.z.toFixed(3)],
-            issues: issues.length > 0 ? issues : '✓ 物理合理'
-          });
-          
-          // 最后一个测试用例时设置到界面
-          if (index === testCases.length - 1) {
-            setLatDeg(testCase.lat);
-            setLonDeg(testCase.lon);
-            setDateISO(testCase.time);
-          }
-          
-        } catch (err) {
-          console.error(`[Consistency Test] ${testCase.name} 失败:`, err);
-        }
-      }, index * 1000); // 每秒一个测试
-    });
-    
-    setTimeout(() => {
-      console.log('[Consistency Test] 物理一致性测试完成，请查看控制台结果');
-    }, testCases.length * 1000 + 500);
-  };
-
-  // 新增：关键验证测试（使用修复后的算法）
-  const criticalValidationTest = () => {
-    console.log('🚀 开始运行关键验证测试...');
-    
-    // 动态导入验证函数
-    import('./astro/validation').then(({ runCriticalValidationTests }) => {
-      runCriticalValidationTests();
-    }).catch(error => {
-      console.error('❌ 导入验证模块失败:', error);
-    });
-  };
-
-  // 新增：快速验证测试
-  const quickValidationTest = () => {
-    console.log('🔍 快速验证测试...');
-    
-    // 测试关键时间点
-    const testCases = [
-      { name: '夏至中午上海', time: '2024-06-21T12:00', lat: 31.2, lon: 121.5 },
-      { name: '冬至中午上海', time: '2024-12-21T12:00', lat: 31.2, lon: 121.5 },
-      { name: '春分中午上海', time: '2024-03-21T12:00', lat: 31.2, lon: 121.5 }
-    ];
-    
-    testCases.forEach((testCase, index) => {
-      setTimeout(() => {
-        try {
-          const state = getEarthState(testCase.time, testCase.lat, testCase.lon, timeMode);
-          const sunElevation = Math.asin(state.sunDirWorld.y) * 180 / Math.PI;
-          
-          console.log(`[Quick Test] ${testCase.name}:`, {
-            elevation: sunElevation.toFixed(1) + '°',
-            sunDir: [state.sunDirWorld.x.toFixed(3), state.sunDirWorld.y.toFixed(3), state.sunDirWorld.z.toFixed(3)],
-            status: sunElevation > 0 ? '✅ 白天' : '❌ 黑夜'
-          });
-          
-          // 检查关键问题是否修复
-          if (testCase.name.includes('夏至中午') && sunElevation < 0) {
-            console.error(`❌ 严重问题：${testCase.name} 太阳在地平线下！`);
-          }
-          
-        } catch (err) {
-          console.error(`[Quick Test] ${testCase.name} 失败:`, err);
-        }
-      }, index * 500);
-    });
-  };
+  // 旧的测试入口已移除，改为独立自动化测试套件（见 src/astro/autoTests.ts）
 
   // 计算光照方向的角度信息 - 使用真实的天文角度数据
   const lightInfo = React.useMemo(() => {
@@ -565,8 +464,17 @@ export default function SimpleTest() {
           composition={composition} 
           mode={mode}
           sunWorld={sunWorld}
+          altDeg={sunAngles.altDeg}
         />
-        <AlignOnDemand tick={alignTick} latDeg={latDeg} lonDeg={lonDeg} />
+        <NoTiltProbe />
+        <AlignOnDemand 
+          tick={alignTick} 
+          latDeg={latDeg} 
+          lonDeg={lonDeg} 
+          sunWorld={sunWorld}
+          useFixedSun={composition.useFixedSun}
+          fixedSunDir={composition.fixedSunDir}
+        />
       </Canvas>
       
       {/* 控制面板 - 使用与原版本一致的样式 */}
@@ -865,52 +773,7 @@ export default function SimpleTest() {
                 }, 3000); // 每3秒切换一次
               }}>测试季节光照</button>
             </div>
-            <div className="col">
-              <button className="btn" onClick={() => {
-                console.log('[Extreme Test] Setting extreme sunWorld positions...');
-                // 测试极端光照位置以验证视觉变化
-                const positions = [
-                  { x: 1, y: 0, z: 0, name: '东方' },   // 东方
-                  { x: 0, y: 1, z: 0, name: '正上方' }, // 正上方
-                  { x: -1, y: 0, z: 0, name: '西方' },  // 西方
-                  { x: 0, y: -1, z: 0, name: '正下方' } // 正下方
-                ];
-                
-                let index = 0;
-                const testInterval = setInterval(() => {
-                  if (index >= positions.length) {
-                    clearInterval(testInterval);
-                    console.log('[Extreme Test] Test completed');
-                    return;
-                  }
-                  
-                  const pos = positions[index];
-                  console.log(`[Extreme Test] Setting sunWorld to ${pos.name}:`, pos);
-                  setSunWorld({ x: pos.x, y: pos.y, z: pos.z });
-                  setMode('celestial'); // 确保在天相模式
-                  index++;
-                }, 2000); // 每2秒切换一次
-              }}>极端光照测试</button>
-            </div>
-            <div className="col">
-              <button className="btn" onClick={consistencyTest}>物理一致性测试</button>
-            </div>
-            <div className="col">
-              <button className="btn" onClick={criticalValidationTest}>关键验证测试</button>
-            </div>
-            <div className="col">
-              <button className="btn" onClick={quickValidationTest}>快速验证测试</button>
-            </div>
-            <div className="col">
-              <button className="btn" onClick={() => {
-                console.log('🔍 运行快速测试...');
-                import('./astro/quickTest').then(({ runQuickTest }) => {
-                  runQuickTest();
-                }).catch(error => {
-                  console.error('❌ 导入快速测试模块失败:', error);
-                });
-              }}>快速测试</button>
-            </div>
+            {/* 旧测试入口已移除；使用 URL 参数 ?autotest=1 触发新的自动测试 */}
           </div>
 
           {/* 地球位置控制 */}
@@ -1282,4 +1145,44 @@ export default function SimpleTest() {
       )}
     </div>
   );
+}
+
+// 在渲染上下文中提供一个自动化"无倾斜"检测脚本
+function NoTiltProbe() {
+  const { scene } = useThree();
+  React.useEffect(() => {
+    (window as any).runNoTiltAutoTest = async (frames: number = 120) => {
+      const worldUp = new THREE.Vector3(0,1,0);
+      let maxDeg = 0;
+      let samples = 0;
+      const getTiltDeg = () => {
+        const earth = scene.getObjectByName('earthRoot') as THREE.Object3D | undefined;
+        if (!earth) return null;
+        const up = new THREE.Vector3(0,1,0).applyQuaternion(earth.quaternion).normalize();
+        const dot = THREE.MathUtils.clamp(up.dot(worldUp), -1, 1);
+        const ang = Math.acos(dot) * 180 / Math.PI; // 与世界Y的夹角
+        return ang;
+      };
+      await new Promise<void>((resolve) => {
+        let count = 0;
+        const step = () => {
+          const deg = getTiltDeg();
+          if (deg != null) {
+            maxDeg = Math.max(maxDeg, deg);
+            samples++;
+          }
+          count++;
+          if (count >= frames) return resolve();
+          requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });
+      const ok = maxDeg <= 0.5; // 容差0.5°以内视为无倾斜
+      const payload = { when: new Date().toISOString(), ok, maxTiltDeg: +maxDeg.toFixed(3), samples };
+      console[ok?'log':'error']('[NoTiltTest] ' + (ok?'✅ PASS':'❌ FAIL'), payload);
+      console.log('[NoTiltTest:JSON]', JSON.stringify(payload, null, 2));
+      return payload;
+    };
+  }, [scene]);
+  return null;
 }

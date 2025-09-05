@@ -7,7 +7,8 @@ import { logger } from '../../../utils/logger';
 export function useLightDirection(
   mode: 'debug' | 'celestial',
   sunWorld: { x: number; y: number; z: number },
-  composition: any
+  composition: any,
+  altDeg?: number
 ) {
   return React.useMemo(() => {
     // console.log('[useLightDirection] Recalculating light direction:', { 
@@ -22,7 +23,7 @@ export function useLightDirection(
       const result = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
       
       // 检查太阳是否在地平线下
-      const elevation = Math.asin(sunWorld.y) * 180 / Math.PI;
+      const elevation = typeof altDeg === 'number' ? altDeg : (Math.asin(sunWorld.y) * 180 / Math.PI);
       const isSunBelowHorizon = elevation < 0;
       
       // console.log('[useLightDirection] Celestial mode result:', {
@@ -49,7 +50,7 @@ export function useLightDirection(
       // console.log('[useLightDirection] Debug mode result:', result.toArray());
       return result;
     }
-  }, [mode, sunWorld, composition.lightAzimuth, composition.lightElevation]);
+  }, [mode, sunWorld, composition.lightAzimuth, composition.lightElevation, altDeg]);
 }
 
 // 光照颜色计算 (色温控制)

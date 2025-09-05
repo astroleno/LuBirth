@@ -62,6 +62,10 @@ export interface SimpleComposition {
   showStars: boolean;          // 显示星空
   useMilkyWay: boolean;        // 使用银河星空
   enableControls: boolean;     // 启用相机控制
+
+  // 固定太阳模式
+  useFixedSun?: boolean;        // 是否使用固定太阳方向 + 旋转地球
+  fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
 }
 
 // 默认值
@@ -128,6 +132,11 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   showStars: true,             // 显示星空
   useMilkyWay: false,          // 不使用银河星空
   enableControls: false,       // 禁用相机控制（保持理想构图）
+
+  // 固定太阳模式（默认开启）
+  useFixedSun: true,
+  // 默认从屏幕左上方打光（相机看向 -Z，左= -X，上= +Y）
+  fixedSunDir: [-0.7071, 0.7071, 0],
 };
 
 // 从原始Composition转换为SimpleComposition
@@ -195,5 +204,9 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     showStars: original.showStars ?? DEFAULT_SIMPLE_COMPOSITION.showStars,
     useMilkyWay: original.useMilkyWay ?? DEFAULT_SIMPLE_COMPOSITION.useMilkyWay,
     enableControls: false,     // 始终禁用相机控制，保持理想构图
+
+    // 固定太阳模式（保持可回退能力）
+    useFixedSun: original.useFixedSun ?? DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
+    fixedSunDir: original.fixedSunDir ?? DEFAULT_SIMPLE_COMPOSITION.fixedSunDir,
   };
 }

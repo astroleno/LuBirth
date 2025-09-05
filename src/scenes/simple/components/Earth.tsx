@@ -123,11 +123,12 @@ export function Earth({
           float noise = fract(sin(dot(vUv, vec2(12.9898,78.233))) * 43758.5453);
           float ndl_d = ndl + (noise - 0.5) * edge * 0.25;
           float f = smoothstep(-edge, edge, ndl_d);
-          float day = max(ndl, 0.0);
           float dayW = f;
           
           vec3 dayTex = texture2D(dayMap, vUv).rgb;
-          vec3 dayCol = dayTex * (day * sunI + ambient) * lightColor * dayW;
+          // 修复：当太阳在背后时（ndl < 0），日面应该完全黑暗
+          float dayLight = max(ndl, 0.0); // 只有面向太阳的面才有光照
+          vec3 dayCol = dayTex * (dayLight * sunI + ambient) * lightColor * dayW;
           
           // 终止线软化 + 夜景随距离衰减
           float nightW = pow(1.0 - f, nightFalloff);
@@ -137,12 +138,13 @@ export function Earth({
           if (hasNight == 1) {
             vec3 nightTex = texture2D(nightMap, vUv).rgb;
             nightTex = pow(nightTex, vec3(nightGamma));
+            // 夜景只在夜面显示
             nightCol = nightTex * nightW * nightBoost;
           }
           
           // 日侧高光（仅日面，受specMap影响）
           vec3 specCol = vec3(0.0);
-          if (day > 0.0 && hasSpec == 1) {
+          if (dayLight > 0.0 && hasSpec == 1) {
             vec3 L = normalize(lightDir);
             vec3 V = normalize(vViewW);
             vec3 R = reflect(-L, n);
