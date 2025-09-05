@@ -6,7 +6,10 @@
       "Bash(node:*)",
       "Bash(timeout 3 tail -f log_console.md)",
       "Read(/F:\\github\\LuBirth/**)",
-      "Read(/F:\\github\\LuBirth\\src\\scenes\\simple\\utils/**)"
+      "Read(/F:\\github\\LuBirth\\src\\scenes\\simple\\utils/**)",
+      "Bash(npm run dev)",
+      "Bash(curl -s http://localhost:5174/)",
+      "Bash(pkill -f \"vite\")"
     ],
     "deny": [],
     "ask": []

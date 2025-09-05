@@ -19,7 +19,13 @@ export function useLightDirection(
     // });
     
     if (mode === 'celestial') {
-      // 修复：使用 -sunWorld 作为光照方向（太阳光从太阳射向地球）
+      // 固定太阳模式：直接使用 fixedSunDir
+      if (composition?.useFixedSun && Array.isArray(composition?.fixedSunDir)) {
+        const [fx, fy, fz] = composition.fixedSunDir as [number, number, number];
+        const result = new THREE.Vector3(fx, fy, fz).normalize();
+        return result;
+      }
+      // 普通模式：使用 -sunWorld 作为光照方向（太阳光从太阳射向地球）
       const result = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
       
       // 检查太阳是否在地平线下
@@ -50,7 +56,42 @@ export function useLightDirection(
       // console.log('[useLightDirection] Debug mode result:', result.toArray());
       return result;
     }
-  }, [mode, sunWorld, composition.lightAzimuth, composition.lightElevation, altDeg]);
+  }, [mode, sunWorld, composition.lightAzimuth, composition.lightElevation, altDeg, composition.useFixedSun, composition.fixedSunDir?.[0], composition.fixedSunDir?.[1], composition.fixedSunDir?.[2]]);
+}
+
+// 生成季节性太阳方向（Y-up 世界）：将黄赤交角的季节摆动转嫁到太阳方向
+export function seasonalSunDirWorldYUp(
+  utc: Date,
+  lonDeg: number,
+  obliquityDeg: number = 23.44,
+  seasonOffsetDays: number = 0,
+  fixedYawDeg?: number // 可选：锁定世界XZ平面方位角（度），仅改变仰角
+) {
+  const dayOfYear = (d: Date) => {
+    const start = Date.UTC(d.getUTCFullYear(), 0, 1);
+    return Math.floor((d.getTime() - start) / 86400000) + 1;
+  };
+  const fracDayUTC = (utc.getUTCHours() + utc.getUTCMinutes() / 60 + utc.getUTCSeconds() / 3600) / 24;
+  // 将相位校准到夏至（北半球约第172天）
+  const doy = dayOfYear(utc);
+  const gamma = 2 * Math.PI * ((doy - 172) + seasonOffsetDays) / 365.2422;
+  const eps = obliquityDeg * Math.PI / 180;
+  const delta = eps * Math.cos(gamma); // 赤纬（季节摆动）
+  let H: number;
+  if (typeof fixedYawDeg === 'number' && isFinite(fixedYawDeg)) {
+    const yawRad = fixedYawDeg * Math.PI / 180;
+    H = Math.PI / 2 - yawRad;
+  } else {
+    const fracLocal = ((fracDayUTC + lonDeg / 360) % 1 + 1) % 1;
+    H = 2 * Math.PI * (fracLocal - 0.5);
+  }
+  const ux = Math.cos(delta) * Math.cos(H);
+  const uy = Math.cos(delta) * Math.sin(H);
+  const uz = Math.sin(delta);
+  // ECEF(x=ux,y=uy,z=uz) → World Y-up: (x=ux, y=uz, z=uy)
+  const vx = ux, vy = uz, vz = uy;
+  const n = Math.hypot(vx, vy, vz) || 1;
+  return { x: vx / n, y: vy / n, z: vz / n };
 }
 
 // 光照颜色计算 (色温控制)

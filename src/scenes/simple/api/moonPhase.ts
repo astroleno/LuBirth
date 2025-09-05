@@ -1,4 +1,5 @@
-import { computeEphemeris, toUTCFromLocal } from '../../../astro/ephemeris';
+import { toUTCFromLocal } from '../../../astro/ephemeris';
+import { AstroTime, Body, Illumination } from 'astronomy-engine';
 
 export type MoonPhaseInfo = {
   illumination: number; // 0..1
@@ -8,22 +9,14 @@ export type MoonPhaseInfo = {
 export function getMoonPhase(localISO: string, latDeg: number, lonDeg: number): MoonPhaseInfo {
   try {
     const utc = toUTCFromLocal(localISO, lonDeg);
-    const eph = computeEphemeris(utc, latDeg, lonDeg);
-    // illumination已在ephemeris中计算，近似足够用于调控
-    // 用反推得到相位角（注意数值边界）
-    const ill = Math.min(1, Math.max(0, eph.illumination));
-    const phaseAngle = Math.acos(Math.min(1, Math.max(-1, 2 * ill - 1)));
-    return {
-      illumination: ill,
-      phaseAngleRad: phaseAngle
-    };
+    const info = Illumination(Body.Moon, new AstroTime(utc));
+    // astronomy-engine 提供的 phase_fraction 为 0..1，phase_angle 为度，我们转弧度
+    const illumination = Math.min(1, Math.max(0, info.phase_fraction));
+    const phaseAngleRad = (info.phase_angle * Math.PI) / 180;
+    return { illumination, phaseAngleRad };
   } catch (err) {
     console.error('[getMoonPhase] failed:', err);
-    return {
-      illumination: 0.5,
-      phaseAngleRad: Math.PI / 2
-    };
+    return { illumination: 0.5, phaseAngleRad: Math.PI / 2 };
   }
 }
-
 

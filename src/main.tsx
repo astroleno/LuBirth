@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { runAutoTests } from './astro/autoTests';
 import { runFullLightingValidation } from './astro/fullLightingAutoTest';
+import { runMoonPhaseAutoTests } from './astro/moonPhaseAutoTests';
 
 const root = createRoot(document.getElementById('root')!);
 console.log('[Main] React root created');
@@ -23,8 +24,25 @@ try {
     if (typeof fn === 'function') {
       try {
         fn(180).then((tilt:any) => {
-          const merged = { when: new Date().toISOString(), summary, noTilt: tilt };
-          console.log('[FullTest+NoTilt:JSON]', JSON.stringify(merged, null, 2));
+          const fz = (window as any).runFixedSunAzimuthLockTest;
+          const done = (az:any, seasonal:any) => {
+            const merged = { when: new Date().toISOString(), summary, noTilt: tilt, fixedSunAz: az, seasonal };
+            console.log('[FullTest+NoTilt:JSON]', JSON.stringify(merged, null, 2));
+          };
+          const fs = (window as any).runSeasonalAutoTest;
+          const callSeasonal = (az:any) => {
+            if (typeof fs === 'function') {
+              fs().then((ss:any)=>done(az, ss)).catch((e:any)=>{ console.error('[FullTest] Seasonal integration failed:', e); done(az, null); });
+            } else {
+              done(az, null);
+            }
+          };
+          
+          if (typeof fz === 'function') {
+            fz().then(callSeasonal).catch((e:any)=>{ console.error('[FullTest] FixedSunAz integration failed:', e); callSeasonal(null); });
+          } else {
+            callSeasonal(null);
+          }
         });
       } catch (e) {
         console.error('[FullTest] NoTilt integration failed:', e);
@@ -52,12 +70,25 @@ try {
       const summary = runFullLightingValidation();
       const fn = (window as any).runNoTiltAutoTest;
       const tilt = typeof fn === 'function' ? await fn(180) : null;
-      const payload = { when: new Date().toISOString(), summary, noTilt: tilt };
+      const fz = (window as any).runFixedSunAzimuthLockTest;
+      const az = typeof fz === 'function' ? await fz() : null;
+      const fs = (window as any).runSeasonalAutoTest;
+      const seasonal = typeof fs === 'function' ? await fs() : null;
+      const moonPhase = runMoonPhaseAutoTests();
+      const payload = { when: new Date().toISOString(), summary, noTilt: tilt, fixedSunAz: az, seasonal, moonPhase };
       console.log('[FullTest+NoTilt:OneClick] JSON below. Copy from console if needed.');
       console.log(JSON.stringify(payload, null, 2));
       return payload;
     } catch (e) {
       console.error('[FullTest+NoTilt:OneClick] failed:', e);
+      return null;
+    }
+  };
+  (window as any).runMoonPhaseAutoTests = () => {
+    try {
+      return runMoonPhaseAutoTests();
+    } catch (e) {
+      console.error('[MoonPhaseTest:OneClick] failed:', e);
       return null;
     }
   };

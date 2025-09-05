@@ -66,6 +66,17 @@ export interface SimpleComposition {
   // 固定太阳模式
   useFixedSun?: boolean;        // 是否使用固定太阳方向 + 旋转地球
   fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
+
+  // PIP 画中画（月球）
+  enablePIP?: boolean;          // 是否启用PIP
+  pip?: {
+    x: number;                  // 屏幕X(0..1) 右为1
+    y: number;                  // 屏幕Y(0..1) 下为1
+    size: number;               // 像素尺寸（直径）
+    resolution: number;         // 渲染分辨率（方形）
+    fps: number;                // 降帧（目标fps），0=每帧
+    ambient?: number;           // PIP 专用环境光强度（只作用于layer=2）
+  };
 }
 
 // 默认值
@@ -137,6 +148,15 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   useFixedSun: true,
   // 默认从屏幕左上方打光（相机看向 -Z，左= -X，上= +Y）
   fixedSunDir: [-0.7071, 0.7071, 0],
+
+  // PIP 画中画默认开启，居中偏右可读性强
+  enablePIP: true,
+  pip: { x: 0.5, y: 0.16, size: 176, resolution: 1024, fps: 0, ambient: 0.1 },
+
+  // 季节模式默认关闭
+  useSeasonalVariation: false,
+  obliquityDeg: 23.44,
+  seasonOffsetDays: 0,
 };
 
 // 从原始Composition转换为SimpleComposition
@@ -208,5 +228,20 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 固定太阳模式（保持可回退能力）
     useFixedSun: original.useFixedSun ?? DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
     fixedSunDir: original.fixedSunDir ?? DEFAULT_SIMPLE_COMPOSITION.fixedSunDir,
+
+    // PIP
+    enablePIP: original.enablePIP ?? DEFAULT_SIMPLE_COMPOSITION.enablePIP,
+    pip: {
+      x: original.pip?.x ?? DEFAULT_SIMPLE_COMPOSITION.pip!.x,
+      y: original.pip?.y ?? DEFAULT_SIMPLE_COMPOSITION.pip!.y,
+      size: original.pip?.size ?? DEFAULT_SIMPLE_COMPOSITION.pip!.size,
+      resolution: original.pip?.resolution ?? DEFAULT_SIMPLE_COMPOSITION.pip!.resolution,
+      fps: original.pip?.fps ?? DEFAULT_SIMPLE_COMPOSITION.pip!.fps,
+    },
+
+    // 季节模式
+    useSeasonalVariation: original.useSeasonalVariation ?? DEFAULT_SIMPLE_COMPOSITION.useSeasonalVariation,
+    obliquityDeg: original.obliquityDeg ?? DEFAULT_SIMPLE_COMPOSITION.obliquityDeg,
+    seasonOffsetDays: original.seasonOffsetDays ?? DEFAULT_SIMPLE_COMPOSITION.seasonOffsetDays,
   };
 }

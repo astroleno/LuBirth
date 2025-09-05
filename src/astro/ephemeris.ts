@@ -1,4 +1,4 @@
-import { AstroTime, Body, Observer, Equator as EquatorFn, Horizon as HorizonFn } from 'astronomy-engine';
+import { AstroTime, Body, Observer, Equator as EquatorFn, Horizon as HorizonFn, Illumination as IlluminationFn } from 'astronomy-engine';
 import { logger } from '../utils/logger';
 
 // 导入验证函数
@@ -301,6 +301,19 @@ function solarAltAzEngine(dateUtc: Date, latDeg: number, lonDeg: number) {
   }
 }
 
+// 计算月亮地平坐标（使用 astronomy-engine，稳定一致）
+function moonAltAzEngine(dateUtc: Date, latDeg: number, lonDeg: number) {
+  const t = new AstroTime(dateUtc);
+  const obs = new (Observer as unknown as { new(lat:number, lon:number, height:number): Observer })(latDeg, lonDeg, 0);
+  const equator = (EquatorFn as unknown as (body: Body, time: AstroTime, observer?: Observer, ofdate?: boolean, aberration?: boolean) => any)(Body.Moon, t, obs, true, true);
+  const ra = equator.ra as number;
+  const dec = equator.dec as number;
+  const horizon = (HorizonFn as unknown as (time: AstroTime, obs: Observer, ra: number, dec: number, refraction: string) => any)(t, obs, ra, dec, 'normal');
+  const azDeg = ((horizon.azimuth % 360) + 360) % 360;
+  const altDeg = horizon.altitude as number;
+  return { azDeg, altDeg };
+}
+
 // 配置开关：选择太阳位置计算算法
 const USE_LOCAL_ALGORITHM = false; // 默认使用 astronomy-engine，保证等效正确性
 
@@ -345,7 +358,7 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
     });
   }
   
-  // 2. 转为ENU本地坐标系
+  // 2. 转为ENU本地坐标系（太阳）
   const sunENU = altAzToENU(azDeg, altDeg);
   logger.log('computeEphemeris/sunENU', { x: +sunENU.x.toFixed(3), y: +sunENU.y.toFixed(3), z: +sunENU.z.toFixed(3) });
   
@@ -356,6 +369,12 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
   // 4. 坐标对齐：当前three.js世界为 Y-up，而上游计算的ECEF为 Z-up
   //    ECEF(x, y, z) 映射到 World(x, z, y)
   const sunWorld = { x: sunECEF.x, y: sunECEF.z, z: sunECEF.y };
+
+  // 月亮方向（世界坐标）
+  const mAltAz = moonAltAzEngine(dateUtc, lat, lon);
+  const moonENU = altAzToENU(mAltAz.azDeg, mAltAz.altDeg);
+  const moonECEF = enuToECEF(moonENU, lat, lon);
+  const moonWorld = { x: moonECEF.x, y: moonECEF.z, z: moonECEF.y };
   
   // 5. 观测者ECEF坐标
   const latRad = lat * Math.PI / 180;
@@ -368,25 +387,16 @@ export function computeEphemeris(dateUtc: Date, lat: number, lon: number): Ephem
   };
   const observerECEF = { x: observerECEF_Zup.x, y: observerECEF_Zup.z, z: observerECEF_Zup.y };
   
-  // 6. 月亮简化计算（相对太阳位置）
-  const moonWorld = {
-    x: -sunWorld.x * 0.5,
-    y: Math.abs(sunWorld.y) * 0.3,
-    z: -sunWorld.z * 0.5
-  };
-  
   // 归一化月亮方向
-  const moonLen = len(moonWorld);
-  const moonWorldNormalized = {
-    x: moonWorld.x / moonLen,
-    y: moonWorld.y / moonLen,
-    z: moonWorld.z / moonLen
-  };
+  const moonLen = len(moonWorld) || 1;
+  const moonWorldNormalized = { x: moonWorld.x / moonLen, y: moonWorld.y / moonLen, z: moonWorld.z / moonLen };
   
-  // 7. 月相计算
-  const cosPhase = dot(sunWorld, moonWorldNormalized);
-  const phaseAngle = Math.acos(Math.min(1, Math.max(-1, cosPhase)));
-  const illumination = (1 + Math.cos(phaseAngle)) / 2;
+  // 7. 月相计算（使用 astronomy-engine 更准确的相位函数）
+  let illumination = 0.5;
+  try {
+    const info = IlluminationFn(Body.Moon, new AstroTime(dateUtc));
+    illumination = Math.min(1, Math.max(0, info.phase_fraction));
+  } catch {}
   
   logger.log('computeEphemeris/sunWorld', { x: +sunWorld.x.toFixed(3), y: +sunWorld.y.toFixed(3), z: +sunWorld.z.toFixed(3) });
   
