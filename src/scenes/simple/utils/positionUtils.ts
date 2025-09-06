@@ -99,37 +99,33 @@ export function useEarthPosition(composition: any, cameraDistance: number = 12.0
   }, [composition?.earthTopY, composition?.earthSize, cameraDistance]);
 }
 
-// 月球位置计算 - 移除分层渲染逻辑
+// 🌙 月球屏幕锚定位置 - 返回屏幕参数，实际位置在Moon组件中每帧计算
 export function useMoonPosition(composition: any, camera: THREE.Camera) {
   return React.useMemo(() => {
     try {
-      // 月球屏幕位置
       const moonScreen = {
-        x: composition?.moonScreenX ?? 0.75, // 更新为默认右上角位置
-        y: composition?.moonScreenY ?? 0.75, // 更新为默认右上角位置
+        x: composition?.moonScreenX ?? 0.5,  // 默认屏幕中心
+        y: composition?.moonScreenY ?? 0.75, // 默认屏幕上方
         dist: composition?.moonDistance ?? 14
       };
       
-      // 计算月球世界位置
-      const ndc = new THREE.Vector3(moonScreen.x * 2 - 1, moonScreen.y * 2 - 1, 0.5);
-      const p = ndc.unproject(camera);
-      const dir = p.sub(camera.position).normalize();
-      const moonPos = camera.position.clone().add(dir.multiplyScalar(moonScreen.dist));
-      
+      // 🌙 新策略：返回屏幕参数，让Moon组件每帧计算实际位置
+      // 这样可以实现真正的屏幕锚定
       return {
-        position: moonPos.toArray() as [number, number, number],
+        // 临时位置（会被Moon组件每帧更新）
+        position: [0, 0, -moonScreen.dist] as [number, number, number],
         screen: moonScreen,
         distance: moonScreen.dist
       };
     } catch (error) {
-      console.error('[SimpleMoonPosition] Error:', error);
+      console.error('[MoonScreenConfig] Error:', error);
       return {
-        position: [3, 1, 8] as [number, number, number],
-        screen: { x: 0.75, y: 0.75, dist: 8 },
-        distance: 8
+        position: [0, 2, -14] as [number, number, number],
+        screen: { x: 0.5, y: 0.75, dist: 14 },
+        distance: 14
       };
     }
-  }, [composition?.moonScreenX, composition?.moonScreenY, composition?.moonDistance, camera]);
+  }, [composition?.moonScreenX, composition?.moonScreenY, composition?.moonDistance]); 
 }
 
 // 位置标记计算
@@ -169,6 +165,40 @@ export function useExposureControl(composition: any) {
       console.error('[SimpleExposure] Error:', error);
     }
   }, [gl, composition?.exposure]);
+}
+
+// 🌙 屏幕锚定位置计算 - 每帧更新以跟随相机
+export function getScreenAnchoredPosition(
+  screenX: number, 
+  screenY: number, 
+  distance: number,
+  camera: THREE.Camera
+): THREE.Vector3 {
+  try {
+    // 确保相机矩阵是最新的
+    camera.updateMatrixWorld();
+    
+    // 将屏幕坐标转换为NDC坐标
+    const ndcX = (screenX - 0.5) * 2;
+    const ndcY = (screenY - 0.5) * 2;
+    const ndcZ = 0.5; // 中间深度
+    
+    // 创建NDC空间的点并反投影到世界空间
+    const ndcPoint = new THREE.Vector3(ndcX, ndcY, ndcZ);
+    const worldPoint = ndcPoint.unproject(camera);
+    
+    // 计算从相机到屏幕点的方向
+    const direction = worldPoint.sub(camera.position).normalize();
+    
+    // 沿方向移动指定距离得到最终位置
+    const finalPosition = camera.position.clone().add(direction.multiplyScalar(distance));
+    
+    return finalPosition;
+  } catch (error) {
+    console.error('[ScreenAnchoredPosition] Error:', error);
+    // 兜底：相机前方固定位置
+    return camera.position.clone().add(new THREE.Vector3(0, 0, -distance));
+  }
 }
 
 // 位置验证工具

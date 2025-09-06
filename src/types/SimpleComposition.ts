@@ -112,9 +112,9 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 月球参数
   moonDistance: 14,            // 月球距离
   moonRadius: 0.44,            // 月球半径
-  moonLatDeg: -90,             // 月球纬度调整
-  moonLonDeg: 0,               // 月球经度调整
-  moonYawDeg: 90,              // 月球水平转角调整（潮汐锁定面）
+  moonLatDeg: 90,              // 月球纬度调整（潮汐锁定面）
+  moonLonDeg: -90,             // 月球经度调整（潮汐锁定面）
+  moonYawDeg: -90,             // 月球水平转角调整（潮汐锁定面）
   moonScreenX: 0.5,            // 月球屏幕X位置 (屏幕中央)
   moonScreenY: 0.75,           // 月球屏幕Y位置 (屏幕上方)
   

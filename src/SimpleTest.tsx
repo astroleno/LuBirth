@@ -263,6 +263,11 @@ function SceneContent({
         // 使用相机锁相位模式，基于真实太阳方向计算投影位置角
         useCameraLockedPhase={composition.moonUseCameraLockedPhase ?? true}
         renderLayer={0}
+        // 🌙 启用屏幕锚定系统
+        enableScreenAnchor={true}
+        screenX={composition.moonScreenX}
+        screenY={composition.moonScreenY}
+        anchorDistance={composition.moonDistance}
         currentDate={dateISO}
         observerLat={latDeg}
         observerLon={lonDeg}
@@ -304,6 +309,9 @@ function SceneContent({
           enablePan={false}
           minDistance={3}
           maxDistance={50}
+          // 🌙 限制仰角范围，防止-85度突变
+          minPolarAngle={THREE.MathUtils.degToRad(10)}   // 最小仰角10度（避免-80度）
+          maxPolarAngle={THREE.MathUtils.degToRad(170)}  // 最大仰角170度（避免80度）
         />
       )}
 
