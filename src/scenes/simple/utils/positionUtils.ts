@@ -4,24 +4,45 @@ import { useThree } from '@react-three/fiber';
 
 // 相机控制工具 - 移除分层渲染逻辑
 export function useCameraControl(composition: any) {
-  const { camera } = useThree();
+  const { camera, size, gl } = useThree();
   
   React.useEffect(() => {
     try {
-      // 相机距离计算
-      const cameraDistance = composition?.cameraDistance ?? 12.0;
-      
-      // 设置相机位置
-      camera.position.set(0, 0, cameraDistance);
+      // 相机极坐标（最小接入）
+      const R = composition?.cameraDistance ?? 12.0;
+      const azDeg = composition?.cameraAzimuthDeg ?? 0;
+      const elDeg = composition?.cameraElevationDeg ?? 0;
+      const az = THREE.MathUtils.degToRad(azDeg);
+      const el = THREE.MathUtils.degToRad(elDeg);
+
+      // 采用世界Y为上，λ 绕 +Y，φ 为仰角（0 在地平，正为上）
+      const cosEl = Math.cos(el);
+      const x = R * Math.sin(az) * cosEl;
+      const y = R * Math.sin(el);
+      const z = R * Math.cos(az) * cosEl; // λ=0 时 z=R（面向 -Z 看原点）
+
+      camera.position.set(x, y, z);
+      camera.up.set(0, 1, 0);
       camera.lookAt(0, 0, 0);
       
       // 设置近远平面
       camera.near = 0.01;
-      camera.far = Math.max(400, cameraDistance + 20);
+      camera.far = Math.max(400, R + 20);
       
-      // 移除分层渲染逻辑
-      // camera.layers.enable(1);
-      // camera.layers.enable(2);
+      // 视口偏移（主点纵向偏移，-1..+1，上为正）
+      const offsetY = composition?.viewOffsetY ?? 0;
+      if (camera instanceof THREE.PerspectiveCamera) {
+        if (Math.abs(offsetY) > 1e-6) {
+          const fullW = size?.width ?? gl?.domElement?.width ?? 0;
+          const fullH = size?.height ?? gl?.domElement?.height ?? 0;
+          // 将 [-1,+1] 映射为像素偏移，正向上。PerspectiveCamera.setViewOffset 的 y 向下为正，因此取反。
+          const yPx = Math.round((offsetY * 0.5) * fullH);
+          const yParam = -yPx;
+          camera.setViewOffset(fullW, fullH, 0, yParam, fullW, fullH);
+        } else if ((camera as THREE.PerspectiveCamera).view !== null) {
+          camera.clearViewOffset();
+        }
+      }
       
       camera.updateProjectionMatrix();
       
@@ -32,13 +53,17 @@ export function useCameraControl(composition: any) {
           fov: camera.fov,
           near: camera.near,
           far: camera.far,
-          mode: 'single-render-system'
+          mode: 'single-render-system',
+          azDeg,
+          elDeg,
+          viewOffsetY: composition?.viewOffsetY ?? 0,
+          canvas: { w: size?.width, h: size?.height }
         });
       }
     } catch (error) {
       console.error('[SimpleCamera] Error:', error);
     }
-  }, [camera, composition?.cameraDistance]);
+  }, [camera, gl, size?.width, size?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.viewOffsetY]);
 }
 
 // 地球位置计算
@@ -80,8 +105,8 @@ export function useMoonPosition(composition: any, camera: THREE.Camera) {
     try {
       // 月球屏幕位置
       const moonScreen = {
-        x: composition?.moonScreenX ?? 0.5,
-        y: composition?.moonScreenY ?? 0.78,
+        x: composition?.moonScreenX ?? 0.75, // 更新为默认右上角位置
+        y: composition?.moonScreenY ?? 0.75, // 更新为默认右上角位置
         dist: composition?.moonDistance ?? 14
       };
       
@@ -100,7 +125,7 @@ export function useMoonPosition(composition: any, camera: THREE.Camera) {
       console.error('[SimpleMoonPosition] Error:', error);
       return {
         position: [3, 1, 8] as [number, number, number],
-        screen: { x: 0.5, y: 0.78, dist: 8 },
+        screen: { x: 0.75, y: 0.75, dist: 8 },
         distance: 8
       };
     }

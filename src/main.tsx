@@ -4,6 +4,7 @@ import App from './App';
 import { runAutoTests } from './astro/autoTests';
 import { runFullLightingValidation } from './astro/fullLightingAutoTest';
 import { runMoonPhaseAutoTests } from './astro/moonPhaseAutoTests';
+import { runMoonPhaseRenderValidation } from './astro/moonPhaseRenderValidation';
 
 const root = createRoot(document.getElementById('root')!);
 console.log('[Main] React root created');
@@ -89,6 +90,44 @@ try {
       return runMoonPhaseAutoTests();
     } catch (e) {
       console.error('[MoonPhaseTest:OneClick] failed:', e);
+      return null;
+    }
+  };
+  (window as any).runMoonPhaseRenderValidation = (year: number, month: number) => {
+    try {
+      return runMoonPhaseRenderValidation(year, month);
+    } catch (e) {
+      console.error('[MoonPhaseRenderValidation] failed:', e);
+      return null;
+    }
+  };
+  (window as any).runCameraPolarValidation = () => {
+    try {
+      const cam: any = (window as any).__R3F_Camera || null;
+      // 在 SimpleTest 中我们可将当前相机临时挂到 window 以方便调试（若未挂载则尝试通过 three inspector 获取）
+      const THREE = (window as any).THREE || undefined;
+      if (!cam || !THREE) {
+        console.warn('[CameraPolarValidation] camera or THREE not available on window.');
+      }
+      const camera = cam || null;
+      const v = new (THREE?.Vector3 ?? (class { x=0;y=0;z=0; }))();
+      if (camera && 'updateMatrixWorld' in camera) camera.updateMatrixWorld();
+      const ndc = camera && THREE ? new THREE.Vector3(0, 0, 0).project(camera) : { x: 0, y: 0, z: 0 };
+      const payload = {
+        when: new Date().toISOString(),
+        camera: camera ? {
+          pos: camera.position?.toArray?.() ?? null,
+          fov: camera.fov ?? null,
+          near: camera.near ?? null,
+          far: camera.far ?? null,
+          view: (camera as any).view ?? null
+        } : null,
+        earthCenterNDC: { x: +(ndc as any).x?.toFixed?.(4) ?? 0, y: +(ndc as any).y?.toFixed?.(4) ?? 0 },
+      };
+      console.log('[CameraPolarValidation:JSON]', JSON.stringify(payload, null, 2));
+      return payload;
+    } catch (e) {
+      console.error('[CameraPolarValidation] failed:', e);
       return null;
     }
   };

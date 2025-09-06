@@ -1,7 +1,63 @@
 import React, { useMemo, useState } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { Stars, OrbitControls } from '@react-three/drei';
+import { Stars, OrbitControls, useFBO } from '@react-three/drei';
 import * as THREE from 'three';
+
+// 银河贴图网格组件
+function MilkyWayMesh({ 
+  starsMilky, 
+  bgScale, 
+  bgYawDeg, 
+  bgPitchDeg 
+}: { 
+  starsMilky: THREE.Texture;
+  bgScale?: number;
+  bgYawDeg?: number;
+  bgPitchDeg?: number;
+}) {
+  const matRef = React.useRef<THREE.MeshBasicMaterial>(null!);
+  
+  React.useEffect(() => {
+    const mat = matRef.current;
+    const tex = mat?.map;
+    if (!tex) return;
+    
+    try {
+      if (!('repeat' in tex)) return; // 贴图尚未准备好
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.center.set(0.5, 0.5);
+      const s = bgScale ?? 1;
+      // 修正缩放逻辑：值越大，纹理重复越多，显得越小
+      const repeatX = Math.max(0.1, Math.min(10, 1/s));
+      tex.repeat.set(repeatX, 1);
+      tex.needsUpdate = true;
+      console.log('[MilkyWay] texture loaded:', {
+        image: tex.image?.src || tex.image?.currentSrc || 'no-src',
+        repeat: tex.repeat.toArray(),
+        yawDeg: bgYawDeg ?? 0,
+        pitchDeg: bgPitchDeg ?? 0,
+        sphereRadius: 120,
+        opacity: 0.8
+      });
+    } catch (e) {
+      console.warn('[MilkyWay] update failed:', String(e));
+    }
+  }, [starsMilky, bgScale, bgYawDeg, bgPitchDeg]);
+  
+  // 如果贴图丢失，避免报错，渲染空背景
+  if (!starsMilky) {
+    console.warn('[MilkyWay] texture missing, skip rendering');
+    return null;
+  }
+  
+  return (
+    <mesh key={`milky-${bgYawDeg}-${bgPitchDeg}`} rotation={[THREE.MathUtils.degToRad(bgPitchDeg ?? 0), THREE.MathUtils.degToRad(bgYawDeg ?? 0), 0]}>
+      <sphereGeometry args={[120, 64, 64]} />
+      <meshBasicMaterial map={starsMilky} side={THREE.BackSide} ref={matRef} transparent opacity={0.8} />
+    </mesh>
+  );
+}
 import { SimpleComposition, DEFAULT_SIMPLE_COMPOSITION } from './types/SimpleComposition';
 import { useLightDirection, useLightColor, useLightIntensity, useAmbientIntensity, seasonalSunDirWorldYUp } from './scenes/simple/utils/lightingUtils';
 import { useCameraControl, useEarthPosition, useMoonPosition, useExposureControl } from './scenes/simple/utils/positionUtils';
@@ -16,7 +72,7 @@ import { toUTCFromLocal } from './astro/ephemeris';
 import { logger } from './utils/logger';
 import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
-import { useFBO } from '@react-three/drei';
+import { calculateMoonPhase } from './scenes/simple/utils/moonPhaseCalculator';
 
 // 场景内容组件
 function SceneContent({ 
@@ -24,15 +80,30 @@ function SceneContent({
   mode, 
   sunWorld,
   altDeg,
-  moonEQD
+  moonEQD,
+  dateISO,
+  latDeg,
+  lonDeg
 }: { 
   composition: SimpleComposition;
   mode: 'debug' | 'celestial';
   sunWorld: { x: number; y: number; z: number };
   altDeg?: number;
   moonEQD: { x: number; y: number; z: number };
+  dateISO: string;
+  latDeg: number;
+  lonDeg: number;
 }) {
   const { camera } = useThree();
+  // 共享的 PIP 相机（供 Moon 潮锁/相位使用）
+  const pipSharedCam = React.useRef<THREE.OrthographicCamera | null>(null);
+  // 暴露当前相机用于验证
+  React.useEffect(() => {
+    try { (window as any).__R3F_Camera = camera; } catch {}
+  }, [camera]);
+  React.useEffect(() => {
+    try { (window as any).THREE = THREE; } catch {}
+  }, []);
   
   // 光照系统 - 单光照，与日期时间计算耦合
   const lightDirection = useLightDirection(mode, sunWorld, composition, altDeg);
@@ -86,28 +157,11 @@ function SceneContent({
   const finalIntensity = lightIntensity;
   const finalCastShadow = true;
 
-  // 相机图层：启用PIP时主相机仅看 layer 0（月球移至 layer 2）
-  React.useEffect(() => {
-    try {
-      if (composition.enablePIP) {
-        camera.layers.set(0);
-      } else {
-        camera.layers.enable(0);
-      }
-    } catch {}
-  }, [camera, composition.enablePIP]);
-
+  
   return (
     <>
       {/* 统一光照系统 - 单光照 */}
-      <directionalLight 
-        ref={(ref:any)=>{
-          if (ref) {
-            try {
-              ref.layers.set(0); // 主光只作用于主画面（layer 0）
-            } catch {}
-          }
-        }}
+      <directionalLight
         position={[
           lightDirection.x * 50, 
           lightDirection.y * 50, 
@@ -118,17 +172,7 @@ function SceneContent({
         castShadow={finalCastShadow}
       />
 
-      {/* PIP 专用物理太阳光（始终按真实 ephemeris） */}
-      {composition.enablePIP && (
-        <directionalLight
-          ref={(ref:any)=>{ if (ref) { try { ref.layers.set(2); } catch {} } }}
-          position={[-sunWorld.x * 50, -sunWorld.y * 50, -sunWorld.z * 50]}
-          intensity={finalIntensity}
-          color={lightColor}
-          castShadow={false}
-        />
-      )}
-      
+        
       <ambientLight intensity={ambientIntensity} />
       
       {/* 地球组 */}
@@ -212,30 +256,61 @@ function SceneContent({
         yawDeg={0}
         latDeg={composition.moonLatDeg}
         lonDeg={composition.moonLonDeg}
+        earthPosition={earthInfo.position}
+        sunDirWorldForShading={new THREE.Vector3(sunWorld.x, sunWorld.y, sunWorld.z).negate()}
+        enableTidalLock={true}
+        enableUniformShading={true}
+        useCameraLockedPhase={composition.enablePIP ? false : (composition.moonUseCameraLockedPhase ?? true)}
         renderLayer={composition.enablePIP ? 2 : 0}
+        customCameraForTideLock={composition.enablePIP ? (pipSharedCam.current as any) || undefined : undefined}
+        customCameraForPhase={composition.enablePIP ? (pipSharedCam.current as any) || undefined : undefined}
+        currentDate={dateISO}
+        observerLat={latDeg}
+        observerLon={lonDeg}
+        // 外观增强参数
+        terminatorSoftness={composition.terminatorSoftness}
+        moonTintH={composition.moonTintH}
+        moonTintS={composition.moonTintS}
+        moonTintL={composition.moonTintL}
+        moonTintStrength={composition.moonTintStrength}
+        moonShadingGamma={composition.moonShadingGamma}
+        moonSurgeStrength={composition.moonSurgeStrength}
+        moonSurgeSigmaDeg={composition.moonSurgeSigmaDeg}
+        moonDisplacementScale={composition.moonDisplacementScale}
+        moonNormalScale={composition.moonNormalScale ?? 1}
+        normalFlipY={composition.normalFlipY ?? false}
+        normalFlipX={composition.normalFlipX ?? false}
+        terminatorRadius={composition.terminatorRadius ?? 0.02}
+        phaseCoupleStrength={composition.phaseCoupleStrength ?? 0}
+        displacementMid={composition.displacementMid ?? 0.5}
+        nightLift={composition.nightLift ?? 0.02}
       />
       
       {/* 星空背景 */}
       {composition.showStars && (
         composition.useMilkyWay && starsMilky ? (
-          <mesh>
-            <sphereGeometry args={[220, 64, 64]} />
-            <meshBasicMaterial 
-              map={starsMilky}
-              side={THREE.BackSide}
-            />
-          </mesh>
-        ) : (
-          <Stars 
-            radius={120} 
-            depth={60} 
-            count={600} 
-            factor={0.8} 
-            fade 
-            speed={0} 
-            saturation={0} 
+          <MilkyWayMesh 
+            starsMilky={starsMilky}
+            bgScale={composition.bgScale}
+            bgYawDeg={composition.bgYawDeg}
+            bgPitchDeg={composition.bgPitchDeg}
           />
-        )
+        ) : null
+      )}
+
+      {/* PIP：副相机离屏渲染月球并贴片叠加 */}
+      {composition.enablePIP && (
+        <MoonPIP
+          x={composition.pip?.x ?? 0.82}
+          y={composition.pip?.y ?? 0.82}
+          size={composition.pip?.size ?? 192}
+          resolution={composition.pip?.resolution ?? 256}
+          fps={composition.pip?.fps ?? 30}
+          moonWorldPos={new THREE.Vector3(...moonInfo.position)}
+          moonRadius={composition.moonRadius}
+          earthWorldPos={new THREE.Vector3(...earthInfo.position)}
+          sharedCamRef={pipSharedCam}
+        />
       )}
 
       {/* 相机控制 */}
@@ -247,16 +322,164 @@ function SceneContent({
         />
       )}
 
-      {/* 月球 PIP 画中画（α版） */}
-      {composition.enablePIP && (
-        <MoonPIP 
-          pip={composition.pip!}
-          lightDirection={lightDirection}
-          lightColor={lightColor}
-          moonDir={moonEQD}
-        />
-      )}
     </>
+  );
+}
+
+// Moon PIP 叠加（最小 α 版）：将 layer=2 渲染到离屏纹理，再作为屏幕叠加贴片
+function MoonPIP({ x, y, size, resolution, fps, moonWorldPos, moonRadius, earthWorldPos, sharedCamRef }: { x: number; y: number; size: number; resolution: number; fps: number; moonWorldPos: THREE.Vector3; moonRadius: number; earthWorldPos: THREE.Vector3; sharedCamRef: React.RefObject<THREE.OrthographicCamera | null> }) {
+  const { gl, scene, camera, size: viewportSize } = useThree();
+  const rt = useFBO({ width: resolution, height: resolution, samples: 4 } as any);
+  const pipCam = React.useRef(new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 1000));
+  // 将内部相机暴露给上层（供 Moon 计算潮锁/相位使用）
+  React.useEffect(() => {
+    if (sharedCamRef) sharedCamRef.current = pipCam.current;
+    return () => { if (sharedCamRef) sharedCamRef.current = null; };
+  }, [sharedCamRef]);
+  const planeRef = React.useRef<THREE.Mesh>(null!);
+  const clockRef = React.useRef({ acc: 0 });
+  const mat = React.useMemo(() => new THREE.ShaderMaterial({
+    uniforms: { 
+      tex: { value: null as any },
+      resolution: { value: resolution },
+      size: { value: size },
+      featherPx: { value: 2.0 },
+      shrinkPx: { value: 1.0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tex;
+      uniform float resolution;
+      uniform float size;
+      uniform float featherPx; // 屏幕像素中的羽化宽度
+      uniform float shrinkPx;  // 向内收缩（像素），裁掉AA污染圈
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tex, vUv);
+        float d = distance(vUv, vec2(0.5));
+        float edge = 0.5 - (shrinkPx / size); // 半径，按像素内缩
+        // 自适应羽化宽度：按屏幕像素计算，独立于离屏分辨率
+        float feather = max(1.0, featherPx) / size;
+        float mask = smoothstep(edge, edge - feather, d);
+        // 使用预乘alpha防止黑边：颜色乘以贴图自身alpha
+        float a = c.a * mask;
+        if (a <= 0.001) discard;
+        gl_FragColor = vec4(c.rgb * c.a, a);
+      }
+    `,
+    transparent: true,
+    premultipliedAlpha: true,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    side: THREE.DoubleSide
+  }), []);
+
+  // 仅初始化一次：优化离屏纹理采样，避免羽化边缘的黑色渗漏
+  React.useEffect(() => {
+    if (!rt || !rt.texture) return;
+    rt.texture.minFilter = THREE.LinearFilter;
+    rt.texture.magFilter = THREE.LinearFilter;
+    rt.texture.generateMipmaps = false;
+    rt.texture.wrapS = THREE.ClampToEdgeWrapping;
+    rt.texture.wrapT = THREE.ClampToEdgeWrapping;
+  }, [rt]);
+
+  // 主相机只看 layer 0；PIP 相机只看 layer 2
+  React.useEffect(() => {
+    camera.layers.set(0);
+    pipCam.current.layers.set(2);
+  }, [camera]);
+
+  useFrame((_, delta) => {
+    // 1) 屏幕叠加贴片：每帧更新（与主相机运动完全同步，杜绝滑动/闪烁）
+    if (planeRef.current) {
+      const d = 1.5; // 贴片距离（相机前方）
+      const persp = camera as THREE.PerspectiveCamera;
+      const vfov = THREE.MathUtils.degToRad(persp.fov);
+      const hWorld = 2 * d * Math.tan(vfov / 2);
+      const aspect = viewportSize.width / viewportSize.height;
+      const wWorld = hWorld * aspect;
+      const worldPerPxX = wWorld / viewportSize.width;
+      const worldPerPxY = hWorld / viewportSize.height;
+      const dxPx = (x - 0.5) * viewportSize.width;
+      const dyPx = (y - 0.5) * viewportSize.height; // 上为正
+      const dir = new THREE.Vector3();
+      (camera as any).getWorldDirection(dir); // forward (-Z)
+      const up = (camera as any).up.clone().normalize();
+      const right = new THREE.Vector3().crossVectors(dir, up).normalize().negate();
+      const center = new THREE.Vector3().copy((camera as any).position)
+        .add(dir.clone().multiplyScalar(d))
+        .add(right.multiplyScalar(dxPx * worldPerPxX))
+        .add(up.clone().multiplyScalar(dyPx * worldPerPxY));
+      planeRef.current.position.copy(center);
+      planeRef.current.quaternion.copy((camera as any).quaternion);
+      planeRef.current.scale.set(size * worldPerPxX, size * worldPerPxY, 1);
+    }
+
+    // 2) 离屏渲染：按 FPS 限流
+    clockRef.current.acc += delta;
+    const interval = 1 / Math.max(1, fps);
+    if (clockRef.current.acc < interval) return;
+    clockRef.current.acc = 0;
+
+    // 使用正交相机，从固定“潮锁面法线”方向观察月球（与地月轴解耦，不依赖主相机）
+    const viewDir = new THREE.Vector3(0, 0, -1); // 约定：潮锁面法线指向世界 -Z
+    const d = Math.max(0.01, moonRadius * 3.0);  // 相机离月球中心的距离
+    const pos = new THREE.Vector3().copy(moonWorldPos).add(viewDir.clone().multiplyScalar(d));
+
+    // 稳定的 up：采用世界+Y在平面上的投影，避免滚转
+    const worldUp = new THREE.Vector3(0,1,0);
+    const up = worldUp.clone().sub(viewDir.clone().multiplyScalar(worldUp.dot(viewDir)));
+    if (up.lengthSq() < 1e-6) up.set(0,0,1);
+    up.normalize();
+    pipCam.current.position.copy(pos);
+    pipCam.current.up.copy(up);
+    pipCam.current.lookAt(moonWorldPos);
+
+    // 正交相机视椎体：让月球直径占据约90%的边长
+    const fill = 0.9; // 0..1 越大越贴边
+    const half = (moonRadius / fill);
+    pipCam.current.left = -half;
+    pipCam.current.right = half;
+    pipCam.current.top = half;
+    pipCam.current.bottom = -half;
+    pipCam.current.near = 0.01;
+    pipCam.current.far = d + moonRadius * 4.0;
+    pipCam.current.updateProjectionMatrix();
+
+    // 渲染到离屏目标（透明清屏，避免采样黑边污染）
+    const prevTarget = gl.getRenderTarget();
+    const prevClear = gl.getClearColor(new THREE.Color());
+    const prevAlpha = gl.getClearAlpha();
+    gl.setRenderTarget(rt);
+    gl.setClearColor(0x000000, 0);
+    gl.clear(true, true, true);
+    gl.render(scene, pipCam.current);
+    gl.setRenderTarget(prevTarget);
+    gl.setClearColor(prevClear, prevAlpha);
+  });
+
+  React.useEffect(() => {
+    (mat.uniforms as any).tex.value = rt.texture;
+    (mat.uniforms as any).resolution.value = resolution;
+    (mat.uniforms as any).size.value = size;
+    (mat.uniforms as any).featherPx.value = Math.max(1.0, Math.min(3.0, size * 0.01)); // 约1%尺寸，限制在1-3px
+    (mat.uniforms as any).shrinkPx.value = 1.0; // 裁掉1px外缘以消除AA黑边
+  }, [rt.texture, mat, resolution, size]);
+
+  return (
+    <mesh ref={planeRef} renderOrder={1000}>
+      <planeGeometry args={[1, 1]} />
+      <primitive object={mat} attach="material" />
+    </mesh>
   );
 }
 
@@ -302,12 +525,12 @@ export default function SimpleTest() {
   const initialComp = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
     const fixedsun = params.get('fixedsun') === '1';
-    const pip = params.get('pip') === '1';
     const season = params.get('season') === '1';
+    const pip = params.get('pip');
     return { ...DEFAULT_SIMPLE_COMPOSITION,
       useFixedSun: fixedsun || DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
-      enablePIP: pip || DEFAULT_SIMPLE_COMPOSITION.enablePIP,
       useSeasonalVariation: season || DEFAULT_SIMPLE_COMPOSITION.useSeasonalVariation,
+      enablePIP: pip ? (pip === '1') : DEFAULT_SIMPLE_COMPOSITION.enablePIP,
     } as SimpleComposition;
   }, []);
 
@@ -340,6 +563,8 @@ export default function SimpleTest() {
   const [illumination, setIllumination] = useState<number>(0.5);
   // 存储真实的太阳角度信息
   const [sunAngles, setSunAngles] = useState<{ azDeg: number; altDeg: number }>({ azDeg: 0, altDeg: 0 });
+  // 月相信息
+  const [moonPhaseInfo, setMoonPhaseInfo] = useState<string>('计算中...');
   const [mode, setMode] = useState<'debug' | 'celestial'>('celestial');
   const [alignTick, setAlignTick] = useState(0);
   
@@ -412,6 +637,14 @@ export default function SimpleTest() {
         setIllumination(state.illumination);
         setSunAngles({ azDeg: state.azDeg, altDeg: state.altDeg });
         
+        // 计算月相信息
+        try {
+          const moonPhase = calculateMoonPhase(new Date(dateISO), latDeg, lonDeg);
+          setMoonPhaseInfo(`${moonPhase.phaseName} (${moonPhase.phaseAngle.toFixed(1)}°)`);
+        } catch (err) {
+          setMoonPhaseInfo('计算失败');
+        }
+        
         if (logger.isEnabled()) logger.log('sunlight/normalized', normalizedSunWorld);
         if (logger.isEnabled()) logger.log('sunlight/angles', { az: +state.azDeg.toFixed(1), alt: +state.altDeg.toFixed(1) });
       }
@@ -435,7 +668,7 @@ export default function SimpleTest() {
       setIllumination(0.5);
       setSunAngles({ azDeg: 0, altDeg: 0 });
     }
-  }, [dateISO, latDeg, lonDeg, mode, timeMode]);
+  }, [dateISO, latDeg, lonDeg, mode, timeMode, composition.useFixedSun, composition.useSeasonalVariation, composition.obliquityDeg, composition.seasonOffsetDays]);
 
   // 当日期或经纬度变化时，自动计算 sunWorld 以驱动光照
   React.useEffect(() => {
@@ -443,7 +676,7 @@ export default function SimpleTest() {
       if (logger.isEnabled()) logger.log('effect/auto-update', { dateISO, latDeg, lonDeg, autoUpdate });
       updateSunlight();
     }
-  }, [dateISO, latDeg, lonDeg, autoUpdate]); // 移除 updateSunlight 依赖项避免无限循环
+  }, [dateISO, latDeg, lonDeg, autoUpdate, updateSunlight]);
 
   // 实时时间更新逻辑 - 优化依赖项管理
   React.useEffect(() => {
@@ -455,6 +688,13 @@ export default function SimpleTest() {
         const newTime = toLocalInputValue(now);
         if (logger.isEnabled()) logger.log('realtime/tick', { newTime });
         setDateISO(newTime);
+        
+        // 基于时间更新地球自转角度（每6度转1度）
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const earthRotation = (hours * 15 + minutes * 0.25) % 360; // 地球每小时转15度
+        updateValue('earthYawDeg', earthRotation);
+        
       }, 60000); // 每分钟更新一次
       
       setRealTimeInterval(interval);
@@ -490,6 +730,7 @@ export default function SimpleTest() {
     updateSunlight();
   };
 
+  
   // 重置为当前时间
   const handleResetToCurrentTime = () => {
     if (logger.isEnabled()) logger.log('manual/reset-to-now');
@@ -513,9 +754,9 @@ export default function SimpleTest() {
     };
   }, [sunWorld, sunAngles]);
 
-  const updateValue = (key: keyof SimpleComposition, value: number | boolean) => {
+  const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean) => {
     setComposition(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
   return (
     <div className="canvas-wrap">
@@ -537,6 +778,9 @@ export default function SimpleTest() {
           sunWorld={sunWorld}
           altDeg={sunAngles.altDeg}
           moonEQD={moonEQD}
+          dateISO={dateISO}
+          latDeg={latDeg}
+          lonDeg={lonDeg}
         />
         <NoTiltProbe />
         <AlignOnDemand 
@@ -646,58 +890,7 @@ export default function SimpleTest() {
                 <input type="checkbox" checked={!!composition.useFixedSun} onChange={(e)=>setComposition(prev=>({...prev, useFixedSun: e.target.checked}))} /> 固定太阳模式
               </label>
             </div>
-            <div className="col">
-              <label className="label">
-                <input type="checkbox" checked={!!composition.enablePIP} onChange={(e)=>setComposition(prev=>({...prev, enablePIP: e.target.checked}))} /> 画中画（PIP）
-              </label>
-            </div>
-            {composition.enablePIP && (
-              <>
-                <div className="col">
-                  <label className="label">PIP X (0..1)</label>
-                  <input className="input" type="number" step={0.01} min={0} max={1}
-                         value={composition.pip?.x ?? 0.85}
-                         onChange={(e)=>setComposition(prev=>({...prev, pip: {...prev.pip!, x: Math.min(1, Math.max(0, parseFloat(e.target.value)||0))}}))} />
-                </div>
-                <div className="col">
-                  <label className="label">PIP Y (0..1)</label>
-                  <input className="input" type="number" step={0.01} min={0} max={1}
-                         value={composition.pip?.y ?? 0.15}
-                         onChange={(e)=>setComposition(prev=>({...prev, pip: {...prev.pip!, y: Math.min(1, Math.max(0, parseFloat(e.target.value)||0))}}))} />
-                </div>
-                <div className="col">
-                  <label className="label">PIP 尺寸(px)</label>
-                  <input className="input" type="number" step={4} min={64} max={512}
-                         value={composition.pip?.size ?? 160}
-                         onChange={(e)=>setComposition(prev=>({...prev, pip: {...prev.pip!, size: Math.min(1024, Math.max(32, parseInt(e.target.value||'0',10)))}}))} />
-                </div>
-                <div className="col">
-                  <label className="label">PIP 分辨率</label>
-                  <select className="input" value={composition.pip?.resolution ?? 256}
-                          onChange={(e)=>setComposition(prev=>({...prev, pip: {...prev.pip!, resolution: parseInt(e.target.value,10)}}))}>
-                    <option value={256}>256</option>
-                    <option value={384}>384</option>
-                    <option value={512}>512</option>
-                  </select>
-                </div>
-                <div className="col">
-                  <label className="label">PIP FPS</label>
-                  <select className="input" value={composition.pip?.fps ?? 0}
-                          onChange={(e)=>setComposition(prev=>({...prev, pip: {...prev.pip!, fps: parseInt(e.target.value,10)}}))}>
-                    <option value={0}>每帧</option>
-                    <option value={30}>30</option>
-                    <option value={15}>15</option>
-                  </select>
-                </div>
-                <div className="col">
-                  <label className="label">PIP 阴影提亮</label>
-                  <input className="input" type="range" min={0} max={0.2} step={0.01}
-                         value={composition.pip?.ambient ?? 0.1}
-                         onChange={(e)=>setComposition(prev=>({...prev, pip: {...prev.pip!, ambient: parseFloat(e.target.value)}}))} />
-                </div>
-              </>
-            )}
-            <div className="col">
+              <div className="col">
               <label className="label">
                 <input type="checkbox" checked={!!composition.useSeasonalVariation} onChange={(e)=>setComposition(prev=>({...prev, useSeasonalVariation: e.target.checked}))} /> 季节模式
               </label>
@@ -820,6 +1013,9 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <span className="label">月面明暗: {(illumination * 100).toFixed(1)}%</span>
+            </div>
+            <div className="col">
+              <span className="label">月相状态: {moonPhaseInfo}</span>
             </div>
             <div className="col">
               <span className="label">最后更新: {lastUpdateTime || '未更新'}</span>
@@ -990,6 +1186,174 @@ export default function SimpleTest() {
               <input className="input" type="range" min={-180} max={180} step={1}
                      value={composition.moonLonDeg}
                      onChange={(e) => updateValue('moonLonDeg', parseInt(e.target.value))} />
+            </div>
+          </div>
+
+          {/* 月球外观（色调/亮度曲线/位移） */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">色调强度: {composition.moonTintStrength.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={1} step={0.01}
+                     value={composition.moonTintStrength}
+                     onChange={(e) => updateValue('moonTintStrength', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">色相H: {Math.round(composition.moonTintH)}°</label>
+              <input className="input" type="range" min={0} max={360} step={1}
+                     value={composition.moonTintH}
+                     onChange={(e) => updateValue('moonTintH', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">饱和S: {Math.round(composition.moonTintS * 100)}%</label>
+              <input className="input" type="range" min={0} max={100} step={1}
+                     value={Math.round(composition.moonTintS * 100)}
+                     onChange={(e) => updateValue('moonTintS', parseInt(e.target.value) / 100)} />
+            </div>
+            <div className="col">
+              <label className="label">亮度L: {Math.round(composition.moonTintL * 100)}%</label>
+              <input className="input" type="range" min={0} max={100} step={1}
+                     value={Math.round(composition.moonTintL * 100)}
+                     onChange={(e) => updateValue('moonTintL', parseInt(e.target.value) / 100)} />
+            </div>
+          </div>
+
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">朗伯Gamma: {composition.moonShadingGamma.toFixed(2)}</label>
+              <input className="input" type="range" min={0.6} max={1.6} step={0.01}
+                     value={composition.moonShadingGamma}
+                     onChange={(e) => updateValue('moonShadingGamma', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">法线强度: {(composition.moonNormalScale ?? 1).toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={2} step={0.05}
+                     value={composition.moonNormalScale ?? 1}
+                     onChange={(e) => updateValue('moonNormalScale', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">法线Y翻转: {composition.normalFlipY ? '是' : '否'}</label>
+              <input type="checkbox" checked={composition.normalFlipY ?? false}
+                     onChange={(e)=>updateValue('normalFlipY', e.target.checked)} />
+            </div>
+            <div className="col">
+              <label className="label">满月增强强度: {Math.round(composition.moonSurgeStrength*100)}%</label>
+              <input className="input" type="range" min={0} max={50} step={1}
+                     value={Math.round(composition.moonSurgeStrength*100)}
+                     onChange={(e) => updateValue('moonSurgeStrength', parseInt(e.target.value)/100)} />
+            </div>
+            <div className="col">
+              <label className="label">增强宽度σ(°): {composition.moonSurgeSigmaDeg}</label>
+              <input className="input" type="range" min={5} max={30} step={1}
+                     value={composition.moonSurgeSigmaDeg}
+                     onChange={(e) => updateValue('moonSurgeSigmaDeg', parseInt(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">高度位移: {composition.moonDisplacementScale.toFixed(3)}</label>
+              <input className="input" type="range" min={0} max={1} step={0.001}
+                     value={composition.moonDisplacementScale}
+                     onChange={(e) => updateValue('moonDisplacementScale', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">晨昏线软半径: {(composition.terminatorRadius ?? 0.02).toFixed(3)}</label>
+              <input className="input" type="range" min={0} max={0.2} step={0.001}
+                     value={composition.terminatorRadius ?? 0.02}
+                     onChange={(e)=>updateValue('terminatorRadius', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">相位耦合强度: {Math.round((composition.phaseCoupleStrength ?? 0)*100)}%</label>
+              <input className="input" type="range" min={0} max={100} step={5}
+                     value={Math.round((composition.phaseCoupleStrength ?? 0)*100)}
+                     onChange={(e)=>updateValue('phaseCoupleStrength', parseInt(e.target.value)/100)} />
+            </div>
+            <div className="col">
+              <label className="label">位移中点: {(composition.displacementMid ?? 0.5).toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={1} step={0.01}
+                     value={composition.displacementMid ?? 0.5}
+                     onChange={(e)=>updateValue('displacementMid', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">夜面抬升: {(composition.nightLift ?? 0.02).toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={0.2} step={0.005}
+                     value={composition.nightLift ?? 0.02}
+                     onChange={(e)=>updateValue('nightLift', parseFloat(e.target.value))} />
+            </div>
+          </div>
+
+          {/* 外观预设 */}
+          <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+            <div className="col">
+              <span className="label">外观预设</span>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={()=>{
+                setComposition(v=>({
+                  ...v,
+                  moonTintH: 12, moonTintS: 0.85, moonTintL: 0.5, moonTintStrength: 0.35,
+                  moonShadingGamma: 1.05,
+                  moonSurgeStrength: 0.18, moonSurgeSigmaDeg: 18,
+                  moonDisplacementScale: Math.max(0.012, v.moonDisplacementScale)
+                }));
+              }}>血月</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={()=>{
+                setComposition(v=>({
+                  ...v,
+                  moonTintH: 210, moonTintS: 0.12, moonTintL: 0.55, moonTintStrength: 0.12,
+                  moonShadingGamma: 0.95,
+                  moonSurgeStrength: 0.12, moonSurgeSigmaDeg: 20
+                }));
+              }}>冷白半月</button>
+            </div>
+            <div className="col">
+              <button className="btn" onClick={()=>{
+                setComposition(v=>({
+                  ...v,
+                  moonTintH: 35, moonTintS: 0.18, moonTintL: 0.55, moonTintStrength: 0.10,
+                  moonShadingGamma: 1.0,
+                  moonSurgeStrength: 0.2, moonSurgeSigmaDeg: 16
+                }));
+              }}>暖满月</button>
+            </div>
+          </div>
+
+          {/* 银河控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">银河经度(°): {Math.round(composition.bgYawDeg ?? 0)}</label>
+              <input className="input" type="range" min={-180} max={180} step={1}
+                     value={composition.bgYawDeg ?? 0}
+                     onChange={(e)=>updateValue('bgYawDeg', parseInt(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">银河纬度(°): {Math.round(composition.bgPitchDeg ?? 0)}</label>
+              <input className="input" type="range" min={-90} max={90} step={1}
+                     value={composition.bgPitchDeg ?? 0}
+                     onChange={(e)=>updateValue('bgPitchDeg', parseInt(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">银河缩放: {Math.round(((composition.bgScale ?? 1)*100))}%</label>
+              <input className="input" type="range" min={50} max={200} step={5}
+                     value={Math.round((composition.bgScale ?? 1)*100)}
+                     onChange={(e)=>updateValue('bgScale', parseInt(e.target.value)/100)} />
+            </div>
+          </div>
+          
+          {/* 月球屏幕位置控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">月球屏幕X位置: {composition.moonScreenX.toFixed(2)}</label>
+              <input className="input" type="range" min={0.1} max={0.9} step={0.01}
+                     value={composition.moonScreenX}
+                     onChange={(e) => updateValue('moonScreenX', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">月球屏幕Y位置: {composition.moonScreenY.toFixed(2)}</label>
+              <input className="input" type="range" min={0.1} max={0.9} step={0.01}
+                     value={composition.moonScreenY}
+                     onChange={(e) => updateValue('moonScreenY', parseFloat(e.target.value))} />
             </div>
           </div>
           
@@ -1256,8 +1620,26 @@ export default function SimpleTest() {
                      value={composition.cameraDistance}
                      onChange={(e) => updateValue('cameraDistance', parseFloat(e.target.value))} />
             </div>
+            <div className="col">
+              <label className="label">相机方位 λ: {Math.round(composition.cameraAzimuthDeg ?? 0)}°</label>
+              <input className="input" type="range" min={-180} max={180} step={1}
+                     value={composition.cameraAzimuthDeg ?? 0}
+                     onChange={(e) => updateValue('cameraAzimuthDeg', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">相机仰角 φ: {Math.round(composition.cameraElevationDeg ?? 0)}°</label>
+              <input className="input" type="range" min={-85} max={85} step={1}
+                     value={composition.cameraElevationDeg ?? 0}
+                     onChange={(e) => updateValue('cameraElevationDeg', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">视口偏移Y: {(composition.viewOffsetY ?? 0).toFixed(2)}</label>
+              <input className="input" type="range" min={-1} max={1} step={0.01}
+                     value={composition.viewOffsetY ?? 0}
+                     onChange={(e) => updateValue('viewOffsetY', parseFloat(e.target.value))} />
+            </div>
           </div>
-          
+
           {/* 显示选项 */}
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">
@@ -1276,8 +1658,53 @@ export default function SimpleTest() {
                   <input type="checkbox" checked={composition.useMilkyWay} onChange={(e) => updateValue('useMilkyWay', e.target.checked)} /> 银河星空
                 </label>
                 <label>
+                  <input type="checkbox" checked={composition.moonUseCameraLockedPhase ?? true} onChange={(e) => updateValue('moonUseCameraLockedPhase', e.target.checked)} /> 相机锁定月相
+                </label>
+                <label>
+                  <input type="checkbox" checked={composition.enablePIP ?? false} onChange={(e) => updateValue('enablePIP', e.target.checked)} /> 启用月球PIP
+                </label>
+                <label>
                   <input type="checkbox" checked={false} disabled readOnly /> 相机控制 (已禁用，保持理想构图)
                 </label>
+              </div>
+            </div>
+          </div>
+
+          {/* PIP 参数 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <span className="label">PIP 参数</span>
+              <div className="row" style={{ gap: 12, pointerEvents: 'auto' }}>
+                <div className="col">
+                  <label className="label">X: {(composition.pip?.x ?? 0.5).toFixed(2)}</label>
+                  <input className="input" type="range" min={0} max={1} step={0.01}
+                         value={composition.pip?.x ?? 0.5}
+                         onChange={(e) => setComposition(prev => ({...prev, pip: { ...(prev.pip ?? {}), x: parseFloat(e.target.value) }}))} />
+                </div>
+                <div className="col">
+                  <label className="label">Y: {(composition.pip?.y ?? 0.75).toFixed(2)}</label>
+                  <input className="input" type="range" min={0} max={1} step={0.01}
+                         value={composition.pip?.y ?? 0.75}
+                         onChange={(e) => setComposition(prev => ({...prev, pip: { ...(prev.pip ?? {}), y: parseFloat(e.target.value) }}))} />
+                </div>
+                <div className="col">
+                  <label className="label">Size(px): {composition.pip?.size ?? 192}</label>
+                  <input className="input" type="range" min={64} max={1024} step={1}
+                         value={composition.pip?.size ?? 192}
+                         onChange={(e) => setComposition(prev => ({...prev, pip: { ...(prev.pip ?? {}), size: parseInt(e.target.value) }}))} />
+                </div>
+                <div className="col">
+                  <label className="label">Resolution: {composition.pip?.resolution ?? 1024}px</label>
+                  <input className="input" type="range" min={256} max={2048} step={256}
+                         value={composition.pip?.resolution ?? 1024}
+                         onChange={(e) => setComposition(prev => ({...prev, pip: { ...(prev.pip ?? {}), resolution: parseInt(e.target.value) }}))} />
+                </div>
+                <div className="col">
+                  <label className="label">FPS: {composition.pip?.fps ?? 30}</label>
+                  <input className="input" type="range" min={10} max={60} step={1}
+                         value={composition.pip?.fps ?? 30}
+                         onChange={(e) => setComposition(prev => ({...prev, pip: { ...(prev.pip ?? {}), fps: parseInt(e.target.value) }}))} />
+                </div>
               </div>
             </div>
           </div>
@@ -1333,8 +1760,7 @@ function NoTiltProbe() {
     // 便捷接口：修改时间与固定太阳开关，及固定太阳方位锁定测试
     (window as any).setSceneTime = (iso: string) => { try { setDateISO(iso); } catch {} };
     (window as any).setUseFixedSun = (on: boolean) => { try { setComposition(prev=>({...prev, useFixedSun:on})); } catch {} };
-    (window as any).setEnablePIP = (on: boolean) => { try { setComposition(prev=>({...prev, enablePIP:on})); } catch {} };
-    (window as any).setUseSeasonalVariation = (on: boolean) => { try { setComposition(prev=>({...prev, useSeasonalVariation:on})); } catch {} };
+      (window as any).setUseSeasonalVariation = (on: boolean) => { try { setComposition(prev=>({...prev, useSeasonalVariation:on})); } catch {} };
     (window as any).setObliquityDeg = (deg: number) => { try { setComposition(prev=>({...prev, obliquityDeg:deg})); } catch {} };
     (window as any).setSeasonOffsetDays = (d: number) => { try { setComposition(prev=>({...prev, seasonOffsetDays:d})); } catch {} };
     (window as any).getFixedSunDir = () => { try { return composition.fixedSunDir ?? null; } catch { return null; } };
@@ -1382,148 +1808,4 @@ function NoTiltProbe() {
     };
   }, [scene]);
   return null;
-}
-
-// α版：月球 PIP 画中画（单独离屏场景渲染到纹理，再以圆面片贴到相机前方）
-function MoonPIP({ pip, lightDirection, lightColor, moonDir }:{ pip: NonNullable<SimpleComposition['pip']>; lightDirection: THREE.Vector3; lightColor: THREE.Color; moonDir?: {x:number;y:number;z:number} }){
-  const { gl, camera, scene, size } = useThree();
-  const maxAniso = (gl.capabilities as any).getMaxAnisotropy?.() ?? 0;
-  const glctx: any = (gl as any).getContext ? (gl as any).getContext() : (gl as any).context;
-  const maxSamples = glctx && glctx.getParameter ? (glctx.getParameter(glctx.MAX_SAMPLES) || 4) : 4;
-  const samples = Math.min(8, maxSamples);
-  const rt = useFBO(pip.resolution, pip.resolution, { samples, depthBuffer: true, stencilBuffer: false });
-  React.useEffect(()=>{
-    try {
-      // 提升采样质量：为PoT尺寸开启mipmap，并设置各向异性
-      const isPoT = (n:number)=> (n & (n-1)) === 0;
-      if (isPoT(pip.resolution)) {
-        rt.texture.generateMipmaps = true;
-        rt.texture.minFilter = THREE.LinearMipmapLinearFilter;
-      } else {
-        rt.texture.generateMipmaps = false;
-        rt.texture.minFilter = THREE.LinearFilter;
-      }
-      rt.texture.magFilter = THREE.LinearFilter;
-      // 确保颜色空间与主材质一致，避免偏暗/偏色
-      // @ts-ignore
-      rt.texture.colorSpace = (THREE as any).SRGBColorSpace ?? (THREE as any).sRGBEncoding;
-      if (maxAniso > 0) rt.texture.anisotropy = Math.min(maxAniso, 4);
-      rt.texture.needsUpdate = true;
-    } catch {}
-  }, [rt, pip.resolution, maxAniso]);
-  const pipCam = React.useMemo(()=> new THREE.PerspectiveCamera(30, 1, 0.1, 1000), []);
-  const overlayGroupRef = React.useRef<THREE.Group>(null!);
-  const lastTs = React.useRef<number>(0);
-  const ambientRef = React.useRef<THREE.AmbientLight | null>(null);
-
-  React.useEffect(()=>{
-    pipCam.layers.set(2); // 仅拍 layer 2（月球）
-    // 挂一盏只作用于 layer 2 的环境光，供 PIP 提亮阴影
-    try {
-      if (!ambientRef.current) {
-        const amb = new THREE.AmbientLight(0xffffff, (pip as any).ambient ?? 0);
-        amb.layers.set(2);
-        scene.add(amb);
-        ambientRef.current = amb;
-      }
-    } catch {}
-    }, [pipCam]);
-
-  React.useEffect(()=>{
-    if (ambientRef.current) ambientRef.current.intensity = (pip as any).ambient ?? 0;
-  }, [pip.ambient]);
-
-  React.useEffect(()=>{
-    return ()=>{
-      if (ambientRef.current) {
-        try { scene.remove(ambientRef.current); } catch {}
-        ambientRef.current = null;
-      }
-    };
-  }, [scene]);
-
-  React.useEffect(() => {
-    let raf=0;
-    const step=(ts:number)=>{
-      // FPS 降帧控制
-      if (pip.fps && pip.fps > 0) {
-        const interval = 1000 / pip.fps;
-        if (ts - (lastTs.current||0) < interval) {
-          raf=requestAnimationFrame(step); return;
-        }
-        lastTs.current = ts;
-      }
-
-      try {
-        const moon = scene.getObjectByName('moonMesh') as THREE.Mesh | undefined;
-        if (moon) {
-          // 使用真实月球方向（世界坐标，地心出发）作为 PIP 视线方向
-          const mdir = new THREE.Vector3(moonDir?.x ?? -1, moonDir?.y ?? 0, moonDir?.z ?? 0).normalize();
-          // 将月球放在世界原点附近，便于精确构图（layer 2 不影响主画面）
-          moon.position.set(0, 0, 0);
-          moon.updateMatrixWorld();
-
-          // 估算世界半径
-          let r = 0.5;
-          const geo:any = (moon as any).geometry;
-          if (geo && geo.parameters && typeof geo.parameters.radius === 'number') r = geo.parameters.radius;
-          const scale = new THREE.Vector3();
-          moon.getWorldScale(scale);
-          const radiusWorld = r * Math.max(scale.x, scale.y, scale.z);
-
-          // 计算相机距离：使月球直径充满竖直视场（留 10% 边距）
-          const fov = (pipCam.fov * Math.PI)/180;
-          const d = (radiusWorld / Math.tan(fov/2)) * 1.1;
-          const pos = mdir.clone().multiplyScalar(-d);
-          pipCam.position.copy(pos);
-          pipCam.lookAt(0,0,0);
-          pipCam.updateMatrixWorld();
-
-          // 渲染 layer 2 到 FBO
-          gl.setRenderTarget(rt);
-          gl.clear();
-          gl.render(scene, pipCam);
-          gl.setRenderTarget(null);
-        }
-
-        // 更新覆盖层位置（屏幕空间，带安全边距，防止出框）
-        const z = -1.0; // 相机前方单位深度
-        const fovMain = (camera as THREE.PerspectiveCamera).fov * Math.PI/180;
-        const halfH = Math.tan(fovMain/2) * Math.abs(z);
-        const worldPerPixel = (halfH*2) / size.height;
-        const radius = (pip.size/2) * worldPerPixel;
-        // 将半径转换为NDC安全半径
-        const halfW = halfH * (size.width/size.height);
-        const rNdcX = Math.min(0.95, radius / halfW + 0.02); // 2% 额外安全边距
-        const rNdcY = Math.min(0.95, radius / halfH + 0.02);
-        const xClamped = Math.min(1 - rNdcX, Math.max(-1 + rNdcX, pip.x*2 - 1));
-        const yClamped = Math.min(1 - rNdcY, Math.max(-1 + rNdcY, 1 - pip.y*2));
-        const xNdc = xClamped; // [-1,1]
-        const yNdc = yClamped; // [-1,1]
-        const x = xNdc * halfW;
-        const y = yNdc * halfH;
-        if (overlayGroupRef.current) {
-          const local = new THREE.Vector3(x, y, z);
-          const world = (camera as THREE.PerspectiveCamera).localToWorld(local);
-          overlayGroupRef.current.position.copy(world);
-          overlayGroupRef.current.scale.set(radius, radius, 1);
-          overlayGroupRef.current.quaternion.copy((camera as THREE.PerspectiveCamera).quaternion);
-        }
-      } catch {}
-
-      raf=requestAnimationFrame(step);
-    };
-    raf=requestAnimationFrame(step);
-    return ()=>{ if(raf) cancelAnimationFrame(raf); };
-  }, [gl, camera, scene, size.width, size.height, pip.x, pip.y, pip.size, pip.resolution, pip.fps, pipCam, rt]);
-
-  // 回退到 MeshBasicMaterial（避免色彩偏移），使用高分段圆几何+MSAA 保证边缘圆润
-  return (
-    <group ref={overlayGroupRef} renderOrder={1000} frustumCulled={false}>
-      <mesh>
-        <circleGeometry args={[1, 512]} />
-        <meshBasicMaterial map={rt.texture} toneMapped={false} transparent depthTest={false} depthWrite={false} />
-      </mesh>
-    </group>
-  );
 }

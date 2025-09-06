@@ -11,6 +11,8 @@ export interface SimpleComposition {
   moonRadius: number;          // 月球半径
   moonLatDeg: number;          // 月球纬度调整
   moonLonDeg: number;          // 月球经度调整
+  moonScreenX: number;         // 月球屏幕X位置 (0-1)
+  moonScreenY: number;         // 月球屏幕Y位置 (0-1)
   
   // 光照参数
   sunIntensity: number;        // 阳光强度
@@ -41,6 +43,22 @@ export interface SimpleComposition {
   // 月球材质控制
   moonLightIntensity: number;  // 月球材质亮度
   moonLightTempK: number;      // 月球材质色温
+  // 月球外观增强
+  moonTintH: number;           // 月球色调 Hue (0-360)
+  moonTintS: number;           // 月球色调 Saturation (0-1)
+  moonTintL: number;           // 月球色调 Lightness (0-1)
+  moonTintStrength: number;    // 色调混合强度 (0-1)
+  moonShadingGamma: number;    // 朗伯项Gamma (0.5-2)
+  moonSurgeStrength: number;   // 满月亮度增强强度 (0-0.5)
+  moonSurgeSigmaDeg: number;   // 满月增强宽度(度)
+  moonDisplacementScale: number; // 高度贴图位移强度
+  moonNormalScale?: number;      // 法线贴图强度 (0-2)
+  normalFlipY?: boolean;         // 法线贴图Y翻转（有些贴图绿色通道需要翻）
+  normalFlipX?: boolean;         // 法线贴图X翻转（少见，保险项）
+  terminatorRadius?: number;     // 晨昏线软半径（附加宽度）
+  phaseCoupleStrength?: number;  // 相位耦合强度（0-1）
+  displacementMid?: number;      // 位移中点（通常0.5，决定正负起伏平衡）
+  nightLift?: number;            // 夜面抬升（0-0.2），避免新月过亮
   
   // 云层参数
   cloudStrength: number;       // 云层强度
@@ -55,28 +73,40 @@ export interface SimpleComposition {
   // 控制参数
   exposure: number;            // 曝光
   cameraDistance: number;      // 相机距离
+  // 相机极坐标（最小接入）
+  cameraAzimuthDeg?: number;   // 相机方位角 λ（绕世界+Y），0=面向 -Z
+  cameraElevationDeg?: number; // 相机仰角 φ（绕相机右轴），正为向上
+  viewOffsetY?: number;        // 视口主点纵向偏移（-1..+1，上为正）
+  smooth?: { enable: boolean; timeConstantMs: number } | undefined; // 可选平滑参数（占位）
   
   // 显示选项
   useTextures: boolean;        // 使用贴图
   useClouds: boolean;          // 显示云层
   showStars: boolean;          // 显示星空
   useMilkyWay: boolean;        // 使用银河星空
+  // 银河背景控制
+  bgYawDeg?: number;           // 银河经度旋转
+  bgPitchDeg?: number;         // 银河纬度旋转
+  bgScale?: number;            // 银河经度缩放（纹理重复）
   enableControls: boolean;     // 启用相机控制
+
+  // 月相模式
+  moonUseCameraLockedPhase?: boolean; // 月相是否使用“相机锁定”模式（默认 true）
+
+  // PIP 配置（最小接入）
+  enablePIP?: boolean;         // 启用画中画
+  pip?: {
+    x: number;                 // 屏幕位置X（0..1）左到右
+    y: number;                 // 屏幕位置Y（0..1）下到上
+    size: number;              // 贴片像素尺寸（正方形）
+    resolution: number;        // 离屏渲染分辨率（纹理边长）
+    fps: number;               // 离屏渲染帧率上限
+  };
 
   // 固定太阳模式
   useFixedSun?: boolean;        // 是否使用固定太阳方向 + 旋转地球
   fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
 
-  // PIP 画中画（月球）
-  enablePIP?: boolean;          // 是否启用PIP
-  pip?: {
-    x: number;                  // 屏幕X(0..1) 右为1
-    y: number;                  // 屏幕Y(0..1) 下为1
-    size: number;               // 像素尺寸（直径）
-    resolution: number;         // 渲染分辨率（方形）
-    fps: number;                // 降帧（目标fps），0=每帧
-    ambient?: number;           // PIP 专用环境光强度（只作用于layer=2）
-  };
 }
 
 // 默认值
@@ -91,7 +121,9 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   moonDistance: 14,            // 月球距离
   moonRadius: 0.44,            // 月球半径
   moonLatDeg: 0,               // 月球纬度调整
-  moonLonDeg: 0,               // 月球经度调整
+  moonLonDeg: -90,             // 月球经度调整
+  moonScreenX: 0.5,            // 月球屏幕X位置 (屏幕中央)
+  moonScreenY: 0.75,           // 月球屏幕Y位置 (屏幕上方)
   
   // 光照参数
   sunIntensity: 1.2,           // 阳光强度
@@ -122,6 +154,22 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 月球材质控制
   moonLightIntensity: 1.0,     // 月球材质亮度
   moonLightTempK: 5600,        // 月球材质色温
+  // 月球外观增强默认
+  moonTintH: 0,
+  moonTintS: 0.75,
+  moonTintL: 0.5,
+  moonTintStrength: 0.0,
+  moonShadingGamma: 1.0,
+  moonSurgeStrength: 0.15,
+  moonSurgeSigmaDeg: 18,
+  moonDisplacementScale: 0.015,
+  moonNormalScale: 0.1,
+  normalFlipY: true,
+  normalFlipX: false,
+  terminatorRadius: 0.02,
+  phaseCoupleStrength: 0.0,
+  displacementMid: 0.5,
+  nightLift: 0.02,
   
   // 云层参数
   cloudStrength: 0.8,          // 云层强度
@@ -136,22 +184,33 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 控制参数
   exposure: 1.0,               // 曝光
   cameraDistance: 15,          // 相机距离
+  cameraAzimuthDeg: 0,         // 默认不偏航
+  cameraElevationDeg: 0,       // 默认不俯仰
+  viewOffsetY: 0,              // 默认不偏移
+  smooth: { enable: false, timeConstantMs: 200 },
   
   // 显示选项
   useTextures: true,           // 使用贴图
   useClouds: true,             // 显示云层
   showStars: true,             // 显示星空
-  useMilkyWay: false,          // 不使用银河星空
+  useMilkyWay: true,           // 使用银河星空
+  bgYawDeg: -61,
+  bgPitchDeg: 0,
+  bgScale: 1.0,                // 银河贴图缩放（1.0 = 正常大小，<1.0 = 放大，>1.0 = 缩小）
   enableControls: false,       // 禁用相机控制（保持理想构图）
+
+  // 月相模式
+  moonUseCameraLockedPhase: true,
+
+  // PIP 默认关闭
+  enablePIP: true,
+  pip: { x: 0.5, y: 0.75, size: 192, resolution: 1024, fps: 30 },
 
   // 固定太阳模式（默认开启）
   useFixedSun: true,
   // 默认从屏幕左上方打光（相机看向 -Z，左= -X，上= +Y）
   fixedSunDir: [-0.7071, 0.7071, 0],
 
-  // PIP 画中画默认开启，居中偏右可读性强
-  enablePIP: true,
-  pip: { x: 0.5, y: 0.16, size: 176, resolution: 1024, fps: 0, ambient: 0.1 },
 
   // 季节模式默认关闭
   useSeasonalVariation: false,
@@ -173,6 +232,8 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     moonRadius: original.moonRadius ?? DEFAULT_SIMPLE_COMPOSITION.moonRadius,
     moonLatDeg: original.moonLatDeg ?? DEFAULT_SIMPLE_COMPOSITION.moonLatDeg,
     moonLonDeg: original.moonLonDeg ?? DEFAULT_SIMPLE_COMPOSITION.moonLonDeg,
+    moonScreenX: original.moonScreenX ?? DEFAULT_SIMPLE_COMPOSITION.moonScreenX,
+    moonScreenY: original.moonScreenY ?? DEFAULT_SIMPLE_COMPOSITION.moonScreenY,
     
     // 光照参数
     sunIntensity: original.sunIntensity ?? DEFAULT_SIMPLE_COMPOSITION.sunIntensity,
@@ -203,6 +264,20 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 月球材质控制
     moonLightIntensity: original.moonLightIntensity ?? DEFAULT_SIMPLE_COMPOSITION.moonLightIntensity,
     moonLightTempK: original.moonLightTempK ?? DEFAULT_SIMPLE_COMPOSITION.moonLightTempK,
+    moonTintH: original.moonTintH ?? DEFAULT_SIMPLE_COMPOSITION.moonTintH,
+    moonTintS: original.moonTintS ?? DEFAULT_SIMPLE_COMPOSITION.moonTintS,
+    moonTintL: original.moonTintL ?? DEFAULT_SIMPLE_COMPOSITION.moonTintL,
+    moonTintStrength: original.moonTintStrength ?? DEFAULT_SIMPLE_COMPOSITION.moonTintStrength,
+    moonShadingGamma: original.moonShadingGamma ?? DEFAULT_SIMPLE_COMPOSITION.moonShadingGamma,
+    moonSurgeStrength: original.moonSurgeStrength ?? DEFAULT_SIMPLE_COMPOSITION.moonSurgeStrength,
+    moonSurgeSigmaDeg: original.moonSurgeSigmaDeg ?? DEFAULT_SIMPLE_COMPOSITION.moonSurgeSigmaDeg,
+    moonDisplacementScale: original.moonDisplacementScale ?? DEFAULT_SIMPLE_COMPOSITION.moonDisplacementScale,
+    moonNormalScale: original.moonNormalScale ?? DEFAULT_SIMPLE_COMPOSITION.moonNormalScale,
+    normalFlipY: original.normalFlipY ?? DEFAULT_SIMPLE_COMPOSITION.normalFlipY,
+    normalFlipX: original.normalFlipX ?? DEFAULT_SIMPLE_COMPOSITION.normalFlipX,
+    terminatorRadius: original.terminatorRadius ?? DEFAULT_SIMPLE_COMPOSITION.terminatorRadius,
+    phaseCoupleStrength: original.phaseCoupleStrength ?? DEFAULT_SIMPLE_COMPOSITION.phaseCoupleStrength,
+    displacementMid: original.displacementMid ?? DEFAULT_SIMPLE_COMPOSITION.displacementMid,
     
     // 云层参数
     cloudStrength: original.cloudStrength ?? DEFAULT_SIMPLE_COMPOSITION.cloudStrength,
@@ -217,27 +292,32 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 控制参数
     exposure: original.exposure ?? DEFAULT_SIMPLE_COMPOSITION.exposure,
     cameraDistance: original.cameraDistance ?? DEFAULT_SIMPLE_COMPOSITION.cameraDistance,
+    cameraAzimuthDeg: original.cameraAzimuthDeg ?? DEFAULT_SIMPLE_COMPOSITION.cameraAzimuthDeg,
+    cameraElevationDeg: original.cameraElevationDeg ?? DEFAULT_SIMPLE_COMPOSITION.cameraElevationDeg,
+    viewOffsetY: original.viewOffsetY ?? DEFAULT_SIMPLE_COMPOSITION.viewOffsetY,
+    smooth: original.smooth ?? DEFAULT_SIMPLE_COMPOSITION.smooth,
     
     // 显示选项
     useTextures: original.useTextures ?? DEFAULT_SIMPLE_COMPOSITION.useTextures,
     useClouds: original.useClouds ?? DEFAULT_SIMPLE_COMPOSITION.useClouds,
     showStars: original.showStars ?? DEFAULT_SIMPLE_COMPOSITION.showStars,
     useMilkyWay: original.useMilkyWay ?? DEFAULT_SIMPLE_COMPOSITION.useMilkyWay,
+    bgYawDeg: original.bgYawDeg ?? DEFAULT_SIMPLE_COMPOSITION.bgYawDeg,
+    bgPitchDeg: original.bgPitchDeg ?? DEFAULT_SIMPLE_COMPOSITION.bgPitchDeg,
+    bgScale: original.bgScale ?? DEFAULT_SIMPLE_COMPOSITION.bgScale,
     enableControls: false,     // 始终禁用相机控制，保持理想构图
+
+    // 月相模式
+    moonUseCameraLockedPhase: original.moonUseCameraLockedPhase ?? DEFAULT_SIMPLE_COMPOSITION.moonUseCameraLockedPhase,
+
+    // PIP
+    enablePIP: original.enablePIP ?? DEFAULT_SIMPLE_COMPOSITION.enablePIP,
+    pip: original.pip ?? DEFAULT_SIMPLE_COMPOSITION.pip,
 
     // 固定太阳模式（保持可回退能力）
     useFixedSun: original.useFixedSun ?? DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
     fixedSunDir: original.fixedSunDir ?? DEFAULT_SIMPLE_COMPOSITION.fixedSunDir,
 
-    // PIP
-    enablePIP: original.enablePIP ?? DEFAULT_SIMPLE_COMPOSITION.enablePIP,
-    pip: {
-      x: original.pip?.x ?? DEFAULT_SIMPLE_COMPOSITION.pip!.x,
-      y: original.pip?.y ?? DEFAULT_SIMPLE_COMPOSITION.pip!.y,
-      size: original.pip?.size ?? DEFAULT_SIMPLE_COMPOSITION.pip!.size,
-      resolution: original.pip?.resolution ?? DEFAULT_SIMPLE_COMPOSITION.pip!.resolution,
-      fps: original.pip?.fps ?? DEFAULT_SIMPLE_COMPOSITION.pip!.fps,
-    },
 
     // 季节模式
     useSeasonalVariation: original.useSeasonalVariation ?? DEFAULT_SIMPLE_COMPOSITION.useSeasonalVariation,

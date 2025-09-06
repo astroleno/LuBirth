@@ -63,6 +63,7 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
     
     const tryNext = () => {
       if (canceled || idx >= allPaths.length) { 
+        console.log('[TextureLoader] 所有路径尝试完毕，未找到可用纹理');
         setTex(null); 
         return; 
       }
@@ -73,10 +74,17 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
         return; 
       }
       
+      console.log(`[TextureLoader] 尝试加载纹理: ${p}`);
+      
       loader.load(
         p,
         (t) => {
           if (canceled) return;
+          console.log(`[TextureLoader] ✅ 纹理加载成功: ${p}`, {
+            width: t.image?.width,
+            height: t.image?.height,
+            src: t.image?.src || 'no-src'
+          });
           t.colorSpace = THREE.SRGBColorSpace;
           t.wrapS = THREE.RepeatWrapping;
           t.wrapT = THREE.ClampToEdgeWrapping;
@@ -85,8 +93,14 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
           t.anisotropy = 16;
           setTex(t);
         },
-        undefined,
-        () => { 
+        (progress) => {
+          if (progress.lengthComputable) {
+            const percent = (progress.loaded / progress.total) * 100;
+            console.log(`[TextureLoader] 📥 ${p} 加载进度: ${percent.toFixed(1)}%`);
+          }
+        },
+        (error) => {
+          console.log(`[TextureLoader] ❌ 纹理加载失败: ${p}`, error);
           if (!canceled) tryNext(); 
         }
       );
@@ -155,8 +169,14 @@ export const TEXTURE_PATHS = {
     '/textures/8k_moon.jpg',
     '/textures/2k_moon.jpg'
   ],
+  moonNormal: [
+    '/textures/2k_moon_normal.jpg'
+  ],
   moonDisplacement: [
-    '/textures/2k_moon_displacement.jpg'
+    '/textures/2k_moon_displacement.jpg',
+    '/textures/moon_height_2k.jpg',
+    '/textures/moon_height_2048x1024.jpg',
+    '/textures/moon_height.jpg'
   ],
   
   // 星空贴图
@@ -170,6 +190,12 @@ export const TEXTURE_PATHS = {
 export function useTextureLoader(composition: any) {
   const useTex = !!composition?.useTextures;
   
+  console.log('[TextureLoader] 开始加载纹理，配置:', {
+    useTextures: useTex,
+    useClouds: !!composition?.useClouds,
+    useMilkyWay: !!composition?.useMilkyWay
+  });
+  
   // 地球贴图
   const earthMap = useFirstAvailableTexture(TEXTURE_PATHS.earthDay, useTex);
   const earthNight = useFirstAvailableTexture(TEXTURE_PATHS.earthNight, useTex);
@@ -179,10 +205,26 @@ export function useTextureLoader(composition: any) {
   
   // 月球贴图
   const moonMap = useFirstAvailableTexture(TEXTURE_PATHS.moon, useTex);
-  const moonDisplacementMap = useOptionalTexture(TEXTURE_PATHS.moonDisplacement[0], useTex);
+  const moonNormalMap = useFirstAvailableTexture(TEXTURE_PATHS.moonNormal, useTex);
+  const moonDisplacementMap = useFirstAvailableTexture(TEXTURE_PATHS.moonDisplacement, useTex);
   
   // 星空贴图
   const starsMilky = useFirstAvailableTexture(TEXTURE_PATHS.starsMilky, useTex && !!composition?.useMilkyWay);
+  
+  // 监控纹理加载状态
+  React.useEffect(() => {
+    console.log('[TextureLoader] 纹理加载状态:', {
+      earthMap: earthMap ? '✅' : '❌',
+      earthNight: earthNight ? '✅' : '❌',
+      earthNormal: earthNormal ? '✅' : '❌',
+      earthSpecular: earthSpecular ? '✅' : '❌',
+      earthClouds: earthClouds ? '✅' : '❌',
+      moonMap: moonMap ? '✅' : '❌',
+      moonNormalMap: moonNormalMap ? '✅' : '❌',
+      moonDisplacementMap: moonDisplacementMap ? '✅' : '❌',
+      starsMilky: starsMilky ? '✅' : '❌'
+    });
+  }, [earthMap, earthNight, earthNormal, earthSpecular, earthClouds, moonMap, moonNormalMap, moonDisplacementMap, starsMilky]);
   
   return {
     earthMap,
@@ -191,6 +233,7 @@ export function useTextureLoader(composition: any) {
     earthSpecular,
     earthClouds,
     moonMap,
+    moonNormalMap,
     moonDisplacementMap,
     starsMilky
   };

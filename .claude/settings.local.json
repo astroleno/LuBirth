@@ -9,7 +9,20 @@
       "Read(/F:\\github\\LuBirth\\src\\scenes\\simple\\utils/**)",
       "Bash(npm run dev)",
       "Bash(curl -s http://localhost:5174/)",
-      "Bash(pkill -f \"vite\")"
+      "Bash(pkill -f \"vite\")",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npm run)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(rm \"/Users/zuobowen/Documents/GitHub/LuBirth/src/scenes/simple/components/PhysicalMoonPIP.tsx\")",
+      "Bash(lsof -i :5174)",
+      "Bash(rm test-moon-phase.js)",
+      "Bash(true)",
+      "Bash(timeout 10s npm run dev)",
+      "Bash(cat:*)",
+      "Bash(rm:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)"
     ],
     "deny": [],
     "ask": []
