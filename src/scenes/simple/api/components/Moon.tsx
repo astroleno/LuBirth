@@ -17,6 +17,7 @@ export function Moon({
   yawDeg = 0,
   latDeg = 0,
   lonDeg = 0,
+  moonYawDeg = 0,
   name = 'moonMesh',
   earthPosition,           // 地球位置，用于潮汐锁定计算
   sunDirWorldForShading,   // 真实太阳方向向量，用于Uniform照明
@@ -25,8 +26,8 @@ export function Moon({
   currentDate = '',          // 当前日期时间，用于月球自转计算
   observerLat,             // 观察者纬度
   observerLon,              // 观察者经度
-  useCameraLockedPhase = true, // 是否使用相机锁定月相
-  renderLayer = 0,          // 渲染图层，PIP 时可放到 2
+  useCameraLockedPhase = false, // 是否使用相机锁定月相
+  renderLayer = 0,          // 渲染图层
   customCameraForTideLock,
   customCameraForPhase,
   // 外观增强参数
@@ -55,6 +56,7 @@ export function Moon({
   yawDeg?: number;
   latDeg?: number;
   lonDeg?: number;
+  moonYawDeg?: number;
   name?: string;
   earthPosition?: [number, number, number]; // 地球位置
   sunDirWorldForShading?: THREE.Vector3; // 真实太阳方向
@@ -81,6 +83,8 @@ export function Moon({
   normalFlipX?: boolean;
   terminatorRadius?: number;
   phaseCoupleStrength?: number;
+  displacementMid?: number;      // 位移中点（通常0.5，决定正负起伏平衡）
+  nightLift?: number;            // 夜面抬升（0-0.2），避免新月过亮
 }) {
   const meshRef = React.useRef<THREE.Mesh>(null!);
   const { camera } = useThree();
@@ -94,9 +98,25 @@ export function Moon({
     try {
       if (currentDate && observerLat !== undefined && observerLon !== undefined) {
         const info = getMoonPhase(currentDate, observerLat, observerLon);
+        console.log('[Moon Phase] 计算月相:', {
+          currentDate,
+          observerLat,
+          observerLon,
+          phaseAngleRad: info.phaseAngleRad,
+          phaseAngleDeg: info.phaseAngleRad ? (info.phaseAngleRad * 180 / Math.PI).toFixed(1) : 'N/A',
+          illumination: info.illumination
+        });
         return info.phaseAngleRad;
+      } else {
+        console.warn('[Moon Phase] 参数缺失:', {
+          currentDate,
+          observerLat,
+          observerLon
+        });
       }
-    } catch {}
+    } catch (error) {
+      console.error('[Moon Phase] 计算失败:', error);
+    }
     return null;
   }, [currentDate, observerLat, observerLon]);
 
@@ -111,9 +131,18 @@ export function Moon({
   }, [currentDate, observerLat, observerLon]);
 
   // 基于相机与月球位置构建 R/U/F 并按相位角生成 S_world（仅方位角旋转）
+  // 注意：月相只依赖日期，不受系统光照影响
   const sdirWorld: THREE.Vector3 | undefined = useMemo(() => {
-    if (!meshRef.current || phaseAngleRad == null) return undefined;
-    // 构建正交基
+    if (!meshRef.current || phaseAngleRad == null) {
+      console.log('[Moon Phase] 跳过太阳方向计算:', {
+        hasMesh: !!meshRef.current,
+        phaseAngleRad,
+        reason: !meshRef.current ? 'mesh未准备好' : '相位角为空'
+      });
+      return undefined;
+    }
+    
+    // 构建正交基 - 使用原始方法但配合正确的太阳方向公式
     const moonPos = new THREE.Vector3(...position);
     const cam = phaseCam as THREE.Camera;
     const F = new THREE.Vector3().subVectors(cam.position, moonPos).normalize();
@@ -121,19 +150,93 @@ export function Moon({
     const camUp = (cam as any).up ? (cam as any).up.clone().normalize() : new THREE.Vector3(0,1,0);
     const Uprime = camUp.sub(F.clone().multiplyScalar(camUp.dot(F)));
     let U = Uprime.lengthSq() > 1e-6 ? Uprime.normalize() : new THREE.Vector3(0,1,0);
+    // 使用原始正交基构建方法：F × U = R (这会让R指向左侧，但配合正确的公式就能工作)
     const R = new THREE.Vector3().crossVectors(F, U).normalize();
     U = new THREE.Vector3().crossVectors(R, F).normalize();
 
+    // 修复太阳方向计算公式
     // astronomy-engine 的 phase_angle 定义：0≈满月，~180≈新月。
-    // 为满足“满月→S=+F；新月→S=−F”，使用：S = cos(a)·F + sin(a)·R。
+    // 关键修复：使用 -sin(a)·R + cos(a)·F 来确保正确的左右分布
     const a = phaseAngleRad; // 0≈满月, π≈新月
-    // S = cos(a) F + sin(a) R（不含 U 分量，方位角旋转）
+    
+    // 修复公式：-sin(a)·R + cos(a)·F
+    // 实现左满右：盈月左亮，满月全亮，亏月右亮
     const S = new THREE.Vector3()
-      .add(F.clone().multiplyScalar(Math.cos(a)))
-      .add(R.clone().multiplyScalar(Math.sin(a)))
+      .add(R.clone().multiplyScalar(-Math.sin(a)))  // R分量：控制左右，使用-sin实现左满右
+      .add(F.clone().multiplyScalar(Math.cos(a)))   // F分量：控制前后
       .normalize();
+    
+    // 调试信息：打印正交基构建和太阳方向计算详情
+    console.log('[Moon Phase] 太阳方向计算完成:', {
+      // 输入参数
+      currentDate,
+      observerLat,
+      observerLon,
+      phaseAngleDeg: (a * 180 / Math.PI).toFixed(1),
+      
+      // 正交基向量
+      F: F.toArray(),
+      R: R.toArray(),
+      U: U.toArray(),
+      
+      // 太阳方向计算分量
+      sin_a: Math.sin(a).toFixed(3),
+      cos_a: Math.cos(a).toFixed(3),
+      
+      // 最终太阳方向
+      sunDirection: S.toArray(),
+      lightingSide: S.x > 0.3 ? '右侧' : S.x < -0.3 ? '左侧' : S.z > 0.3 ? '前方' : S.z < -0.3 ? '后方' : '其他方向',
+      
+      // 验证
+      isNormalized: S.length() - 1 < 1e-6,
+      expectedForPhase: getExpectedLightingForPhase(a)
+    });
+    
+    if (new URLSearchParams(location.search).get('debug') === '1') {
+      console.log('[SimpleMoon Orthogonal Basis Debug]', {
+        // 输入参数
+        cameraPosition: cam.position.toArray(),
+        moonPosition: moonPos.toArray(),
+        phaseAngleDeg: (a * 180 / Math.PI).toFixed(1),
+        
+        // 正交基向量
+        F: F.toArray(),
+        R: R.toArray(),
+        U: U.toArray(),
+        
+        // 正交性验证
+        'F·R': F.dot(R).toFixed(6),
+        'F·U': F.dot(U).toFixed(6),
+        'R·U': R.dot(U).toFixed(6),
+        
+        // 太阳方向计算分量
+        sin_a: Math.sin(a).toFixed(3),
+        cos_a: Math.cos(a).toFixed(3),
+        R_component: R.clone().multiplyScalar(-Math.sin(a)).toArray(),
+        F_component: F.clone().multiplyScalar(Math.cos(a)).toArray(),
+        
+        // 最终太阳方向
+        sunDirection: S.toArray(),
+        lightingSide: S.x > 0.3 ? '右侧' : S.x < -0.3 ? '左侧' : S.z > 0.3 ? '前方' : S.z < -0.3 ? '后方' : '其他方向',
+        
+        // 验证
+        isNormalized: S.length() - 1 < 1e-6,
+        expectedForPhase: getExpectedLightingForPhase(a)
+      });
+    }
+    
     return S;
   }, [phaseCam, position, phaseAngleRad]);
+  
+  // 辅助函数：根据相位角判断期望的光照方向
+  function getExpectedLightingForPhase(angleRad: number): string {
+    const angle = angleRad * 180 / Math.PI;
+    if (angle < 45) return '前方（满月）';
+    else if (angle < 135) return '右侧（亏凸月→下弦月→残月）';
+    else if (angle < 225) return '后方（新月）';
+    else if (angle < 315) return '左侧（蛾眉月→上弦月→盈凸月）';
+    else return '前方（满月）';
+  }
   
     
   // 从 HSL 计算色调
@@ -184,7 +287,7 @@ export function Moon({
           surgeStrength: { value: moonSurgeStrength },
           surgeSigmaRad: { value: (moonSurgeSigmaDeg * Math.PI) / 180 }
         },
-        extensions: { derivatives: true },
+        extensions: { clipCullDistance: true, multiDraw: false },
         vertexShader: `
           varying vec2 vUv;
           varying vec3 vNormal;
@@ -343,12 +446,15 @@ export function Moon({
         const camUp = (cam as any).up ? (cam as any).up.clone().normalize() : new THREE.Vector3(0,1,0);
         const Uprime = camUp.sub(F.clone().multiplyScalar(camUp.dot(F)));
         let U = Uprime.lengthSq() > 1e-6 ? Uprime.normalize() : new THREE.Vector3(0, 1, 0);
+        // 使用原始正交基构建方法：F × U = R
         const R = new THREE.Vector3().crossVectors(F, U).normalize();
         U = new THREE.Vector3().crossVectors(R, F).normalize();
         const a = phaseAngleRad ?? 0; // 0≈满月, π≈新月
+        // 修复公式：-sin(a)·R + cos(a)·F
+        // 实现左满右：盈月左亮，满月全亮，亏月右亮
         const S = new THREE.Vector3()
-          .add(F.clone().multiplyScalar(Math.cos(a)))
-          .add(R.clone().multiplyScalar(Math.sin(a)))
+          .add(R.clone().multiplyScalar(-Math.sin(a)))  // R分量：使用-sin实现左满右
+          .add(F.clone().multiplyScalar(Math.cos(a)))   // F分量：控制前后
           .normalize();
         mat.uniforms.sunDirWorldForShading.value.copy(S);
       } else if (sunDirWorldForShading) {
@@ -358,59 +464,122 @@ export function Moon({
     } catch {}
   });
 
-  // 潮汐锁定四元数（每帧更新）：使月球 +Z 指向“潮锁相机”，并应用贴图经纬度微调
+  // 潮汐锁定四元数（每帧更新）：使月球 +Z 指向“地球方向”，并应用贴图经纬度微调
   useFrame(() => {
     if (!meshRef.current || !enableTidalLock) return;
     const moon = meshRef.current;
     // 月球与相机位置（世界系）
     const moonPos = new THREE.Vector3(position[0], position[1], position[2]);
-    const camPos = new THREE.Vector3();
-    tideCam.getWorldPosition(camPos);
-    // 目标方向：从月球指向相机
-    const targetDir = camPos.sub(moonPos).normalize();
+    // 优先使用地球位置作为潮锁目标，其次回退到相机位置
+    let targetDir: THREE.Vector3;
+    if (earthPosition && earthPosition.length === 3) {
+      const earthPos = new THREE.Vector3(earthPosition[0], earthPosition[1], earthPosition[2]);
+      // 目标方向：从月球指向地球（Moon→Earth）
+      targetDir = earthPos.sub(moonPos).normalize();
+    } else {
+      const camPos = new THREE.Vector3();
+      tideCam.getWorldPosition(camPos);
+      // 回退方向：从月球指向相机
+      targetDir = camPos.sub(moonPos).normalize();
+    }
     // 基础对齐：将局部+Z旋到 targetDir
     const qBase = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), targetDir);
-    // 贴图经纬度修正：先绕Y（经度），再绕X（纬度）
+    // 潮汐锁定修正：水平转角作为主要潮汐锁定面，然后微调经纬度
+    const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(moonYawDeg || 0));
     const qLon = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(lonDeg || 0));
     const qLat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(latDeg || 0));
-    const qFinal = qBase.clone().multiply(qLon).multiply(qLat);
+    const qFinal = qBase.clone().multiply(qYaw).multiply(qLon).multiply(qLat);
     moon.quaternion.copy(qFinal);
+    
+    // 调试信息：潮汐锁定参数
+    if (new URLSearchParams(location.search).get('debug') === '1') {
+      console.log('[Moon Tidal Lock]', {
+        moonYawDeg: moonYawDeg || 0,
+        lonDeg: lonDeg || 0,
+        latDeg: latDeg || 0,
+        targetDir: targetDir.toArray(),
+        rotationOrder: 'Base → Yaw → Lon → Lat',
+        finalQuaternion: qFinal.toArray()
+      });
+    }
   });
 
-  // 调试信息
+  // 详细调试信息
   useEffect(() => {
     if (new URLSearchParams(location.search).get('debug') === '1') {
-      console.log('[SimpleMoon]', {
+      console.log('[SimpleMoon Debug]', {
+        // 基础参数
         position,
         radius,
         lightDirection: lightDirection.toArray(),
         useTextures,
         hasMap: !!moonMap,
         hasDisplacement: !!moonDisplacementMap,
+        
+        // 月相相关
+        phaseAngleRad: phaseAngleRad ? (phaseAngleRad * 180 / Math.PI).toFixed(1) + '°' : null,
+        observerLat,
+        observerLon,
+        currentDate,
+        
+        // 正交基和太阳方向
+        sdirWorld: sdirWorld?.toArray(),
+        sunDirWorldForShading: sunDirWorldForShading?.toArray(),
+        finalSunDir: (sdirWorld ?? sunDirWorldForShading)?.toArray(),
+        
+        // 渲染设置
+        enableTidalLock,
+        enableUniformShading,
+        useCameraLockedPhase,
+        
+        // 材质参数
         moonNormalScale,
         moonDisplacementScale,
         normalFlipY,
         terminatorRadius,
         phaseCoupleStrength,
-        enableTidalLock,
-        enableUniformShading,
-        sunDirWorldForShading: (sdirWorld ?? sunDirWorldForShading)?.toArray(),
+        
+        // 本地计算的月相（仅对比）
         moonPhaseResult: moonPhaseResult ? {
           phaseAngle: moonPhaseResult.phaseAngle.toFixed(1) + '°',
           illumination: moonPhaseResult.illumination.toFixed(3),
           phaseName: moonPhaseResult.phaseName,
           moonRotation: (moonPhaseResult.moonRotation * 180 / Math.PI).toFixed(1) + '°'
         } : null,
-        observerLat,
-        observerLon,
-        currentDate,
+        
         mode: 'enhanced-moon-system'
       });
+      
+      // 额外调试：分析光照方向
+      if (sdirWorld ?? sunDirWorldForShading) {
+        const sunDir = sdirWorld ?? sunDirWorldForShading;
+        if (sunDir) {
+          console.log('[SimpleMoon Lighting Analysis]', {
+            sunDirection: sunDir.toArray(),
+            x: sunDir.x.toFixed(3),
+            y: sunDir.y.toFixed(3),
+            z: sunDir.z.toFixed(3),
+            lightingSide: sunDir.x > 0.3 ? '右侧' : sunDir.x < -0.3 ? '左侧' : sunDir.z > 0.3 ? '前方' : sunDir.z < -0.3 ? '后方' : '其他方向',
+            phaseAngleDeg: phaseAngleRad ? (phaseAngleRad * 180 / Math.PI).toFixed(1) + '°' : null,
+            expectedLighting: phaseAngleRad ? getExpectedLightingSide(phaseAngleRad) : '未知'
+          });
+        }
+      }
     }
   }, [position, radius, lightDirection, useTextures, moonMap, moonDisplacementMap, 
-      enableTidalLock, enableUniformShading, sdirWorld, moonPhaseResult, observerLat, observerLon, currentDate, sunDirWorldForShading]);
+      enableTidalLock, enableUniformShading, sdirWorld, moonPhaseResult, observerLat, observerLon, currentDate, sunDirWorldForShading, phaseAngleRad]);
+  
+  // 辅助函数：根据相位角判断期望的光照方向
+  function getExpectedLightingSide(angleRad: number): string {
+    const angle = angleRad * 180 / Math.PI;
+    if (angle < 45) return '前方';
+    else if (angle < 135) return '右侧';
+    else if (angle < 225) return '后方';
+    else if (angle < 315) return '左侧';
+    else return '前方';
+  }
 
-  // 图层设置（PIP 时可切换至 layer 2）
+  // 图层设置
   React.useEffect(() => {
     if (meshRef.current) {
       meshRef.current.layers.set(renderLayer || 0);

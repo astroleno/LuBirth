@@ -11,6 +11,7 @@ export interface SimpleComposition {
   moonRadius: number;          // 月球半径
   moonLatDeg: number;          // 月球纬度调整
   moonLonDeg: number;          // 月球经度调整
+  moonYawDeg?: number;         // 月球水平转角调整
   moonScreenX: number;         // 月球屏幕X位置 (0-1)
   moonScreenY: number;         // 月球屏幕Y位置 (0-1)
   
@@ -93,16 +94,7 @@ export interface SimpleComposition {
   // 月相模式
   moonUseCameraLockedPhase?: boolean; // 月相是否使用“相机锁定”模式（默认 true）
 
-  // PIP 配置（最小接入）
-  enablePIP?: boolean;         // 启用画中画
-  pip?: {
-    x: number;                 // 屏幕位置X（0..1）左到右
-    y: number;                 // 屏幕位置Y（0..1）下到上
-    size: number;              // 贴片像素尺寸（正方形）
-    resolution: number;        // 离屏渲染分辨率（纹理边长）
-    fps: number;               // 离屏渲染帧率上限
-  };
-
+  
   // 固定太阳模式
   useFixedSun?: boolean;        // 是否使用固定太阳方向 + 旋转地球
   fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
@@ -120,8 +112,9 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 月球参数
   moonDistance: 14,            // 月球距离
   moonRadius: 0.44,            // 月球半径
-  moonLatDeg: 0,               // 月球纬度调整
-  moonLonDeg: -90,             // 月球经度调整
+  moonLatDeg: -90,             // 月球纬度调整
+  moonLonDeg: 0,               // 月球经度调整
+  moonYawDeg: 90,              // 月球水平转角调整（潮汐锁定面）
   moonScreenX: 0.5,            // 月球屏幕X位置 (屏幕中央)
   moonScreenY: 0.75,           // 月球屏幕Y位置 (屏幕上方)
   
@@ -200,12 +193,10 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   enableControls: false,       // 禁用相机控制（保持理想构图）
 
   // 月相模式
+  // 月相默认使用相机锁定模式（启用相机锁相位）
   moonUseCameraLockedPhase: true,
 
-  // PIP 默认关闭
-  enablePIP: true,
-  pip: { x: 0.5, y: 0.75, size: 192, resolution: 1024, fps: 30 },
-
+  
   // 固定太阳模式（默认开启）
   useFixedSun: true,
   // 默认从屏幕左上方打光（相机看向 -Z，左= -X，上= +Y）
@@ -232,6 +223,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     moonRadius: original.moonRadius ?? DEFAULT_SIMPLE_COMPOSITION.moonRadius,
     moonLatDeg: original.moonLatDeg ?? DEFAULT_SIMPLE_COMPOSITION.moonLatDeg,
     moonLonDeg: original.moonLonDeg ?? DEFAULT_SIMPLE_COMPOSITION.moonLonDeg,
+    moonYawDeg: original.moonYawDeg ?? DEFAULT_SIMPLE_COMPOSITION.moonYawDeg,
     moonScreenX: original.moonScreenX ?? DEFAULT_SIMPLE_COMPOSITION.moonScreenX,
     moonScreenY: original.moonScreenY ?? DEFAULT_SIMPLE_COMPOSITION.moonScreenY,
     
@@ -310,10 +302,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 月相模式
     moonUseCameraLockedPhase: original.moonUseCameraLockedPhase ?? DEFAULT_SIMPLE_COMPOSITION.moonUseCameraLockedPhase,
 
-    // PIP
-    enablePIP: original.enablePIP ?? DEFAULT_SIMPLE_COMPOSITION.enablePIP,
-    pip: original.pip ?? DEFAULT_SIMPLE_COMPOSITION.pip,
-
+    
     // 固定太阳模式（保持可回退能力）
     useFixedSun: original.useFixedSun ?? DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
     fixedSunDir: original.fixedSunDir ?? DEFAULT_SIMPLE_COMPOSITION.fixedSunDir,

@@ -22,7 +22,10 @@
       "Bash(cat:*)",
       "Bash(rm:*)",
       "Bash(curl:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run preview:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
