@@ -4,6 +4,28 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { useTextureLoader } from '../../utils/textureLoader';
 import { calculateMoonPhase } from '../../utils/moonPhaseCalculator';
 import { getMoonPhase } from '../moonPhase';
+import { computeEphemeris } from '../../../../astro/ephemeris';
+
+// 全局测试函数
+(window as any).testMoonPhaseFormula = (angleDeg: number, R: THREE.Vector3, F: THREE.Vector3) => {
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const testS = new THREE.Vector3()
+    .add(R.clone().multiplyScalar(-Math.sin(angleRad)))
+    .add(F.clone().multiplyScalar(-Math.cos(angleRad)))
+    .normalize();
+  
+  console.log(`测试角度 ${angleDeg}°:`, {
+    angleRad: angleRad.toFixed(3),
+    sin: Math.sin(angleRad).toFixed(3),
+    cos: Math.cos(angleRad).toFixed(3),
+    neg_sin: (-Math.sin(angleRad)).toFixed(3),
+    neg_cos: (-Math.cos(angleRad)).toFixed(3),
+    sunDirection: testS.toArray(),
+    lightingSide: testS.x > 0.3 ? '右侧' : testS.x < -0.3 ? '左侧' : testS.z > 0.3 ? '前方' : testS.z < -0.3 ? '后方' : '其他方向'
+  });
+  
+  return testS;
+};
 
 // 月球组件 - 支持潮汐锁定和Uniform照明
 export function Moon({ 
@@ -93,31 +115,57 @@ export function Moon({
   // 加载月球纹理
   const { moonMap, moonDisplacementMap, moonNormalMap } = useTextureLoader({ useTextures });
   
-  // 使用 astronomy-engine 获取相位角（优先），本地算法降级仅用于显示
-  const phaseAngleRad: number | null = useMemo(() => {
+  // [🔧 彻底修复] 使用真实太阳和月球向量，不再依赖 Elongation 拼接
+  const sunDirectionInfo = useMemo(() => {
     try {
       if (currentDate && observerLat !== undefined && observerLon !== undefined) {
-        const info = getMoonPhase(currentDate, observerLat, observerLon);
-        console.log('[Moon Phase] 计算月相:', {
+        // 获取真实的太阳和月球向量
+        const phaseInfo = getMoonPhase(currentDate, observerLat, observerLon);
+        
+        // 直接使用真实的太阳方向向量
+        const realSunDir = phaseInfo.sunDirection.clone();
+        
+        // 使用预计算的位置角
+        const positionAngleDeg = phaseInfo.positionAngle * 180 / Math.PI;
+        
+        // 基于黄经差的月相判断（适用于固定月球系统）
+        let lightingSide: string;
+        const phaseLonDeg = ((phaseInfo.positionAngle + Math.PI) * 180 / Math.PI) % 360;
+        if (phaseLonDeg < 45 || phaseLonDeg > 315) lightingSide = '前方（朔月）';
+        else if (phaseLonDeg >= 45 && phaseLonDeg < 135) lightingSide = '右侧（上弦）';
+        else if (phaseLonDeg >= 135 && phaseLonDeg < 225) lightingSide = '后方（满月）';
+        else lightingSide = '左侧（下弦）';
+
+        console.log('[Moon Phase] 固定月球系统计算:', {
           currentDate,
           observerLat,
           observerLon,
-          phaseAngleRad: info.phaseAngleRad,
-          phaseAngleDeg: info.phaseAngleRad ? (info.phaseAngleRad * 180 / Math.PI).toFixed(1) : 'N/A',
-          illumination: info.illumination
+          gamma_deg: (phaseInfo.phaseAngleRad * 180 / Math.PI).toFixed(1) + '°',
+          renderSunDirection: realSunDir.toArray().map(x => x.toFixed(3)),
+          illumination: phaseInfo.illumination.toFixed(3),
+          positionAngle: positionAngleDeg.toFixed(1) + '°',
+          phaseLonDeg: phaseLonDeg.toFixed(1) + '°',
+          lightingSideForFixedMoon: lightingSide
         });
-        return info.phaseAngleRad;
+        
+        return {
+          sunDirection: realSunDir,
+          illumination: phaseInfo.illumination,
+          positionAngle: phaseInfo.positionAngle,
+          moonDirection: phaseInfo.moonDirection
+        };
       } else {
         console.warn('[Moon Phase] 参数缺失:', {
           currentDate,
           observerLat,
           observerLon
         });
+        return null;
       }
-    } catch (error) {
-      console.error('[Moon Phase] 计算失败:', error);
+    } catch (err) {
+      console.error('[Moon Phase] 计算失败:', err);
+      return null;
     }
-    return null;
   }, [currentDate, observerLat, observerLon]);
 
   // 本地月相信息仅用于 UI 日志（不驱动渲染向量）
@@ -130,112 +178,63 @@ export function Moon({
     return null;
   }, [currentDate, observerLat, observerLon]);
 
-  // 基于相机与月球位置构建 R/U/F 并按相位角生成 S_world（仅方位角旋转）
-  // 注意：月相只依赖日期，不受系统光照影响
+  // [🔧 彻底修复] 直接使用真实太阳方向向量
   const sdirWorld: THREE.Vector3 | undefined = useMemo(() => {
-    if (!meshRef.current || phaseAngleRad == null) {
+    if (!sunDirectionInfo) {
       console.log('[Moon Phase] 跳过太阳方向计算:', {
-        hasMesh: !!meshRef.current,
-        phaseAngleRad,
-        reason: !meshRef.current ? 'mesh未准备好' : '相位角为空'
+        reason: '太阳方向信息为空'
       });
       return undefined;
     }
     
-    // 构建正交基 - 使用原始方法但配合正确的太阳方向公式
-    const moonPos = new THREE.Vector3(...position);
-    const cam = phaseCam as THREE.Camera;
-    const F = new THREE.Vector3().subVectors(cam.position, moonPos).normalize();
-    // 相机 up 去除与 F 的分量，稳健正交化
-    const camUp = (cam as any).up ? (cam as any).up.clone().normalize() : new THREE.Vector3(0,1,0);
-    const Uprime = camUp.sub(F.clone().multiplyScalar(camUp.dot(F)));
-    let U = Uprime.lengthSq() > 1e-6 ? Uprime.normalize() : new THREE.Vector3(0,1,0);
-    // 使用原始正交基构建方法：F × U = R (这会让R指向左侧，但配合正确的公式就能工作)
-    const R = new THREE.Vector3().crossVectors(F, U).normalize();
-    U = new THREE.Vector3().crossVectors(R, F).normalize();
+    // 直接使用真实的太阳方向向量
+    const S = sunDirectionInfo.sunDirection.clone().normalize();
+    const positionAngleDeg = (sunDirectionInfo.positionAngle || 0) * 180 / Math.PI;
+    
+    // 基于黄经差的月相判断（固定月球系统）
+    let accurateLightingSide: string;
+    const phaseLonDeg = ((sunDirectionInfo.positionAngle || 0) + Math.PI) * 180 / Math.PI % 360;
+    if (phaseLonDeg < 45 || phaseLonDeg > 315) accurateLightingSide = '前方（朔月）';
+    else if (phaseLonDeg >= 45 && phaseLonDeg < 135) accurateLightingSide = '右侧（上弦）';
+    else if (phaseLonDeg >= 135 && phaseLonDeg < 225) accurateLightingSide = '后方（满月）';
+    else accurateLightingSide = '左侧（下弦）';
 
-    // 修复太阳方向计算公式
-    // astronomy-engine 的 phase_angle 定义：0≈满月，~180≈新月。
-    // 关键修复：使用 -sin(a)·R + cos(a)·F 来确保正确的左右分布
-    const a = phaseAngleRad; // 0≈满月, π≈新月
-    
-    // 修复公式：-sin(a)·R + cos(a)·F
-    // 实现左满右：盈月左亮，满月全亮，亏月右亮
-    const S = new THREE.Vector3()
-      .add(R.clone().multiplyScalar(-Math.sin(a)))  // R分量：控制左右，使用-sin实现左满右
-      .add(F.clone().multiplyScalar(Math.cos(a)))   // F分量：控制前后
-      .normalize();
-    
-    // 调试信息：打印正交基构建和太阳方向计算详情
-    console.log('[Moon Phase] 太阳方向计算完成:', {
-      // 输入参数
+    console.log('[Moon Phase] 真实向量太阳方向计算完成:', {
       currentDate,
       observerLat,
       observerLon,
-      phaseAngleDeg: (a * 180 / Math.PI).toFixed(1),
-      
-      // 正交基向量
-      F: F.toArray(),
-      R: R.toArray(),
-      U: U.toArray(),
-      
-      // 太阳方向计算分量
-      sin_a: Math.sin(a).toFixed(3),
-      cos_a: Math.cos(a).toFixed(3),
-      
-      // 最终太阳方向
-      sunDirection: S.toArray(),
-      lightingSide: S.x > 0.3 ? '右侧' : S.x < -0.3 ? '左侧' : S.z > 0.3 ? '前方' : S.z < -0.3 ? '后方' : '其他方向',
-      
-      // 验证
-      isNormalized: S.length() - 1 < 1e-6,
-      expectedForPhase: getExpectedLightingForPhase(a)
+      sunDirection: S.toArray().map(x => x.toFixed(3)),
+      positionAngle: positionAngleDeg.toFixed(1) + '°',
+      lightingSideFromRealVector: accurateLightingSide,
+      isNormalized: (S.length() - 1 < 1e-6)
     });
+
+    // 将调试信息输出到全局变量，方便在控制台查看
+    (window as any).moonPhaseDebug = {
+      sunDirection: S.toArray().map(x => x.toFixed(3)),
+      positionAngle: positionAngleDeg.toFixed(1) + '°',
+      lightingSideFromRealVector: accurateLightingSide,
+      timestamp: new Date().toISOString(),
+      source: 'real_vectors_from_astronomy_engine'
+    };
     
-    if (new URLSearchParams(location.search).get('debug') === '1') {
-      console.log('[SimpleMoon Orthogonal Basis Debug]', {
-        // 输入参数
-        cameraPosition: cam.position.toArray(),
-        moonPosition: moonPos.toArray(),
-        phaseAngleDeg: (a * 180 / Math.PI).toFixed(1),
-        
-        // 正交基向量
-        F: F.toArray(),
-        R: R.toArray(),
-        U: U.toArray(),
-        
-        // 正交性验证
-        'F·R': F.dot(R).toFixed(6),
-        'F·U': F.dot(U).toFixed(6),
-        'R·U': R.dot(U).toFixed(6),
-        
-        // 太阳方向计算分量
-        sin_a: Math.sin(a).toFixed(3),
-        cos_a: Math.cos(a).toFixed(3),
-        R_component: R.clone().multiplyScalar(-Math.sin(a)).toArray(),
-        F_component: F.clone().multiplyScalar(Math.cos(a)).toArray(),
-        
-        // 最终太阳方向
-        sunDirection: S.toArray(),
-        lightingSide: S.x > 0.3 ? '右侧' : S.x < -0.3 ? '左侧' : S.z > 0.3 ? '前方' : S.z < -0.3 ? '后方' : '其他方向',
-        
-        // 验证
-        isNormalized: S.length() - 1 < 1e-6,
-        expectedForPhase: getExpectedLightingForPhase(a)
-      });
-    }
+    // 输出太阳方向信息
+    console.log('=== 真实向量太阳方向信息 ===');
+    console.log('太阳方向:', S.toArray().map(x => x.toFixed(3)));
+    console.log('位置角:', positionAngleDeg.toFixed(1) + '°');
+    console.log('光照侧（基于真实向量）:', accurateLightingSide);
     
     return S;
-  }, [phaseCam, position, phaseAngleRad]);
+  }, [sunDirectionInfo, currentDate, observerLat, observerLon]);
   
-  // 辅助函数：根据相位角判断期望的光照方向
+  // 辅助函数：根据相位角判断期望的光照方向（基于elongation）
   function getExpectedLightingForPhase(angleRad: number): string {
     const angle = angleRad * 180 / Math.PI;
-    if (angle < 45) return '前方（满月）';
-    else if (angle < 135) return '右侧（亏凸月→下弦月→残月）';
-    else if (angle < 225) return '后方（新月）';
-    else if (angle < 315) return '左侧（蛾眉月→上弦月→盈凸月）';
-    else return '前方（满月）';
+    if (angle < 45) return '前方（新月）';
+    else if (angle < 135) return '右侧（上弦月）';
+    else if (angle < 225) return '后方（满月）';
+    else if (angle < 315) return '左侧（下弦月）';
+    else return '前方（新月）';
   }
   
     
@@ -282,7 +281,7 @@ export function Moon({
           shadingGamma: { value: moonShadingGamma },
           tintColor: { value: tintColor },
           tintStrength: { value: moonTintStrength },
-          phaseAngleRad: { value: phaseAngleRad ?? 0 },
+            phaseAngleRad: { value: 0 }, // 不再使用相位角，改为基于真实太阳方向
           phaseCoupleStrength: { value: phaseCoupleStrength },
           surgeStrength: { value: moonSurgeStrength },
           surgeSigmaRad: { value: (moonSurgeSigmaDeg * Math.PI) / 180 }
@@ -430,7 +429,7 @@ export function Moon({
       emissive: new THREE.Color('#222222'),
       emissiveIntensity: 0.02
     });
-  }, [moonMap, moonDisplacementMap, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, phaseAngleRad, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale]);
+  }, [moonMap, moonDisplacementMap, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, sunDirectionInfo, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale]);
 
   // 每帧更新 Uniform 照明方向，使其随着相机基向量(F/R)重算，但相位角保持不变
   useFrame(() => {
@@ -438,24 +437,9 @@ export function Moon({
     const mat = (meshRef.current.material as any) as THREE.ShaderMaterial;
     if (!mat || !(mat instanceof THREE.ShaderMaterial) || !mat.uniforms || !mat.uniforms.sunDirWorldForShading) return;
     try {
-      if (useCameraLockedPhase) {
-        // 相机锁定：用相机基向量构造光向量，保持月相外观不随相机旋转而改变
-        const moonPos = new THREE.Vector3(position[0], position[1], position[2]);
-        const cam = phaseCam as THREE.Camera;
-        const F = new THREE.Vector3().subVectors(cam.position, moonPos).normalize();
-        const camUp = (cam as any).up ? (cam as any).up.clone().normalize() : new THREE.Vector3(0,1,0);
-        const Uprime = camUp.sub(F.clone().multiplyScalar(camUp.dot(F)));
-        let U = Uprime.lengthSq() > 1e-6 ? Uprime.normalize() : new THREE.Vector3(0, 1, 0);
-        // 使用原始正交基构建方法：F × U = R
-        const R = new THREE.Vector3().crossVectors(F, U).normalize();
-        U = new THREE.Vector3().crossVectors(R, F).normalize();
-        const a = phaseAngleRad ?? 0; // 0≈满月, π≈新月
-        // 修复公式：-sin(a)·R + cos(a)·F
-        // 实现左满右：盈月左亮，满月全亮，亏月右亮
-        const S = new THREE.Vector3()
-          .add(R.clone().multiplyScalar(-Math.sin(a)))  // R分量：使用-sin实现左满右
-          .add(F.clone().multiplyScalar(Math.cos(a)))   // F分量：控制前后
-          .normalize();
+      if (useCameraLockedPhase && sunDirectionInfo) {
+        // [🔧 关键修复] 直接使用月球视角的太阳方向，实现正确的月相效果
+        const S = sunDirectionInfo.sunDirection.clone().normalize();
         mat.uniforms.sunDirWorldForShading.value.copy(S);
       } else if (sunDirWorldForShading) {
         // 真实几何：直接使用世界太阳方向（由上层传入），随时间/季节变化
@@ -517,7 +501,7 @@ export function Moon({
         hasDisplacement: !!moonDisplacementMap,
         
         // 月相相关
-        phaseAngleRad: phaseAngleRad ? (phaseAngleRad * 180 / Math.PI).toFixed(1) + '°' : null,
+          chi: sunDirectionInfo ? '已计算' : null,
         observerLat,
         observerLon,
         currentDate,
@@ -554,20 +538,36 @@ export function Moon({
       if (sdirWorld ?? sunDirWorldForShading) {
         const sunDir = sdirWorld ?? sunDirWorldForShading;
         if (sunDir) {
+          // 计算准确的位置角和光照侧
+          const F = new THREE.Vector3(0, 0, -1);
+          const U = new THREE.Vector3(0, 1, 0);
+          const R = new THREE.Vector3().crossVectors(U, F);
+          
+          const sR = sunDir.dot(R);
+          const sF = sunDir.dot(F.clone().multiplyScalar(-1));
+          const chi = Math.atan2(sR, sF) * 180 / Math.PI;
+          
+          let accurateSide: string;
+          if (Math.abs(chi) < 45) accurateSide = '前方（朔月）';
+          else if (chi >= 45 && chi < 135) accurateSide = '右侧（上弦）';  // X轴翻转后，正角度对应右侧
+          else if (Math.abs(chi) >= 135) accurateSide = '后方（满月）';
+          else accurateSide = '左侧（下弦）';  // X轴翻转后，负角度对应左侧
+          
           console.log('[SimpleMoon Lighting Analysis]', {
             sunDirection: sunDir.toArray(),
             x: sunDir.x.toFixed(3),
             y: sunDir.y.toFixed(3),
             z: sunDir.z.toFixed(3),
-            lightingSide: sunDir.x > 0.3 ? '右侧' : sunDir.x < -0.3 ? '左侧' : sunDir.z > 0.3 ? '前方' : sunDir.z < -0.3 ? '后方' : '其他方向',
-            phaseAngleDeg: phaseAngleRad ? (phaseAngleRad * 180 / Math.PI).toFixed(1) + '°' : null,
-            expectedLighting: phaseAngleRad ? getExpectedLightingSide(phaseAngleRad) : '未知'
+            positionAngleChi: chi.toFixed(1) + '°',
+            lightingSideAccurate: accurateSide,
+            legacyLightingSide: sunDir.x > 0.3 ? '右侧' : sunDir.x < -0.3 ? '左侧' : sunDir.z > 0.3 ? '前方' : sunDir.z < -0.3 ? '后方' : '其他方向',
+            expectedLighting: '基于真实太阳方向和位置角计算'
           });
         }
       }
     }
   }, [position, radius, lightDirection, useTextures, moonMap, moonDisplacementMap, 
-      enableTidalLock, enableUniformShading, sdirWorld, moonPhaseResult, observerLat, observerLon, currentDate, sunDirWorldForShading, phaseAngleRad]);
+       enableTidalLock, enableUniformShading, sdirWorld, moonPhaseResult, observerLat, observerLon, currentDate, sunDirWorldForShading, sunDirectionInfo]);
   
   // 辅助函数：根据相位角判断期望的光照方向
   function getExpectedLightingSide(angleRad: number): string {

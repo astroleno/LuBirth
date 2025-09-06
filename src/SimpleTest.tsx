@@ -260,8 +260,8 @@ function SceneContent({
         sunDirWorldForShading={new THREE.Vector3(sunWorld.x, sunWorld.y, sunWorld.z)}
         enableTidalLock={true}
         enableUniformShading={true}
-        // 默认禁用相机锁相位，改用真实太阳向量
-        useCameraLockedPhase={composition.moonUseCameraLockedPhase ?? false}
+        // 使用相机锁相位模式，基于真实太阳方向计算投影位置角
+        useCameraLockedPhase={composition.moonUseCameraLockedPhase ?? true}
         renderLayer={0}
         currentDate={dateISO}
         observerLat={latDeg}
