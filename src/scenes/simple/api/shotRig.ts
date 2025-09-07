@@ -12,11 +12,12 @@ export function createShotRig(): { rig: THREE.Group; alignToLatLon: (earth: THRE
 
   // 将地球上经纬度转换为球面点
   function latLonToVector3(radius: number, latDeg: number, lonDeg: number): THREE.Vector3 {
+    // 统一口径：lon=0 → +Z
     const lat = THREE.MathUtils.degToRad(latDeg);
     const lon = THREE.MathUtils.degToRad(lonDeg);
-    const x = radius * Math.cos(lat) * Math.cos(lon);
+    const x = radius * Math.cos(lat) * Math.sin(lon);
     const y = radius * Math.sin(lat);
-    const z = radius * Math.cos(lat) * Math.sin(lon);
+    const z = radius * Math.cos(lat) * Math.cos(lon);
     return new THREE.Vector3(x, y, z);
   }
 
@@ -69,7 +70,8 @@ export function alignLongitudeOnly(earth: THREE.Object3D, camera: THREE.Camera, 
 
     // 目标经度在赤道平面的方向（地球局部）→ 映射到世界后取XZ
     const lonRad = THREE.MathUtils.degToRad(targetLonDeg);
-    const equatorDirLocal = new THREE.Vector3(Math.cos(lonRad), 0, Math.sin(lonRad));
+    // 经线的径向方向（与 lat=0 的法向一致）：(sin(lon), 0, cos(lon))
+    const equatorDirLocal = new THREE.Vector3(Math.sin(lonRad), 0, Math.cos(lonRad));
     const equatorDirWorld = equatorDirLocal.clone().applyQuaternion(earth.quaternion);
     const currentXZ = new THREE.Vector3(equatorDirWorld.x, 0, equatorDirWorld.z).normalize();
 

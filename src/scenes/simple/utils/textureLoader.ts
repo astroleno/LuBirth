@@ -40,13 +40,17 @@ export function useOptionalTexture(path?: string, enabled?: boolean) {
   return tex;
 }
 
-// 首选可用贴图加载器 - 直接移植自原Scene.tsx
+// 首选可用贴图加载器 - 改进版，增加错误处理和重试机制
 export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
   const [tex, setTex] = React.useState<THREE.Texture | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   
   React.useEffect(() => {
     if (!enabled) { 
       setTex(null); 
+      setError(null);
+      setLoading(false);
       return; 
     }
     
@@ -61,10 +65,15 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
       if (p.startsWith('/')) allPaths.push(p.slice(1));
     }
     
+    setLoading(true);
+    setError(null);
+    
     const tryNext = () => {
       if (canceled || idx >= allPaths.length) { 
-        console.log('[TextureLoader] 所有路径尝试完毕，未找到可用纹理');
+        console.error('[TextureLoader] ❌ 所有路径尝试完毕，未找到可用纹理:', paths);
+        setError('所有纹理路径均加载失败');
         setTex(null); 
+        setLoading(false);
         return; 
       }
       
@@ -76,22 +85,35 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
       
       console.log(`[TextureLoader] 尝试加载纹理: ${p}`);
       
+      // 添加时间戳防止缓存
+      const timestamp = new Date().getTime();
+      const urlWithCache = `${p}?t=${timestamp}`;
+      
       loader.load(
-        p,
+        urlWithCache,
         (t) => {
           if (canceled) return;
           console.log(`[TextureLoader] ✅ 纹理加载成功: ${p}`, {
             width: t.image?.width,
             height: t.image?.height,
-            src: t.image?.src || 'no-src'
+            src: t.image?.src || 'no-src',
+            colorSpace: t.colorSpace,
+            wrapS: t.wrapS,
+            wrapT: t.wrapT
           });
+          
+          // 确保纹理配置正确
           t.colorSpace = THREE.SRGBColorSpace;
           t.wrapS = THREE.RepeatWrapping;
           t.wrapT = THREE.ClampToEdgeWrapping;
           t.minFilter = THREE.LinearMipmapLinearFilter;
           t.magFilter = THREE.LinearFilter;
           t.anisotropy = 16;
+          t.needsUpdate = true;
+          
           setTex(t);
+          setError(null);
+          setLoading(false);
         },
         (progress) => {
           if (progress.lengthComputable) {
@@ -100,8 +122,10 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
           }
         },
         (error) => {
-          console.log(`[TextureLoader] ❌ 纹理加载失败: ${p}`, error);
-          if (!canceled) tryNext(); 
+          console.error(`[TextureLoader] ❌ 纹理加载失败: ${p}`, error);
+          if (!canceled) {
+            setTimeout(() => tryNext(), 100); // 延迟重试
+          }
         }
       );
     };
@@ -112,6 +136,18 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
       canceled = true; 
     };
   }, [enabled, JSON.stringify(paths)]);
+  
+  // 调试信息
+  React.useEffect(() => {
+    console.log(`[TextureLoader] 纹理状态:`, {
+      enabled,
+      loading,
+      hasError: !!error,
+      hasTexture: !!tex,
+      paths,
+      error: error || 'none'
+    });
+  }, [enabled, loading, error, tex, paths]);
   
   return tex;
 }

@@ -3,7 +3,7 @@
  * 用于验证月相计算是否正确，并诊断为什么只显示左边变化
  */
 
-import { calculateMoonPhase } from './src/scenes/simple/utils/moonPhaseCalculator.js';
+import { calculateMoonPhase } from '../src/scenes/simple/utils/moonPhaseCalculator.js';
 
 // 模拟一个月相周期的测试
 function testMoonPhaseCycle() {

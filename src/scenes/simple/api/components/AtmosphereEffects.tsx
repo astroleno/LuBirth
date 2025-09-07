@@ -3,7 +3,6 @@ import * as THREE from 'three';
 
 interface AtmosphereEffectsProps {
   earthSize: number;
-  earthY: number;
   rimStrength: number;
   rimWidth: number;
   rimRadius: number;
@@ -17,7 +16,6 @@ interface AtmosphereEffectsProps {
 // 大气效果组件 - 完整移植rimMaterial和earthGlowMaterial，移除分层渲染
 export function AtmosphereEffects({
   earthSize,
-  earthY,
   rimStrength,
   rimWidth,
   rimRadius,
@@ -87,7 +85,6 @@ export function AtmosphereEffects({
     if (new URLSearchParams(location.search).get('debug') === '1') {
       console.log('[SimpleAtmosphere]', {
         earthSize,
-        earthY,
         rimStrength,
         rimWidth,
         earthGlowStrength,
@@ -96,7 +93,7 @@ export function AtmosphereEffects({
         mode: 'single-render-system'
       });
     }
-  }, [earthSize, earthY, rimStrength, rimWidth, earthGlowStrength, earthGlowHeight, lightDirection]);
+  }, [earthSize, rimStrength, rimWidth, earthGlowStrength, earthGlowHeight, lightDirection]);
 
   return (
     <>

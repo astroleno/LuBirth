@@ -63,4 +63,164 @@ body {
 
 .canvas-wrap { position: fixed; inset: 0; }
 
+/* LocationSelector 组件样式 */
+.location-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.location-search {
+  position: relative;
+}
+
+.location-search .search-input {
+  pointer-events: auto !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  color: var(--fg) !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  outline: none !important;
+  width: 100% !important;
+  font-size: 14px !important;
+}
+
+.location-search .search-input:focus {
+  border-color: rgba(159,179,200,0.6) !important;
+}
+
+.location-search .search-input::placeholder {
+  color: var(--muted);
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  backdrop-filter: blur(12px);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.search-result-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background-color 0.2s;
+}
+
+.search-result-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.result-name {
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.result-coords {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.location-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 8px 0;
+}
+
+.location-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+}
+
+.location-divider span {
+  background: var(--panel);
+  color: var(--muted);
+  padding: 0 12px;
+  font-size: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.location-cascader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cascader-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cascader-select {
+  pointer-events: auto !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  color: var(--fg) !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  outline: none !important;
+  flex: 1 !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+}
+
+.cascader-select:focus {
+  border-color: rgba(159,179,200,0.6) !important;
+}
+
+.cascader-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cascader-select option {
+  background: var(--panel);
+  color: var(--fg);
+}
+
+.selected-location {
+  padding: 8px 12px;
+  background: rgba(159,179,200,0.1);
+  border: 1px solid rgba(159,179,200,0.2);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.selected-text {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.location-selector.loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* 已移除对齐辅助线样式 */

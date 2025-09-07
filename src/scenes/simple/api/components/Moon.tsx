@@ -88,7 +88,7 @@ export function Moon({
   lonDeg = 0,
   moonYawDeg = 0,
   name = 'moonMesh',
-  earthPosition,           // 地球位置，用于潮汐锁定计算
+  // earthPosition,           // 移除地球位置参数，让月球朝向相机实现真正的潮汐锁定
   sunDirWorldForShading,   // 真实太阳方向向量，用于Uniform照明
   enableTidalLock = false, // 是否启用潮汐锁定
   enableUniformShading = false, // 是否启用Uniform照明
@@ -132,7 +132,7 @@ export function Moon({
   lonDeg?: number;
   moonYawDeg?: number;
   name?: string;
-  earthPosition?: [number, number, number]; // 地球位置
+  // earthPosition?: [number, number, number]; // 移除地球位置参数
   sunDirWorldForShading?: THREE.Vector3; // 真实太阳方向
   enableTidalLock?: boolean; // 潮汐锁定开关
   enableUniformShading?: boolean; // Uniform照明开关
@@ -534,17 +534,7 @@ export function Moon({
           // 应用到当前旋转
           meshRef.current.quaternion.multiply(qOffset);
           
-          // 调试信息
-          if (new URLSearchParams(location.search).get('debug') === '1') {
-            if (Math.floor(Date.now() / 1000) % 2 === 0) {
-              console.log('[Geometric Tidal Lock]', {
-                moonYawDeg: moonYawDeg || 0,
-                lonDeg: lonDeg || 0,
-                latDeg: latDeg || 0,
-                approach: 'Geometric rotation for tidal lock'
-              });
-            }
-          }
+          // 调试信息已移除，避免控制台刷屏
         }
       } catch (error) {
         console.error('[MoonScreenAnchor] Update failed:', error);
@@ -556,14 +546,10 @@ export function Moon({
         const moonPos = new THREE.Vector3(position[0], position[1], position[2]);
         let targetDir: THREE.Vector3;
         
-        if (earthPosition && earthPosition.length === 3) {
-          const earthPos = new THREE.Vector3(earthPosition[0], earthPosition[1], earthPosition[2]);
-          targetDir = earthPos.sub(moonPos).normalize();
-        } else {
-          const camPos = new THREE.Vector3();
-          tideCam.getWorldPosition(camPos);
-          targetDir = camPos.sub(moonPos).normalize();
-        }
+        // 移除 earthPosition 依赖，始终朝向相机实现真正的潮汐锁定
+        const camPos = new THREE.Vector3();
+        tideCam.getWorldPosition(camPos);
+        targetDir = camPos.sub(moonPos).normalize();
         
         // 基础对齐：将局部+Z旋到 targetDir
         const qBase = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), targetDir);
@@ -727,18 +713,7 @@ export function Moon({
     meshRef.current.rotateY(THREE.MathUtils.degToRad(lonDeg));
     meshRef.current.rotateX(THREE.MathUtils.degToRad(latDeg));
     
-    // 调试信息
-    if (new URLSearchParams(location.search).get('debug') === '1') {
-      console.log('[Moon Rotation]', {
-        currentDate,
-        enableTidalLock,
-        finalRotation: {
-          x: meshRef.current.rotation.x * 180 / Math.PI,
-          y: meshRef.current.rotation.y * 180 / Math.PI,
-          z: meshRef.current.rotation.z * 180 / Math.PI
-        }
-      });
-    }
+    // 调试信息已移除，避免控制台刷屏
     
   }, [currentDate, enableTidalLock, latDeg, lonDeg]);
 

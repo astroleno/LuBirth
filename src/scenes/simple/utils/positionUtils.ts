@@ -15,28 +15,43 @@ export function useCameraControl(composition: any) {
       const az = THREE.MathUtils.degToRad(azDeg);
       const el = THREE.MathUtils.degToRad(elDeg);
 
-      // 采用世界Y为上，λ 绕 +Y，φ 为仰角（0 在地平，正为上）
-      const cosEl = Math.cos(el);
-      const x = R * Math.sin(az) * cosEl;
-      const y = R * Math.sin(el);
-      const z = R * Math.cos(az) * cosEl; // λ=0 时 z=R（面向 -Z 看原点）
+      // 计算相机Y位置偏移基于 earthTopY
+      const earthTopScreen = composition?.earthTopY ?? 0.333;
+      const vfov = THREE.MathUtils.degToRad(45);
+      const t = Math.tan(vfov / 2);
+      const targetTopNdcY = earthTopScreen * 2 - 1;
+      const baseCameraY = -targetTopNdcY * R * t;
+
+      // 第一步：定位相机 - 严格按照球坐标计算，确保相机在半径为 R 的球面上
+      const x = R * Math.sin(az) * Math.cos(el);
+      const y = R * Math.sin(el); 
+      const z = R * Math.cos(az) * Math.cos(el);
 
       camera.position.set(x, y, z);
       camera.up.set(0, 1, 0);
-      camera.lookAt(0, 0, 0);
+      
+      // 第二步：调整朝向 - 使用R倍率控制Y轴上下
+      const lookAtRatio = composition?.lookAtDistanceRatio ?? 0;
+      
+      // 计算lookAt目标点：基于R的倍率，0=地心，正数=上方，负数=下方
+      const lookAtX = 0;
+      const lookAtY = lookAtRatio * R;
+      const lookAtZ = 0;
+      
+      camera.lookAt(lookAtX, lookAtY, lookAtZ);
       
       // 设置近远平面
       camera.near = 0.01;
       camera.far = Math.max(400, R + 20);
       
-      // 视口偏移（主点纵向偏移，-1..+1，上为正）
+      // 视口偏移（主点纵向偏移，-5..+5，上为正）
       const offsetY = composition?.viewOffsetY ?? 0;
       if (camera instanceof THREE.PerspectiveCamera) {
         if (Math.abs(offsetY) > 1e-6) {
           const fullW = size?.width ?? gl?.domElement?.width ?? 0;
           const fullH = size?.height ?? gl?.domElement?.height ?? 0;
-          // 将 [-1,+1] 映射为像素偏移，正向上。PerspectiveCamera.setViewOffset 的 y 向下为正，因此取反。
-          const yPx = Math.round((offsetY * 0.5) * fullH);
+          // 将 [-5,+5] 映射为像素偏移，正向上。PerspectiveCamera.setViewOffset 的 y 向下为正，因此取反。
+          const yPx = Math.round((offsetY * 0.1) * fullH);
           const yParam = -yPx;
           camera.setViewOffset(fullW, fullH, 0, yParam, fullW, fullH);
         } else if ((camera as THREE.PerspectiveCamera).view !== null) {
@@ -50,12 +65,16 @@ export function useCameraControl(composition: any) {
       if (new URLSearchParams(location.search).get('debug') === '1') {
         console.log('[SimpleCamera]', {
           position: camera.position.toArray(),
+          target: [lookAtX, lookAtY, lookAtZ],
+          actualDistance: camera.position.length(),
           fov: camera.fov,
           near: camera.near,
           far: camera.far,
-          mode: 'single-render-system',
+          mode: 'position-then-orient',
           azDeg,
           elDeg,
+          lookAtRatio,
+          baseCameraY,
           viewOffsetY: composition?.viewOffsetY ?? 0,
           canvas: { w: size?.width, h: size?.height }
         });
@@ -63,7 +82,7 @@ export function useCameraControl(composition: any) {
     } catch (error) {
       console.error('[SimpleCamera] Error:', error);
     }
-  }, [camera, gl, size?.width, size?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.viewOffsetY]);
+  }, [camera, gl, size?.width, size?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY]);
 }
 
 // 地球位置计算
@@ -82,7 +101,7 @@ export function useEarthPosition(composition: any, cameraDistance: number = 12.0
       const earthY = centerNdcY * cameraDistance * t;
       
       return {
-        position: [0, earthY, 0] as [number, number, number],
+        position: [0, 0, 0] as [number, number, number],
         size: Math.max(0.05, earthScreenSize * cameraDistance * t),
         topScreen: earthTopScreen,
         screenSize: earthScreenSize
@@ -129,14 +148,14 @@ export function useMoonPosition(composition: any, camera: THREE.Camera) {
 }
 
 // 位置标记计算
-export function useMarkerPosition(earthPosition: [number, number, number], earthSize: number) {
+export function useMarkerPosition(earthSize: number) {
   return React.useMemo(() => {
     try {
-      // 位置标记：地球表面上方的小点
+      // 位置标记：地球表面上方的小点（地球固定在原点）
       const markerPos = [
-        earthPosition[0],
-        earthPosition[1] + earthSize * 1.02,
-        earthPosition[2]
+        0,
+        0 + earthSize * 1.02,
+        0
       ] as [number, number, number];
       
       return markerPos;
@@ -144,7 +163,7 @@ export function useMarkerPosition(earthPosition: [number, number, number], earth
       console.error('[SimpleMarkerPosition] Error:', error);
       return [0, 2.04, 0] as [number, number, number];
     }
-  }, [earthPosition, earthSize]);
+  }, [earthSize]);
 }
 
 // 相机曝光控制

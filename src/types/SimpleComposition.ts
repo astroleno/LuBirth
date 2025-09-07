@@ -77,7 +77,8 @@ export interface SimpleComposition {
   // 相机极坐标（最小接入）
   cameraAzimuthDeg?: number;   // 相机方位角 λ（绕世界+Y），0=面向 -Z
   cameraElevationDeg?: number; // 相机仰角 φ（绕相机右轴），正为向上
-  viewOffsetY?: number;        // 视口主点纵向偏移（-1..+1，上为正）
+  lookAtDistanceRatio?: number; // 相机朝向上下倍率（倍数，-10到10，0=地心，正数=上方，负数=下方）
+  viewOffsetY?: number;        // 视口主点纵向偏移（-5..+5，上为正）
   smooth?: { enable: boolean; timeConstantMs: number } | undefined; // 可选平滑参数（占位）
   
   // 显示选项
@@ -179,6 +180,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   cameraDistance: 15,          // 相机距离
   cameraAzimuthDeg: 0,         // 默认不偏航
   cameraElevationDeg: 0,       // 默认不俯仰
+  lookAtDistanceRatio: 0,     // 默认看向地心
   viewOffsetY: 0,              // 默认不偏移
   smooth: { enable: false, timeConstantMs: 200 },
   
@@ -203,8 +205,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   fixedSunDir: [-0.7071, 0.7071, 0],
 
 
-  // 季节模式默认关闭
-  useSeasonalVariation: false,
+  // 季节模式默认打开
+  useSeasonalVariation: true,
   obliquityDeg: 23.44,
   seasonOffsetDays: 0,
 };
@@ -286,6 +288,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     cameraDistance: original.cameraDistance ?? DEFAULT_SIMPLE_COMPOSITION.cameraDistance,
     cameraAzimuthDeg: original.cameraAzimuthDeg ?? DEFAULT_SIMPLE_COMPOSITION.cameraAzimuthDeg,
     cameraElevationDeg: original.cameraElevationDeg ?? DEFAULT_SIMPLE_COMPOSITION.cameraElevationDeg,
+    lookAtDistanceRatio: original.lookAtDistanceRatio ?? DEFAULT_SIMPLE_COMPOSITION.lookAtDistanceRatio,
     viewOffsetY: original.viewOffsetY ?? DEFAULT_SIMPLE_COMPOSITION.viewOffsetY,
     smooth: original.smooth ?? DEFAULT_SIMPLE_COMPOSITION.smooth,
     

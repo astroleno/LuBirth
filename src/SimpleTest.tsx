@@ -175,7 +175,7 @@ function SceneContent({
       
       {/* 地球组 */}
       <group 
-        position={earthInfo.position}
+        position={[0, 0, 0]}
         name="earthRoot"
         // 🔧 关键修复：不使用rotation prop，完全通过四元数控制旋转
         // 这样可以避免与alignLongitudeOnly的四元数操作冲突
@@ -185,8 +185,8 @@ function SceneContent({
           position={[0, 0, 0]}
           size={earthInfo.size}
           lightDirection={lightDirection}
-          tiltDeg={0}
-          yawDeg={0}
+          // tiltDeg={0}
+          // yawDeg={0}
           useTextures={composition.useTextures}
           lightColor={lightColor}
           sunIntensity={lightIntensity}
@@ -200,7 +200,6 @@ function SceneContent({
         {/* 大气效果 */}
         <AtmosphereEffects
           earthSize={earthInfo.size}
-          earthY={0}
           rimStrength={composition.rimStrength}
           rimWidth={composition.rimWidth}
           rimRadius={composition.rimRadius}
@@ -255,7 +254,6 @@ function SceneContent({
         latDeg={composition.moonLatDeg}
         lonDeg={composition.moonLonDeg}
         moonYawDeg={composition.moonYawDeg}
-        earthPosition={earthInfo.position}
         // 使用真实太阳向量（点到光：Moon→Sun）；不再取反
         sunDirWorldForShading={new THREE.Vector3(sunWorld.x, sunWorld.y, sunWorld.z)}
         enableTidalLock={true}
@@ -345,7 +343,9 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
           (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, deltaYaw);
         }
         if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg, useFixedSun: !!useFixedSun });
-        alignLongitudeOnly(earth as THREE.Object3D, camera, lonDeg);
+        // 🔧 修复：禁用alignLongitudeOnly以避免倾斜问题
+        // 现在地球固定在原点，不需要经度对齐旋转
+        // alignLongitudeOnly(earth as THREE.Object3D, camera, lonDeg);
       } else {
         if (logger.isEnabled()) logger.warn('align/earthRoot-missing');
       }
@@ -1473,8 +1473,14 @@ export default function SimpleTest() {
                      onChange={(e) => updateValue('cameraElevationDeg', parseFloat(e.target.value))} />
             </div>
             <div className="col">
+              <label className="label">朝向上下 (R倍数): {(composition.lookAtDistanceRatio ?? 0).toFixed(1)}</label>
+              <input className="input" type="range" min={-10} max={10} step={0.1}
+                     value={composition.lookAtDistanceRatio ?? 0}
+                     onChange={(e) => updateValue('lookAtDistanceRatio', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
               <label className="label">视口偏移Y: {(composition.viewOffsetY ?? 0).toFixed(2)}</label>
-              <input className="input" type="range" min={-1} max={1} step={0.01}
+              <input className="input" type="range" min={-5} max={5} step={0.01}
                      value={composition.viewOffsetY ?? 0}
                      onChange={(e) => updateValue('viewOffsetY', parseFloat(e.target.value))} />
             </div>

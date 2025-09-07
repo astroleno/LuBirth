@@ -46,77 +46,101 @@ export function Clouds({
   
   // 云层着色器材质 - 完整移植自原Scene.tsx
   const cloudMaterial = useMemo(() => {
-    if (!texture) return null;
+    if (!texture) {
+      console.warn('[Clouds] 纹理为空，无法创建云层材质');
+      return null;
+    }
+    
+    console.log('[Clouds] 创建云层材质', {
+      texture: !!texture,
+      textureSize: { width: texture.image?.width, height: texture.image?.height },
+      lightDir: lightDir.toArray(),
+      lightColor: lightColor.getHexString(),
+      strength,
+      sunI,
+      cloudGamma,
+      cloudBlack,
+      cloudWhite,
+      cloudContrast
+    });
     
     const ld = (lightDir ?? new THREE.Vector3(1,0,0)).clone();
     const lc = (lightColor ?? new THREE.Color('#ffffff')).clone();
     
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        map: { value: texture },
-        lightDir: { value: ld },
-        lightColor: { value: lc },
-        strength: { value: strength ?? 0.5 },
-        sunI: { value: sunI ?? 1.0 },
-        cloudGamma: { value: cloudGamma ?? 1.0 },
-        cloudBlack: { value: cloudBlack ?? 0.4 },
-        cloudWhite: { value: cloudWhite ?? 0.85 },
-        cloudContrast: { value: cloudContrast ?? 1.2 },
-      },
-      vertexShader: `
-        varying vec2 vUv; 
-        varying vec3 vNormalW;
-        void main(){ 
-          vUv = uv; 
-          vNormalW = normalize(mat3(modelMatrix) * normal); 
-          gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); 
-        }
-      `,
-      fragmentShader: `
-        uniform sampler2D map; 
-        uniform vec3 lightDir; 
-        uniform vec3 lightColor; 
-        uniform float strength; 
-        uniform float sunI; 
-        uniform float cloudGamma; 
-        uniform float cloudBlack; 
-        uniform float cloudWhite; 
-        uniform float cloudContrast;
-        varying vec2 vUv; 
-        varying vec3 vNormalW;
-        
-        void main(){
-          vec3 n = normalize(vNormalW);
-          float ndl = max(dot(n, normalize(lightDir)), 0.0);
-          vec3 src = texture2D(map, vUv).rgb;
+    try {
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          map: { value: texture },
+          lightDir: { value: ld },
+          lightColor: { value: lc },
+          strength: { value: strength ?? 0.5 },
+          sunI: { value: sunI ?? 1.0 },
+          cloudGamma: { value: cloudGamma ?? 1.0 },
+          cloudBlack: { value: cloudBlack ?? 0.4 },
+          cloudWhite: { value: cloudWhite ?? 0.85 },
+          cloudContrast: { value: cloudContrast ?? 1.2 },
+        },
+        vertexShader: `
+          varying vec2 vUv; 
+          varying vec3 vNormalW;
+          void main(){ 
+            vUv = uv; 
+            vNormalW = normalize(mat3(modelMatrix) * normal); 
+            gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); 
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D map; 
+          uniform vec3 lightDir; 
+          uniform vec3 lightColor; 
+          uniform float strength; 
+          uniform float sunI; 
+          uniform float cloudGamma; 
+          uniform float cloudBlack; 
+          uniform float cloudWhite; 
+          uniform float cloudContrast;
+          varying vec2 vUv; 
+          varying vec3 vNormalW;
           
-          // Levels: black/white points + gamma + contrast
-          float d = dot(src, vec3(0.299,0.587,0.114));
-          float bw = max(0.0001, cloudWhite - cloudBlack);
-          d = clamp((d - cloudBlack) / bw, 0.0, 1.0);
-          d = pow(d, cloudGamma);
-          d = clamp((d - 0.5) * cloudContrast + 0.5, 0.0, 1.0);
-          
-          // Lighting weight on day side
-          float dayW = smoothstep(0.0, 0.35, ndl);
-          float l = pow(dayW, 0.8) * (0.7 + 0.3*sunI);
-          
-          vec3 c = pow(src, vec3(cloudGamma));
-          c = clamp((c - vec3(cloudBlack)) / bw, 0.0, 1.0);
-          c = clamp((c - 0.5) * cloudContrast + 0.5, 0.0, 1.0);
-          
-          vec3 col = mix(c, vec3(1.0), 0.35) * l * lightColor;
-          float a = clamp(dayW * strength * d, 0.0, 1.0);
-          
-          gl_FragColor = vec4(col, a);
-        }
-      `,
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-      toneMapped: true,
-      blending: THREE.NormalBlending,
-    });
+          void main(){
+            vec3 n = normalize(vNormalW);
+            float ndl = max(dot(n, normalize(lightDir)), 0.0);
+            vec3 src = texture2D(map, vUv).rgb;
+            
+            // Levels: black/white points + gamma + contrast
+            float d = dot(src, vec3(0.299,0.587,0.114));
+            float bw = max(0.0001, cloudWhite - cloudBlack);
+            d = clamp((d - cloudBlack) / bw, 0.0, 1.0);
+            d = pow(d, cloudGamma);
+            d = clamp((d - 0.5) * cloudContrast + 0.5, 0.0, 1.0);
+            
+            // Lighting weight on day side
+            float dayW = smoothstep(0.0, 0.35, ndl);
+            float l = pow(dayW, 0.8) * (0.7 + 0.3*sunI);
+            
+            vec3 c = pow(src, vec3(cloudGamma));
+            c = clamp((c - vec3(cloudBlack)) / bw, 0.0, 1.0);
+            c = clamp((c - 0.5) * cloudContrast + 0.5, 0.0, 1.0);
+            
+            vec3 col = mix(c, vec3(1.0), 0.35) * l * lightColor;
+            float a = clamp(dayW * strength * d, 0.0, 1.0);
+            
+            gl_FragColor = vec4(col, a);
+          }
+        `,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+        toneMapped: true,
+        blending: THREE.NormalBlending,
+      });
+      
+      console.log('[Clouds] ✅ 云层材质创建成功');
+      return material;
+    } catch (error) {
+      console.error('[Clouds] ❌ 云层材质创建失败:', error);
+      return null;
+    }
   }, [texture, lightDir, lightColor, strength, sunI, cloudGamma, cloudBlack, cloudWhite, cloudContrast]);
 
   // 更新着色器uniforms
