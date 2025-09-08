@@ -582,6 +582,30 @@ export function Moon({
     }
   });
 
+  // 🌙 屏幕尺寸恒定缩放：仅在必要事件变化时更新
+  React.useEffect(() => {
+    try {
+      if (!meshRef.current) return;
+      if (!enableScreenAnchor) return; // 仅屏幕锚定模式需要锁尺寸
+      const cam = camera as THREE.PerspectiveCamera;
+      if (!('fov' in cam)) return;
+      const fovY = THREE.MathUtils.degToRad((cam as THREE.PerspectiveCamera).fov || 45);
+      const d = anchorDistance;
+      // 目标屏幕高度占比（0-1），若未指定则回退为以半径为准
+      const s = (typeof (window as any)?.__LuBirthMoonScreenSize === 'number') ? (window as any).__LuBirthMoonScreenSize : undefined;
+      const screenSize = s ?? 0; // 若未提供参数则不改缩放
+      if (screenSize > 0) {
+        const targetRadius = d * Math.tan((screenSize * fovY) / 2);
+        const baseRadius = radius;
+        const scale = Math.max(0.01, targetRadius / Math.max(1e-6, baseRadius));
+        meshRef.current.scale.setScalar(scale);
+      }
+    } catch (e) {
+      console.error('[Moon] screen-size lock failed:', e);
+    }
+    // 依赖：FOV、画布尺寸、锚定距离、半径、以及用户参数
+  }, [camera, (camera as any)?.fov, (camera as any)?.aspect, anchorDistance, radius, enableScreenAnchor]);
+
   // 🌙 屏幕锚定模式的旋转现在在 useFrame 中处理，无需单独的 useEffect
 
   // 🌙 传统模式潮汐锁定现在已合并到主 useFrame 中，避免执行顺序冲突

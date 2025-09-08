@@ -100,6 +100,18 @@ export interface SimpleComposition {
   useFixedSun?: boolean;        // 是否使用固定太阳方向 + 旋转地球
   fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
 
+  // 出生点对齐（可选接入）
+  enableBirthPointAlignment?: boolean;   // 是否启用“对齐出生点”（只动相机）
+  showBirthPointMarker?: boolean;        // 是否显示出生点标记
+  birthPointLongitudeDeg?: number;       // 出生点经度（°E 为正）
+  birthPointLatitudeDeg?: number;        // 出生点纬度（°N 为正）
+  birthPointMarkerSize?: number;         // 出生点标记大小（相对单位）
+  birthPointMarkerColor?: string;        // 出生点标记颜色
+  birthPointAlphaDeg?: number;           // 抬升角α（控制出生点在画面高度）
+
+  // 月球屏幕尺寸（弱解耦）：占屏高度比例（0-1）
+  moonScreenSize?: number;
+
 }
 
 // 默认值
@@ -203,6 +215,18 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   useFixedSun: true,
   // 默认从屏幕左上方打光（相机看向 -Z，左= -X，上= +Y）
   fixedSunDir: [-0.7071, 0.7071, 0],
+
+  // 出生点对齐默认（关闭，仅显示标记用于调试可选）
+  enableBirthPointAlignment: false,
+  showBirthPointMarker: false,
+  birthPointLongitudeDeg: 121.5,
+  birthPointLatitudeDeg: 31.2,
+  birthPointMarkerSize: 0.06,
+  birthPointMarkerColor: '#ff3b30',
+  birthPointAlphaDeg: 12,
+
+  // 月球屏幕尺寸默认：占屏高度 18%
+  moonScreenSize: 0.18,
 
 
   // 季节模式默认打开
@@ -309,6 +333,15 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 固定太阳模式（保持可回退能力）
     useFixedSun: original.useFixedSun ?? DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
     fixedSunDir: original.fixedSunDir ?? DEFAULT_SIMPLE_COMPOSITION.fixedSunDir,
+
+    // 出生点对齐
+    enableBirthPointAlignment: original.enableBirthPointAlignment ?? DEFAULT_SIMPLE_COMPOSITION.enableBirthPointAlignment,
+    showBirthPointMarker: original.showBirthPointMarker ?? DEFAULT_SIMPLE_COMPOSITION.showBirthPointMarker,
+    birthPointLongitudeDeg: original.birthPointLongitudeDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointLongitudeDeg,
+    birthPointLatitudeDeg: original.birthPointLatitudeDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointLatitudeDeg,
+    birthPointMarkerSize: original.birthPointMarkerSize ?? DEFAULT_SIMPLE_COMPOSITION.birthPointMarkerSize,
+    birthPointMarkerColor: original.birthPointMarkerColor ?? DEFAULT_SIMPLE_COMPOSITION.birthPointMarkerColor,
+    birthPointAlphaDeg: original.birthPointAlphaDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointAlphaDeg,
 
 
     // 季节模式
