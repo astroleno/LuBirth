@@ -220,6 +220,73 @@ export class CoordinateSystemDebugger {
     this.testLongitudeFormulas();
     this.testCameraPositions();
     this.testPhaseShift();
+    this.testShanghaiBirthPointIssue();
     console.log('✅ 坐标系调试测试完成');
+  }
+  
+  /**
+   * 专门测试上海出生点对齐问题
+   */
+  static testShanghaiBirthPointIssue() {
+    console.group('🎯 上海出生点对齐问题分析');
+    
+    const shanghai = { lon: 121.47, lat: 31.23 };
+    const lat = THREE.MathUtils.degToRad(shanghai.lat);
+    const lon = THREE.MathUtils.degToRad(shanghai.lon);
+    
+    // 原始公式（错误）
+    const originalFormula = new THREE.Vector3(
+      Math.cos(lat) * Math.sin(lon),
+      Math.sin(lat),
+      Math.cos(lat) * Math.cos(lon)
+    );
+    
+    // 新修复的公式（Three.js贴图坐标系校正）
+    const fixedFormula = new THREE.Vector3(
+      Math.cos(lat) * Math.cos(lon),   // X: cos(lon)
+      Math.sin(lat),                   // Y: sin(lat) 
+      -Math.cos(lat) * Math.sin(lon)   // Z: -sin(lon)
+    );
+    
+    console.log('上海原始坐标:', shanghai);
+    
+    console.log('原始公式结果(错误):', {
+      x: +originalFormula.x.toFixed(4),
+      y: +originalFormula.y.toFixed(4), 
+      z: +originalFormula.z.toFixed(4)
+    });
+    
+    console.log('修复后公式结果(Three.js坐标系校正):', {
+      x: +fixedFormula.x.toFixed(4),
+      y: +fixedFormula.y.toFixed(4), 
+      z: +fixedFormula.z.toFixed(4)
+    });
+    
+    // 显示修复后的相机朝向
+    const fixedYaw = THREE.MathUtils.radToDeg(Math.atan2(fixedFormula.x, fixedFormula.z));
+    const fixedPitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(fixedFormula.y, -1, 1)));
+    console.log('修复后相机朝向:', { yaw: fixedYaw.toFixed(2) + '°', pitch: fixedPitch.toFixed(2) + '°' });
+    
+    offsets.forEach(offset => {
+      const adjustedLon = THREE.MathUtils.degToRad(shanghai.lon + offset);
+      const adjusted = new THREE.Vector3(
+        Math.cos(lat) * Math.sin(adjustedLon),
+        Math.sin(lat),
+        Math.cos(lat) * Math.cos(adjustedLon)
+      );
+      
+      // 计算相机朝向 (如birth point alignment所做的)
+      const yaw = THREE.MathUtils.radToDeg(Math.atan2(adjusted.x, adjusted.z));
+      const pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(adjusted.y, -1, 1)));
+      
+      console.log(`经度偏移 ${offset}°:`, {
+        调整后经度: (shanghai.lon + offset).toFixed(2) + '°',
+        世界坐标: { x: +adjusted.x.toFixed(4), y: +adjusted.y.toFixed(4), z: +adjusted.z.toFixed(4) },
+        相机朝向: { yaw: yaw.toFixed(2) + '°', pitch: pitch.toFixed(2) + '°' },
+        期望结果: offset === 0 ? '✓ 新坐标系校正结果' : offset === -52.5 ? '可能修正美东偏移' : offset === -90 ? '90°西移校正(旧)' : '偏移测试'
+      });
+    });
+    
+    console.groupEnd();
   }
 }

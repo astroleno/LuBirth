@@ -101,7 +101,8 @@ export interface SimpleComposition {
   fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
 
   // 出生点对齐（可选接入）
-  enableBirthPointAlignment?: boolean;   // 是否启用“对齐出生点”（只动相机）
+  enableBirthPointAlignment?: boolean;   // 是否启用"对齐出生点"（只动相机）
+  birthPointAlignmentMode?: boolean;     // 🔧 新增：出生点对齐模式（禁用其他旋转系统干扰）
   showBirthPointMarker?: boolean;        // 是否显示出生点标记
   birthPointLongitudeDeg?: number;       // 出生点经度（°E 为正）
   birthPointLatitudeDeg?: number;        // 出生点纬度（°N 为正）
@@ -218,6 +219,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
 
   // 出生点对齐默认（关闭，仅显示标记用于调试可选）
   enableBirthPointAlignment: false,
+  birthPointAlignmentMode: false,     // 🔧 新增：默认关闭出生点对齐模式
   showBirthPointMarker: false,
   birthPointLongitudeDeg: 121.5,
   birthPointLatitudeDeg: 31.2,
@@ -336,6 +338,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
 
     // 出生点对齐
     enableBirthPointAlignment: original.enableBirthPointAlignment ?? DEFAULT_SIMPLE_COMPOSITION.enableBirthPointAlignment,
+    birthPointAlignmentMode: original.birthPointAlignmentMode ?? DEFAULT_SIMPLE_COMPOSITION.birthPointAlignmentMode,
     showBirthPointMarker: original.showBirthPointMarker ?? DEFAULT_SIMPLE_COMPOSITION.showBirthPointMarker,
     birthPointLongitudeDeg: original.birthPointLongitudeDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointLongitudeDeg,
     birthPointLatitudeDeg: original.birthPointLatitudeDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointLatitudeDeg,

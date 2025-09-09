@@ -51,13 +51,19 @@ export function calculateBirthPointLocalFrame(
   const lat = THREE.MathUtils.degToRad(latitudeDeg);
   const lon = THREE.MathUtils.degToRad(longitudeDeg);
   
-  // p: 地心到出生点的法向向量 (单位向量)
-  // 🔧 修复：直接使用输入的经度，不进行20度偏移
-  // 坐标系统已修正，0°经度对应本初子午线
+  // p: 地心到出生点的法向向量 (单位向量)  
+  // 🚨 根本性修复：停止修改经度！出生点坐标应该保持标准地理坐标
+  // 问题在于相机对齐逻辑，不是出生点坐标计算
+  // 使用标准球面坐标系：0°经度=本初子午线，正X轴指向90°E
+  
+  // 🚨 关键修复：Three.js球面贴图坐标系校正
+  // Three.js默认贴图：u=0.5对应经度0°，但在世界坐标中0°经度需要在-Z轴方向
+  // 标准球面坐标：0°经度 → (0, y, -1), 90°E → (1, y, 0), -90°W → (-1, y, 0)
+  // 因此需要将standard球面坐标的X和Z分量进行调整以匹配Three.js贴图
   const p = new THREE.Vector3(
-    Math.cos(lat) * Math.sin(lon),
-    Math.sin(lat),
-    Math.cos(lat) * Math.cos(lon)
+    Math.cos(lat) * Math.cos(lon),  // X: cos(lon) 使0°经度指向-Z方向
+    Math.sin(lat),                  // Y: 标准纬度映射
+    -Math.cos(lat) * Math.sin(lon)  // Z: -sin(lon) 完成坐标系转换
   );
   
   // n: 当地正北方向
@@ -100,8 +106,28 @@ export function calculateCameraOrientationForBirthPoint(
     // 然后按 alphaDeg 轻微下倾（pitch -= alphaDeg）以把出生点抬到目标高度
 
     const { p } = calculateBirthPointLocalFrame(longitudeDeg, latitudeDeg);
-    const yaw = THREE.MathUtils.radToDeg(Math.atan2(p.x, p.z));
-    let pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(p.y, -1, 1)));
+    
+    // 🔧 关键修复：考虑地球的当前旋转状态（晨昏线旋转）
+    let worldBirthPoint = p.clone();
+    try {
+      const earthQuat: any = (window as any).__EARTH_QUAT;
+      if (earthQuat && typeof earthQuat.x === 'number') {
+        const q = new THREE.Quaternion(earthQuat.x, earthQuat.y, earthQuat.z, earthQuat.w);
+        worldBirthPoint = p.clone().applyQuaternion(q);
+        console.log('[BirthPointAlignment] 应用地球四元数旋转', {
+          originalP: { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) },
+          earthQuat: { x: +earthQuat.x.toFixed(4), y: +earthQuat.y.toFixed(4), z: +earthQuat.z.toFixed(4), w: +earthQuat.w.toFixed(4) },
+          rotatedP: { x: +worldBirthPoint.x.toFixed(4), y: +worldBirthPoint.y.toFixed(4), z: +worldBirthPoint.z.toFixed(4) }
+        });
+      } else {
+        console.warn('[BirthPointAlignment] 地球四元数未找到，使用原始坐标（可能导致对齐偏差）');
+      }
+    } catch (e) {
+      console.warn('[BirthPointAlignment] 应用地球四元数失败:', e);
+    }
+
+    const yaw = THREE.MathUtils.radToDeg(Math.atan2(worldBirthPoint.x, worldBirthPoint.z));
+    let pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1)));
     // 为了让出生点在画面更高一些，降低相机俯仰角（向下看）
     pitch -= alphaDeg;
     const roll = 0;
@@ -111,11 +137,12 @@ export function calculateCameraOrientationForBirthPoint(
     console.log('[BirthPointAlignment] 相机对齐计算', {
       params,
       orientation,
-      p: { x:+p.x.toFixed(4), y:+p.y.toFixed(4), z:+p.z.toFixed(4) },
+      originalP: { x:+p.x.toFixed(4), y:+p.y.toFixed(4), z:+p.z.toFixed(4) },
+      worldP: { x:+worldBirthPoint.x.toFixed(4), y:+worldBirthPoint.y.toFixed(4), z:+worldBirthPoint.z.toFixed(4) },
       calculations: {
-        yaw: `atan2(${p.x.toFixed(4)}, ${p.z.toFixed(4)}) = ${yaw.toFixed(2)}°`,
-        pitchBeforeOffset: `asin(${p.y.toFixed(4)}) = ${THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(p.y, -1, 1))).toFixed(2)}°`,
-        pitch: `${THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(p.y, -1, 1))).toFixed(2)}° - ${alphaDeg}° = ${pitch.toFixed(2)}°`,
+        yaw: `atan2(${worldBirthPoint.x.toFixed(4)}, ${worldBirthPoint.z.toFixed(4)}) = ${yaw.toFixed(2)}°`,
+        pitchBeforeOffset: `asin(${worldBirthPoint.y.toFixed(4)}) = ${THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1))).toFixed(2)}°`,
+        pitch: `${THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1))).toFixed(2)}° - ${alphaDeg}° = ${pitch.toFixed(2)}°`,
         roll: 0
       }
     });
