@@ -353,19 +353,30 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
         // 固定太阳模式：仅绕世界Y轴旋转，避免多轴联动
         if (useFixedSun) {
           const worldUp = new THREE.Vector3(0,1,0);
-          // 计算 -sunWorld 与 fixedSunDir 的平面方位角（XZ平面），以Y轴为上
-          const negSun = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
-          const yawSun = Math.atan2(negSun.x, negSun.z); // [-pi,pi]
+          // 🔧 关键修复：使用全局太阳方向（与观察者无关）计算 yaw 对齐
+          // 问题：本地 sunWorld 随纬度变化，导致晨昏线相位偏移
+          // 解决：使用 lat=0 的全局太阳方向，确保晨昏线时刻与 ephemeris 一致
+          const globalSunState = getEarthState(dateISO, 0, 0, 'byLongitude'); // 赤道全局方向
+          const negGlobalSun = new THREE.Vector3(-globalSunState.sunDirWorld.x, -globalSunState.sunDirWorld.y, -globalSunState.sunDirWorld.z).normalize();
+          const yawGlobalSun = Math.atan2(negGlobalSun.x, negGlobalSun.z); // [-pi,pi]
+          
           const f = fixedSunDir ?? [-1,0,0];
           const fixed = new THREE.Vector3(f[0], f[1], f[2]).normalize();
           const yawFixed = Math.atan2(fixed.x, fixed.z);
-          let deltaYaw = yawFixed - yawSun;
+          let deltaYaw = yawFixed - yawGlobalSun;
           // 规范化到 [-pi, pi]
           while (deltaYaw > Math.PI) deltaYaw -= 2*Math.PI;
           while (deltaYaw < -Math.PI) deltaYaw += 2*Math.PI;
           // 重置旋转，只施加绕Y的偏航
           (earth as THREE.Object3D).quaternion.identity();
           (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, deltaYaw);
+          
+          if (logger.isEnabled()) logger.log('align/fixedSun-yaw', {
+            globalSunYaw: +(THREE.MathUtils.radToDeg(yawGlobalSun)).toFixed(2),
+            fixedYaw: +(THREE.MathUtils.radToDeg(yawFixed)).toFixed(2),
+            deltaYaw: +(THREE.MathUtils.radToDeg(deltaYaw)).toFixed(2),
+            globalSunDir: { x: +negGlobalSun.x.toFixed(4), y: +negGlobalSun.y.toFixed(4), z: +negGlobalSun.z.toFixed(4) }
+          });
         }
         if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg, useFixedSun: !!useFixedSun });
         // 🔧 修复：禁用alignLongitudeOnly以避免倾斜问题
@@ -433,6 +444,8 @@ export default function SimpleTest() {
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
   const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(false);
   const [realTimeInterval, setRealTimeInterval] = useState<number | null>(null);
+  // 季相/仰角更新节流：分钟级即可，无需每帧
+  const seasonalUpdateInfoRef = React.useRef<{ lastUpdateMs: number }>({ lastUpdateMs: 0 });
 
   // 统一调试日志开关
   React.useEffect(() => {
@@ -462,15 +475,49 @@ export default function SimpleTest() {
       const sunMagnitude = Math.sqrt(newSunWorld.x * newSunWorld.x + newSunWorld.y * newSunWorld.y + newSunWorld.z * newSunWorld.z);
       if (logger.isEnabled()) logger.log('sunlight/magnitude', { sunMagnitude });
 
-      // 季节模式：在固定太阳模式下，动态更新 fixedSunDir 为季节方向
+      // 季节模式：在固定太阳模式下，动态更新 fixedSunDir 的仰角（仅仰角，不改 yaw）
       try {
         if (composition.useFixedSun && composition.useSeasonalVariation) {
-          const utc = timeMode === 'byLongitude' ? toUTCFromLocal(dateISO, lonDeg) : new Date(dateISO);
-          const cur = composition.fixedSunDir ?? [-0.7071, 0.7071, 0];
-          const yawDeg = Math.atan2(cur[0], cur[2]) * 180/Math.PI; // atan2(x,z)
-          const d = seasonalSunDirWorldYUp(utc, lonDeg, composition.obliquityDeg ?? 23.44, composition.seasonOffsetDays ?? 0, yawDeg);
-          setComposition(prev => ({ ...prev, fixedSunDir: [d.x, d.y, d.z] as [number, number, number] }));
-          if (logger.isEnabled()) logger.log('seasonal/fixedSunDir', { ...d, yawDeg });
+          const now = Date.now();
+          const intervalMin = composition.seasonalUpdateIntervalMin ?? 1;
+          const needUpdate = (now - seasonalUpdateInfoRef.current.lastUpdateMs) > intervalMin * 60 * 1000;
+          if (needUpdate) {
+            const utc = timeMode === 'byLongitude' ? toUTCFromLocal(dateISO, lonDeg) : new Date(dateISO);
+            const cur = composition.fixedSunDir ?? [-0.7071, 0.7071, 0];
+            const yawRad = Math.atan2(cur[0], cur[2]); // atan2(x,z)
+
+            let newY = cur[1];
+            if (composition.strongAltitudeConsistency) {
+              // 强一致：仰角直接使用天文高度角，仅改变 y 分量
+              const altRad = (state.altDeg ?? 0) * Math.PI / 180;
+              newY = Math.sin(altRad);
+            } else {
+              // 推荐：由太阳赤纬δ（季相）驱动仰角，仅改变 y 分量
+              const d = seasonalSunDirWorldYUp(
+                utc,
+                lonDeg,
+                composition.obliquityDeg ?? 23.44,
+                composition.seasonOffsetDays ?? 0,
+                THREE.MathUtils.radToDeg(yawRad)
+              );
+              newY = d.y;
+            }
+
+            // 归一化并保持 yaw 不变：x,z 在水平面半径 r 上重建
+            const yClamped = Math.max(-1, Math.min(1, newY));
+            const r = Math.max(0, Math.sqrt(Math.max(0, 1 - yClamped * yClamped)));
+            const newX = r * Math.sin(yawRad);
+            const newZ = r * Math.cos(yawRad);
+
+            setComposition(prev => ({ ...prev, fixedSunDir: [newX, yClamped, newZ] as [number, number, number] }));
+            seasonalUpdateInfoRef.current.lastUpdateMs = now;
+            if (logger.isEnabled()) logger.log('seasonal/fixedSunDir:update', {
+              mode: composition.strongAltitudeConsistency ? 'altitude-strong' : 'declination',
+              yawDeg: +(THREE.MathUtils.radToDeg(yawRad)).toFixed(2),
+              newDir: { x: +newX.toFixed(4), y: +yClamped.toFixed(4), z: +newZ.toFixed(4) },
+              altDeg: +(state.altDeg ?? 0).toFixed(2)
+            });
+          }
         }
       } catch (e) {
         if (logger.isEnabled()) logger.warn('seasonal/compute-failed', String(e));
@@ -495,6 +542,15 @@ export default function SimpleTest() {
         setMoonEQD(newMoonEQD);
         setIllumination(state.illumination);
         setSunAngles({ azDeg: state.azDeg, altDeg: state.altDeg });
+        // 一致性校验日志（开发期）：sunWorld.y 应接近 sin(altDeg)（仅在使用真实太阳照明时严格成立）
+        try {
+          const sinAlt = Math.sin((state.altDeg ?? 0) * Math.PI / 180);
+          if (logger.isEnabled()) logger.log('consistency/alt-vs-vector', {
+            sinAlt: +sinAlt.toFixed(4),
+            sunWorldY: +normalizedSunWorld.y.toFixed(4),
+            delta: +(normalizedSunWorld.y - sinAlt).toFixed(4)
+          });
+        } catch {}
         
         // 计算月相信息
         try {

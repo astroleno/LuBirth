@@ -99,6 +99,13 @@ export interface SimpleComposition {
   // 固定太阳模式
   useFixedSun?: boolean;        // 是否使用固定太阳方向 + 旋转地球
   fixedSunDir?: [number, number, number]; // 固定太阳方向（世界系），默认 [-1,0,0]
+  // 固定太阳仰角策略
+  // 当 useSeasonalVariation=true 时：
+  // - strongAltitudeConsistency=false → 仰角由太阳赤纬δ驱动（推荐，长期稳定）
+  // - strongAltitudeConsistency=true  → 仰角直接取 ephemeris.altDeg（仅仰角，保持 yaw 锁定），用于强一致验证
+  strongAltitudeConsistency?: boolean;
+  // 季相/仰角更新的最小间隔（分钟）。不需要每帧更新，分钟级即可
+  seasonalUpdateIntervalMin?: number;
 
   // 出生点对齐（可选接入）
   enableBirthPointAlignment?: boolean;   // 是否启用"对齐出生点"（只动相机）
@@ -216,6 +223,9 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   useFixedSun: true,
   // 默认从屏幕左上方打光（相机看向 -Z，左= -X，上= +Y）
   fixedSunDir: [-0.7071, 0.7071, 0],
+  // 仰角策略默认：使用δ驱动（更稳更符合季相），强一致开关默认关闭
+  strongAltitudeConsistency: false,
+  seasonalUpdateIntervalMin: 1,
 
   // 出生点对齐默认（关闭，仅显示标记用于调试可选）
   enableBirthPointAlignment: false,
@@ -335,6 +345,8 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 固定太阳模式（保持可回退能力）
     useFixedSun: original.useFixedSun ?? DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
     fixedSunDir: original.fixedSunDir ?? DEFAULT_SIMPLE_COMPOSITION.fixedSunDir,
+    strongAltitudeConsistency: original.strongAltitudeConsistency ?? DEFAULT_SIMPLE_COMPOSITION.strongAltitudeConsistency,
+    seasonalUpdateIntervalMin: original.seasonalUpdateIntervalMin ?? DEFAULT_SIMPLE_COMPOSITION.seasonalUpdateIntervalMin,
 
     // 出生点对齐
     enableBirthPointAlignment: original.enableBirthPointAlignment ?? DEFAULT_SIMPLE_COMPOSITION.enableBirthPointAlignment,

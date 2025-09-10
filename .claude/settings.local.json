@@ -29,7 +29,8 @@
       "Bash(cut:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
