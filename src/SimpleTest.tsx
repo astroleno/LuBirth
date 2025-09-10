@@ -319,6 +319,8 @@ function SceneContent({
         ) : null
       )}
 
+      {/* 🌍 地球自转系统 - 基于UTC时间 */}
+      <EarthRotation earthYawDeg={composition.earthYawDeg} />
       
       {/* 相机控制 */}
       {composition.enableControls && (
@@ -337,6 +339,34 @@ function SceneContent({
 }
 
 // 🔧 关键修复：在Canvas内部按需触发一次对齐，将指定经度旋到屏幕中心
+// 🌍 地球自转组件 - 基于earthYawDeg应用地球旋转
+function EarthRotation({ earthYawDeg }: { earthYawDeg: number }) {
+  const { scene } = useThree();
+  React.useEffect(() => {
+    try {
+      const earth = scene.getObjectByName('earthRoot');
+      if (earth) {
+        // 应用地球自转：绕世界Y轴旋转
+        const worldUp = new THREE.Vector3(0, 1, 0);
+        const rotationRad = THREE.MathUtils.degToRad(earthYawDeg);
+        (earth as THREE.Object3D).quaternion.identity();
+        (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, rotationRad);
+        
+        if (logger.isEnabled()) {
+          logger.log('earth-rotation', {
+            earthYawDeg,
+            rotationRad,
+            note: '基于UTC时间的地球自转'
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[EarthRotation] Error:', err);
+    }
+  }, [earthYawDeg, scene]);
+  return null;
+}
+
 // 只依赖tick避免重复对齐，不依赖latDeg/lonDeg避免叠加旋转
 function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDir, birthPointMode }: { tick: number; latDeg: number; lonDeg: number; sunWorld: {x:number;y:number;z:number}; useFixedSun?: boolean; fixedSunDir?: [number,number,number]; birthPointMode?: boolean }) {
   const { scene, camera } = useThree();
@@ -548,11 +578,25 @@ export default function SimpleTest() {
         if (logger.isEnabled()) logger.log('realtime/tick', { newTime });
         setDateISO(newTime);
         
-        // 基于时间更新地球自转角度（每6度转1度）
+        // 🔧 修复地球自转计算 - 基于UTC时间而不是本地时间
+        // 地球自转应该与太阳位置保持一致，使用UTC时间计算格林威治子午线位置
         const hours = now.getHours();
         const minutes = now.getMinutes();
-        const earthRotation = (hours * 15 + minutes * 0.25) % 360; // 地球每小时转15度
+        const utcHours = now.getUTCHours();
+        const utcMinutes = now.getUTCMinutes();
+        // GMT时间0点时，格林威治子午线朝向太阳，随时间向西旋转
+        // 但这里需要考虑贴图seam在变更线(180°)的问题
+        const earthRotation = ((utcHours * 15 + utcMinutes * 0.25) + 180) % 360; // +180因为贴图seam在变更线
         updateValue('earthYawDeg', earthRotation);
+        
+        if (logger.isEnabled()) {
+          logger.log('realtime/earth-rotation', {
+            localTime: `${hours}:${minutes}`,
+            utcTime: `${utcHours}:${utcMinutes}`,
+            earthRotation,
+            note: '基于UTC时间计算，+180度补偿贴图seam在变更线'
+          });
+        }
         
       }, 60000); // 每分钟更新一次
       
@@ -1614,7 +1658,7 @@ export default function SimpleTest() {
               <div style={{ marginTop: 8 }}>
                 <button className="btn" onClick={() => {
                   try {
-                    const L0 = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
+                    const L0 = lonDeg ?? composition.birthPointLongitudeDeg ?? 0;
                     // 以 0°=+Z 的几何经度为基准（不做 seam 偏移）
                     let L = L0;
                     while (L > 180) L -= 360;
@@ -1632,31 +1676,27 @@ export default function SimpleTest() {
                     // 目标经线在地球局部坐标的方向（赤道法向）
                     const vLocal = new THREE.Vector3(Math.sin(lonRad), 0, Math.cos(lonRad));
                     // 读取当前 earthRoot 四元数（由 SceneContent 挂到 window）
-                    // 这个四元数包含了晨昏线对齐的旋转，必须应用
                     let vWorld = vLocal.clone();
                     try {
                       const qg: any = (window as any).__EARTH_QUAT;
                       if (qg && typeof qg.x === 'number') {
                         const q = new THREE.Quaternion(qg.x, qg.y, qg.z, qg.w);
                         vWorld.applyQuaternion(q);
-                        console.log('[AlignDebug] 应用地球四元数', { 
-                          earthQuat: { x: qg.x, y: qg.y, z: qg.z, w: qg.w },
-                          vLocal: vLocal.toArray(),
-                          vWorld: vWorld.toArray()
-                        });
-                      } else {
-                        console.warn('[AlignDebug] 地球四元数未找到，使用局部坐标');
                       }
-                    } catch (e) {
-                      console.warn('[AlignDebug] 应用地球四元数失败:', e);
-                    }
+                    } catch {}
                     // 计算该方向在世界 XZ 平面的方位角
                     const gammaDeg = THREE.MathUtils.radToDeg(Math.atan2(vWorld.x, vWorld.z));
-                    // 推导：屏幕中心经度 centerLon = az + 180
-                    let yaw = gammaDeg - 180;
+                    // 让相机前向 -Z 正对该方向：根据当前实现测试，直接取 yaw = gamma 更匹配
+                    let yaw = gammaDeg;
                     while (yaw > 180) yaw -= 360;
                     while (yaw < -180) yaw += 360;
-                    setComposition(v => ({ ...v, cameraAzimuthDeg: yaw }));
+                    setComposition(v => ({ 
+                      ...v, 
+                      cameraAzimuthDeg: yaw
+                    }));
+                    
+                    // 关闭实时更新，避免干扰用户的对齐操作
+                    setRealTimeUpdate(false);
                      if (logger.isEnabled()) logger.log('align/meridian-center', { targetLonDeg: L0, textureLon, gammaDeg, cameraAzimuthDeg: yaw });
                      console.log('[AlignDebug] 经度转换', { 
                        targetL: L0, 

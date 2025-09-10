@@ -359,9 +359,8 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
           (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, deltaYaw);
         }
         if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg, useFixedSun: !!useFixedSun });
-        // 🔧 修复：禁用alignLongitudeOnly以避免倾斜问题
-        // 现在地球固定在原点，不需要经度对齐旋转
-        // alignLongitudeOnly(earth as THREE.Object3D, camera, lonDeg);
+        // 🔧 测试：重新启用alignLongitudeOnly功能进行验证
+        alignLongitudeOnly(earth as THREE.Object3D, camera, lonDeg);
       } else {
         if (logger.isEnabled()) logger.warn('align/earthRoot-missing');
       }
