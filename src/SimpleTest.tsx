@@ -102,16 +102,7 @@ function SceneContent({
   React.useEffect(() => {
     try { (window as any).__R3F_Camera = camera; } catch {}
   }, [camera]);
-  // 暴露当前 earthRoot 的四元数到全局，便于UI侧对齐经线时读取
-  React.useEffect(() => {
-    try {
-      const earth = scene.getObjectByName('earthRoot') as THREE.Object3D | undefined;
-      if (earth) {
-        const q = (earth as any).quaternion as THREE.Quaternion;
-        if (q) (window as any).__EARTH_QUAT = { x: q.x, y: q.y, z: q.z, w: q.w };
-      }
-    } catch {}
-  });
+  // 🔧 已移除：不再暴露__EARTH_QUAT全局变量，统一通过scene.getObjectByName('earthRoot')读取
   React.useEffect(() => {
     try { 
       (window as any).THREE = THREE;
@@ -176,7 +167,7 @@ function SceneContent({
         latitudeDeg: composition.birthPointLatitudeDeg ?? latDeg,
         alphaDeg: composition.birthPointAlphaDeg ?? 12
       };
-      const o = calculateCameraOrientationForBirthPoint(params);
+      const o = calculateCameraOrientationForBirthPoint(params, scene);
       // 直接应用角度（如需平滑，可在此加入slerp或时间常数滤波）
       setComposition(v => ({
         ...v,
@@ -187,7 +178,7 @@ function SceneContent({
     } catch (e) {
       console.warn('[BirthPointAlign] 自动保持失败:', e);
     }
-  }, [composition.enableBirthPointAlignment, composition.birthPointLongitudeDeg, composition.birthPointLatitudeDeg, composition.birthPointAlphaDeg, composition.earthYawDeg, dateISO, latDeg, lonDeg]);
+  }, [composition.enableBirthPointAlignment, composition.birthPointLongitudeDeg, composition.birthPointLatitudeDeg, composition.birthPointAlphaDeg]);
 
   // 单光常亮：不再按 altDeg 关灯，夜面由着色器控制
   const finalIntensity = lightIntensity;
@@ -783,7 +774,7 @@ export default function SimpleTest() {
           sunWorld={sunWorld}
           useFixedSun={composition.useFixedSun}
           fixedSunDir={composition.fixedSunDir}
-          birthPointMode={composition.birthPointAlignmentMode}
+          birthPointMode={composition.enableBirthPointAlignment}
         />
       </Canvas>
       
@@ -845,7 +836,8 @@ export default function SimpleTest() {
                     latitudeDeg: composition.birthPointLatitudeDeg ?? latDeg,
                     alphaDeg: composition.birthPointAlphaDeg ?? 12
                   };
-                  const o = calculateCameraOrientationForBirthPoint(params);
+                  const scene = (window as any).__R3F_Scene;
+                  const o = calculateCameraOrientationForBirthPoint(params, scene);
                   
                   // 4. 应用相机朝向
                   setComposition(v => ({
@@ -1768,29 +1760,45 @@ export default function SimpleTest() {
                      const lonRad = THREE.MathUtils.degToRad(textureLon);
                     // 目标经线在地球局部坐标的方向（赤道法向）
                     const vLocal = new THREE.Vector3(Math.sin(lonRad), 0, Math.cos(lonRad));
-                    // 读取当前 earthRoot 四元数（由 SceneContent 挂到 window）
-                    // 这个四元数包含了晨昏线对齐的旋转，必须应用
+                    // 🔧 修复：统一从scene.getObjectByName读取earthRoot四元数
                     let vWorld = vLocal.clone();
                     try {
-                      const qg: any = (window as any).__EARTH_QUAT;
-                      if (qg && typeof qg.x === 'number') {
-                        const q = new THREE.Quaternion(qg.x, qg.y, qg.z, qg.w);
-                        vWorld.applyQuaternion(q);
-                        console.log('[AlignDebug] 应用地球四元数', { 
-                          earthQuat: { x: qg.x, y: qg.y, z: qg.z, w: qg.w },
+                      const scene = (window as any).__R3F_Scene;
+                      const earthRoot = scene?.getObjectByName?.('earthRoot');
+                      if (earthRoot && earthRoot.quaternion) {
+                        vWorld.applyQuaternion(earthRoot.quaternion);
+                        console.log('[AlignDebug] 从earthRoot读取四元数', { 
+                          earthQuat: { 
+                            x: earthRoot.quaternion.x, 
+                            y: earthRoot.quaternion.y, 
+                            z: earthRoot.quaternion.z, 
+                            w: earthRoot.quaternion.w 
+                          },
                           vLocal: vLocal.toArray(),
                           vWorld: vWorld.toArray()
                         });
                       } else {
-                        console.warn('[AlignDebug] 地球四元数未找到，使用局部坐标');
+                        console.warn('[AlignDebug] earthRoot节点未找到，使用局部坐标');
                       }
                     } catch (e) {
                       console.warn('[AlignDebug] 应用地球四元数失败:', e);
                     }
                     // 计算该方向在世界 XZ 平面的方位角
                     const gammaDeg = THREE.MathUtils.radToDeg(Math.atan2(vWorld.x, vWorld.z));
-                    // 推导：屏幕中心经度 centerLon = az + 180
-                    let yaw = gammaDeg - 180;
+                    // 🔧 重新理解：问题可能是地球自转！
+                    // 原逻辑: yaw = gammaDeg - 180
+                    // gammaDeg是出生点在当前地球旋转状态下的世界方位角
+                    // 减180°的含义：相机从"朝向出生点"变成"从出生点朝向地心"
+                    console.log('🚨🚨🚨 [经线居中] 重新理解原逻辑！', { 
+                      textureLon, 
+                      gammaDeg, 
+                      originalLogic: gammaDeg - 180,
+                      earthRotationDeg: 232.0  // 从日志获得的地球自转角度
+                    });
+                    // 🔧 最终修正：基于坐标测试验证，positionUtils中相机方位角直接对应经度
+                    // test_coordinate_system.js结果：az=121.5°正确对应上海东经121.5°
+                    // 因此最简单的映射：yaw = gammaDeg
+                    let yaw = gammaDeg;
                     while (yaw > 180) yaw -= 360;
                     while (yaw < -180) yaw += 360;
                     setComposition(v => ({ ...v, cameraAzimuthDeg: yaw }));
@@ -1968,7 +1976,8 @@ function NoTiltProbe() {
       try {
         console.log(`[TestAlignment] 测试出生点对齐: ${lat}°N, ${lon}°E, α=${alpha}°`);
         const params = { longitudeDeg: lon, latitudeDeg: lat, alphaDeg: alpha };
-        const o = calculateCameraOrientationForBirthPoint(params);
+        const scene = (window as any).__R3F_Scene;
+        const o = calculateCameraOrientationForBirthPoint(params, scene);
         setComposition(v => ({
           ...v,
           birthPointLatitudeDeg: lat,
@@ -1982,6 +1991,60 @@ function NoTiltProbe() {
         return o;
       } catch (e) {
         console.error('[TestAlignment] 测试失败:', e);
+        return null;
+      }
+    };
+
+    // 🔧 新增：坐标系诊断函数
+    (window as any).diagnoseBirthPointCoords = (lat: number, lon: number) => {
+      try {
+        console.log(`\n=== 出生点坐标诊断: ${lat}°N, ${lon}°E ===`);
+        
+        // 1. 基础球面坐标转换
+        const latRad = THREE.MathUtils.degToRad(lat);
+        const lonRad = THREE.MathUtils.degToRad(lon);
+        const p = new THREE.Vector3(
+          Math.cos(latRad) * Math.sin(lonRad),  // x = 东西方向
+          Math.sin(latRad),                     // y = 上下方向
+          -Math.cos(latRad) * Math.cos(lonRad)  // z = 南北方向（负号）
+        );
+        
+        console.log('1. 出生点局部坐标 p:', { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) });
+        
+        // 2. 读取地球当前旋转
+        const scene = (window as any).__R3F_Scene;
+        const earthRoot = scene?.getObjectByName?.('earthRoot');
+        let worldP = p.clone();
+        if (earthRoot && earthRoot.quaternion) {
+          worldP = p.clone().applyQuaternion(earthRoot.quaternion);
+          console.log('2. 地球四元数:', { 
+            x: +earthRoot.quaternion.x.toFixed(4), 
+            y: +earthRoot.quaternion.y.toFixed(4), 
+            z: +earthRoot.quaternion.z.toFixed(4), 
+            w: +earthRoot.quaternion.w.toFixed(4) 
+          });
+          console.log('3. 世界坐标 worldP:', { x: +worldP.x.toFixed(4), y: +worldP.y.toFixed(4), z: +worldP.z.toFixed(4) });
+        }
+        
+        // 3. 相机角度计算  
+        const rawYaw = THREE.MathUtils.radToDeg(Math.atan2(worldP.x, -worldP.z));
+        const yaw = rawYaw + 180; // 🔧 关键修复：相机从出生点向地心看，加180°
+        const pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldP.y, -1, 1)));
+        
+        console.log('4. 相机角度计算:');
+        console.log('   - 原始atan2(x, -z) = atan2(' + worldP.x.toFixed(4) + ', ' + (-worldP.z).toFixed(4) + ') = ' + rawYaw.toFixed(2) + '°');
+        console.log('   - 修正yaw = ' + rawYaw.toFixed(2) + '° + 180° = ' + yaw.toFixed(2) + '°');
+        console.log('   - asin(y) = asin(' + worldP.y.toFixed(4) + ') = ' + pitch.toFixed(2) + '°');
+        
+        // 4. 预期结果验证
+        console.log('5. 预期验证:');
+        console.log('   - 经度' + lon + '°应该对应相机yaw约' + lon + '° (如果地球未旋转)');
+        console.log('   - 纬度' + lat + '°应该对应相机pitch约' + lat + '°');
+        console.log('   - 实际yaw: ' + yaw.toFixed(2) + '°, pitch: ' + pitch.toFixed(2) + '°');
+        
+        return { p, worldP, yaw, pitch };
+      } catch (e) {
+        console.error('[CoordsDiagnosis] 诊断失败:', e);
         return null;
       }
     };

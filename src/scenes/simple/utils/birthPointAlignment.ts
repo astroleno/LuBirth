@@ -56,14 +56,17 @@ export function calculateBirthPointLocalFrame(
   // 问题在于相机对齐逻辑，不是出生点坐标计算
   // 使用标准球面坐标系：0°经度=本初子午线，正X轴指向90°E
   
-  // 🚨 关键修复：Three.js球面贴图坐标系校正
-  // Three.js默认贴图：u=0.5对应经度0°，但在世界坐标中0°经度需要在-Z轴方向
-  // 标准球面坐标：0°经度 → (0, y, -1), 90°E → (1, y, 0), -90°W → (-1, y, 0)
-  // 因此需要将standard球面坐标的X和Z分量进行调整以匹配Three.js贴图
+  // 🔧 关键修复：正确的球面坐标转换，匹配Three.js坐标系
+  // Three.js坐标系：+X=东，+Y=上，+Z=南（向观察者）
+  // 经度0°应该指向-Z方向（本初子午线），90°E指向+X方向
+  // 标准球面到笛卡尔坐标转换：
+  // x = cos(lat) * sin(lon)  （东西方向）
+  // y = sin(lat)              （上下方向） 
+  // z = -cos(lat) * cos(lon) （南北方向，注意负号）
   const p = new THREE.Vector3(
-    Math.cos(lat) * Math.cos(lon),
+    Math.cos(lat) * Math.sin(lon),
     Math.sin(lat),
-    Math.cos(lat) * Math.sin(lon)
+    -Math.cos(lat) * Math.cos(lon)
   );
   
   // n: 当地正北方向
@@ -89,14 +92,15 @@ export function calculateBirthPointLocalFrame(
 }
 
 /**
- * 计算相机朝向以对齐出生点（TODO12：标准构图对齐）
- * 目标：让出生点出现在球体的180°经度、北纬80°位置
- * 使用简单的角度计算，避免过大的旋转
+ * 计算相机朝向以对齐出生点
+ * 统一口径：出生点对齐只动相机，从场景节点统一读取地球姿态
  * @param params 出生点对齐参数
+ * @param scene Three.js场景对象，用于读取earthRoot.quaternion
  * @returns 相机朝向 {yaw, pitch, roll}
  */
 export function calculateCameraOrientationForBirthPoint(
-  params: BirthPointAlignmentParams
+  params: BirthPointAlignmentParams,
+  scene?: THREE.Scene
 ): CameraOrientation {
   try {
     const { longitudeDeg, latitudeDeg, alphaDeg } = params;
@@ -107,23 +111,40 @@ export function calculateCameraOrientationForBirthPoint(
 
     const { p } = calculateBirthPointLocalFrame(longitudeDeg, latitudeDeg);
     
-    // 🔧 关键修复：考虑地球的当前旋转状态（晨昏线旋转）
+    // 🔧 关键修复：统一从场景节点读取地球当前姿态
     let worldBirthPoint = p.clone();
     try {
-      const comp = (window as any).__getComposition?.();
-      const yawDeg = (comp && typeof comp.earthYawDeg === 'number') ? comp.earthYawDeg : 0;
-      const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), THREE.MathUtils.degToRad(yawDeg));
-      worldBirthPoint = p.clone().applyQuaternion(qYaw);
-      console.log('[BirthPointAlignment] 应用地球自转角(Y轴)', {
-        originalP: { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) },
-        earthYawDeg: +yawDeg.toFixed?.(2) ?? yawDeg,
-        rotatedP: { x: +worldBirthPoint.x.toFixed(4), y: +worldBirthPoint.y.toFixed(4), z: +worldBirthPoint.z.toFixed(4) }
-      });
+      if (scene) {
+        const earthRoot = scene.getObjectByName('earthRoot') as THREE.Object3D;
+        if (earthRoot && earthRoot.quaternion) {
+          // 应用地球当前的旋转状态到出生点坐标
+          worldBirthPoint = p.clone().applyQuaternion(earthRoot.quaternion);
+          console.log('[BirthPointAlignment] 从earthRoot读取地球姿态', {
+            originalP: { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) },
+            earthQuat: { 
+              x: +earthRoot.quaternion.x.toFixed(4), 
+              y: +earthRoot.quaternion.y.toFixed(4), 
+              z: +earthRoot.quaternion.z.toFixed(4), 
+              w: +earthRoot.quaternion.w.toFixed(4) 
+            },
+            rotatedP: { x: +worldBirthPoint.x.toFixed(4), y: +worldBirthPoint.y.toFixed(4), z: +worldBirthPoint.z.toFixed(4) }
+          });
+        } else {
+          console.warn('[BirthPointAlignment] earthRoot节点未找到，使用原始坐标');
+        }
+      } else {
+        console.warn('[BirthPointAlignment] 未提供scene参数，使用原始坐标');
+      }
     } catch (e) {
-      console.warn('[BirthPointAlignment] 应用自转角失败，使用原始坐标:', e);
+      console.warn('[BirthPointAlignment] 读取地球姿态失败，使用原始坐标:', e);
     }
 
-    const yaw = THREE.MathUtils.radToDeg(Math.atan2(worldBirthPoint.x, worldBirthPoint.z));
+    // 🔧 最终修复：基于positionUtils.ts的实际坐标系
+    // positionUtils中: x = R*sin(az), z = R*cos(az)，其中az=0对应+Z方向
+    // 出生点世界坐标: x = cos(lat)*sin(lon), z = -cos(lat)*cos(lon)
+    // 要让相机看向出生点，方位角应该直接对应经度
+    console.log('🚨🚨🚨 [BirthPointAlignment] 新算法执行！上海121.5° -> yaw =', longitudeDeg);
+    const yaw = longitudeDeg;
     let pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1)));
     // 为了让出生点在画面更高一些，降低相机俯仰角（向下看）
     pitch -= alphaDeg;

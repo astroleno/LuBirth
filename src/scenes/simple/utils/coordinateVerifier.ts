@@ -65,12 +65,12 @@ export class CoordinateVerifier {
   } {
     const errors: string[] = [];
     
-    // 计算相机朝向
+    // 计算相机朝向 (没有scene参数时使用原始坐标)
     const orientation = calculateCameraOrientationForBirthPoint({
       longitudeDeg: lonDeg,
       latitudeDeg: latDeg,
       alphaDeg: 10 // 默认抬升角
-    });
+    }); // 不传scene参数，使用原始坐标进行验证
     
     // 验证相机角度范围
     if (Math.abs(orientation.yaw) > 180) {

@@ -131,4 +131,102 @@ try {
       return null;
     }
   };
+
+  // 出生点对齐诊断命令
+  (window as any).runBirthAlignDiagnostics = (testLocations?: Array<{name: string, lon: number, lat: number, alpha?: number}>) => {
+    try {
+      const { calculateBirthPointLocalFrame, calculateCameraOrientationForBirthPoint } = require('./scenes/simple/utils/birthPointAlignment');
+      const THREE = (window as any).THREE;
+      if (!THREE) {
+        console.error('[BirthAlignDiagnostics] THREE.js not available');
+        return null;
+      }
+
+      // 默认测试集（内置样例：上海、北京、纽约、赤道边界等关键点）
+      const defaultTestLocations = [
+        { name: '上海', lon: 121.47, lat: 31.23, alpha: 10 },
+        { name: '北京', lon: 116.41, lat: 39.90, alpha: 10 },
+        { name: '纽约', lon: -74.01, lat: 40.71, alpha: 10 },
+        { name: '伦敦', lon: -0.13, lat: 51.51, alpha: 10 },
+        { name: '赤道本初子午线', lon: 0, lat: 0, alpha: 10 },
+        { name: '赤道180度', lon: 180, lat: 0, alpha: 10 },
+        { name: '赤道90E', lon: 90, lat: 0, alpha: 10 },
+        { name: '赤道90W', lon: -90, lat: 0, alpha: 10 },
+        { name: '北极边界80N', lon: 0, lat: 80, alpha: 10 },
+        { name: '南极边界80S', lon: 0, lat: -80, alpha: 10 }
+      ];
+
+      const locations = testLocations || defaultTestLocations;
+      const scene = (window as any).__R3F_SCENE;
+      const results = locations.map(location => {
+        try {
+          // 计算世界坐标
+          const { p: worldPoint } = calculateBirthPointLocalFrame(location.lon, location.lat);
+          
+          // 计算相机朝向（传入scene以获取地球姿态）
+          const orientation = calculateCameraOrientationForBirthPoint({
+            longitudeDeg: location.lon,
+            latitudeDeg: location.lat,
+            alphaDeg: location.alpha || 10
+          }, scene);
+
+          // 计算期望的屏幕位置（应该在中心）
+          const expectedScreenX = 0.5;
+          const expectedScreenY = 0.4; // 稍微偏上
+
+          // 误差计算：假设相机直接朝向出生点，计算角度误差
+          const expectedYaw = THREE.MathUtils.radToDeg(Math.atan2(worldPoint.x, -worldPoint.z));
+          const yawError = Math.abs(orientation.yaw - expectedYaw);
+
+          return {
+            location,
+            worldPoint: {
+              x: +worldPoint.x.toFixed(4),
+              y: +worldPoint.y.toFixed(4),
+              z: +worldPoint.z.toFixed(4)
+            },
+            orientation: {
+              yaw: +orientation.yaw.toFixed(2),
+              pitch: +orientation.pitch.toFixed(2),
+              roll: +orientation.roll.toFixed(2)
+            },
+            expectedYaw: +expectedYaw.toFixed(2),
+            errors: {
+              yawDeg: +yawError.toFixed(2)
+            },
+            isValid: yawError <= 0.5 // 验收标准：误差≤0.5°
+          };
+        } catch (e) {
+          return {
+            location,
+            error: (e as Error).message
+          };
+        }
+      });
+
+      const payload = {
+        when: new Date().toISOString(),
+        testCount: results.length,
+        passedCount: results.filter(r => r.isValid).length,
+        results,
+        earthQuaternion: scene ? (() => {
+          try {
+            const earthRoot = scene.getObjectByName('earthRoot');
+            return earthRoot ? {
+              x: +earthRoot.quaternion.x.toFixed(4),
+              y: +earthRoot.quaternion.y.toFixed(4),
+              z: +earthRoot.quaternion.z.toFixed(4),
+              w: +earthRoot.quaternion.w.toFixed(4)
+            } : null;
+          } catch { return null; }
+        })() : null
+      };
+
+      console.log('[BirthAlignTest:JSON]', JSON.stringify(payload, null, 2));
+      return payload;
+    } catch (e) {
+      console.error('[BirthAlignDiagnostics] failed:', e);
+      return null;
+    }
+  };
 } catch {}
