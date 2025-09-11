@@ -60,6 +60,15 @@ export function useCameraControl(composition: any) {
       }
       
       camera.updateProjectionMatrix();
+
+      // 明确的相机应用日志（用于确认“写入就必转”）
+      console.log('[CameraApply]', {
+        azDeg,
+        elDeg,
+        radius: R,
+        position: camera.position.toArray(),
+        lookAt: [lookAtX, lookAtY, lookAtZ]
+      });
       
       // 调试信息
       if (new URLSearchParams(location.search).get('debug') === '1') {

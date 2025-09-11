@@ -31,7 +31,10 @@
       "Bash(cp:*)",
       "Bash(git checkout:*)",
       "Bash(dir:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git clone:*)"
     ],
     "deny": [],
     "ask": []

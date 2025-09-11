@@ -167,6 +167,28 @@ function SceneContent({
     try { (window as any).__LightDir = lightDirection.toArray(); } catch {}
   }, [lightDirection, mode]);
 
+  // 出生点对齐锁：开启后根据当前地球自转与出生点，自动保持相机居中
+  React.useEffect(() => {
+    if (!composition.enableBirthPointAlignment) return;
+    try {
+      const params = {
+        longitudeDeg: composition.birthPointLongitudeDeg ?? lonDeg,
+        latitudeDeg: composition.birthPointLatitudeDeg ?? latDeg,
+        alphaDeg: composition.birthPointAlphaDeg ?? 12
+      };
+      const o = calculateCameraOrientationForBirthPoint(params);
+      // 直接应用角度（如需平滑，可在此加入slerp或时间常数滤波）
+      setComposition(v => ({
+        ...v,
+        cameraAzimuthDeg: o.yaw,
+        cameraElevationDeg: o.pitch
+      }));
+      if (logger.isEnabled()) logger.log('birthPoint/lock/update', { params, orientation: o });
+    } catch (e) {
+      console.warn('[BirthPointAlign] 自动保持失败:', e);
+    }
+  }, [composition.enableBirthPointAlignment, composition.birthPointLongitudeDeg, composition.birthPointLatitudeDeg, composition.birthPointAlphaDeg, composition.earthYawDeg, dateISO, latDeg, lonDeg]);
+
   // 单光常亮：不再按 altDeg 关灯，夜面由着色器控制
   const finalIntensity = lightIntensity;
   const finalCastShadow = true;
@@ -1938,6 +1960,7 @@ function NoTiltProbe() {
       (window as any).setUseSeasonalVariation = (on: boolean) => { try { setComposition(prev=>({...prev, useSeasonalVariation:on})); } catch {} };
     (window as any).setObliquityDeg = (deg: number) => { try { setComposition(prev=>({...prev, obliquityDeg:deg})); } catch {} };
     (window as any).setSeasonOffsetDays = (d: number) => { try { setComposition(prev=>({...prev, seasonOffsetDays:d})); } catch {} };
+    (window as any).setEnableBirthPointAlignment = (on: boolean) => { try { setComposition(prev=>({ ...prev, enableBirthPointAlignment: on })); } catch {} };
     (window as any).getFixedSunDir = () => { try { return composition.fixedSunDir ?? null; } catch { return null; } };
     
     // 🔧 新增：便捷出生点对齐测试接口
@@ -2022,8 +2045,13 @@ function NoTiltProbe() {
     (window as any).runFixedSunAzimuthLockTest = async () => {
       try {
         (window as any).setUseFixedSun?.(true);
-        const yawOf = (arr:number[]) => {
-          const [x,,z] = arr; return Math.atan2(x, z) * 180/Math.PI; };
+        const yawOf = (arr:any) => {
+          try {
+            if (!arr || !Array.isArray(arr) || arr.length < 3) return NaN;
+            const [x,,z] = arr as number[];
+            return Math.atan2(x, z) * 180/Math.PI;
+          } catch { return NaN; }
+        };
         const waitFrames = (n:number)=> new Promise<void>(res=>{ let c=0; const step=()=>{ if(++c>=n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); });
         (window as any).setSceneTime?.('2024-03-21T06:00'); await waitFrames(30);
         const d1 = (window as any).getFixedSunDir?.() || (window as any).__LightDir;
@@ -2043,13 +2071,16 @@ function NoTiltProbe() {
     };
     (window as any).runSeasonalAutoTest = async () => {
       try {
+        // 使用最新的 composition 值，而不是闭包快照
+        const getComp = () => (window as any).__getComposition?.() ?? composition;
+        const comp = getComp();
         const utc = new Date('2024-06-21T12:00:00Z');
-        const dSum = seasonalSunDirWorldYUp(utc, 0, (composition.obliquityDeg ?? 23.44), (composition.seasonOffsetDays ?? 0));
-        const eps = composition.obliquityDeg ?? 23.44;
+        const dSum = seasonalSunDirWorldYUp(utc, 0, (comp.obliquityDeg ?? 23.44), (comp.seasonOffsetDays ?? 0));
+        const eps = comp.obliquityDeg ?? 23.44;
         const altSum = Math.asin(dSum.y) * 180/Math.PI;
         const ok1 = Math.abs(altSum - eps) < 3.0;
         const utc2 = new Date('2024-12-21T12:00:00Z');
-        const dWin = seasonalSunDirWorldYUp(utc2, 0, (composition.obliquityDeg ?? 23.44), (composition.seasonOffsetDays ?? 0));
+        const dWin = seasonalSunDirWorldYUp(utc2, 0, (comp.obliquityDeg ?? 23.44), (comp.seasonOffsetDays ?? 0));
         const altWin = Math.asin(dWin.y) * 180/Math.PI;
         const ok2 = Math.abs(altWin + eps) < 3.0;
         const payload = { when: new Date().toISOString(), ok: ok1 && ok2, altSummer: +altSum.toFixed(2), altWinter: +altWin.toFixed(2), eps };
@@ -2061,6 +2092,8 @@ function NoTiltProbe() {
         return null;
       }
     };
+    // 只读 composition getter，避免闭包旧值
+    (window as any).__getComposition = () => { try { return { ...composition }; } catch { return null; } };
   }, [scene]);
   return null;
 }

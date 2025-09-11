@@ -61,9 +61,9 @@ export function calculateBirthPointLocalFrame(
   // 标准球面坐标：0°经度 → (0, y, -1), 90°E → (1, y, 0), -90°W → (-1, y, 0)
   // 因此需要将standard球面坐标的X和Z分量进行调整以匹配Three.js贴图
   const p = new THREE.Vector3(
-    Math.cos(lat) * Math.cos(lon),  // X: cos(lon) 使0°经度指向-Z方向
-    Math.sin(lat),                  // Y: 标准纬度映射
-    -Math.cos(lat) * Math.sin(lon)  // Z: -sin(lon) 完成坐标系转换
+    Math.cos(lat) * Math.cos(lon),
+    Math.sin(lat),
+    Math.cos(lat) * Math.sin(lon)
   );
   
   // n: 当地正北方向
@@ -110,20 +110,17 @@ export function calculateCameraOrientationForBirthPoint(
     // 🔧 关键修复：考虑地球的当前旋转状态（晨昏线旋转）
     let worldBirthPoint = p.clone();
     try {
-      const earthQuat: any = (window as any).__EARTH_QUAT;
-      if (earthQuat && typeof earthQuat.x === 'number') {
-        const q = new THREE.Quaternion(earthQuat.x, earthQuat.y, earthQuat.z, earthQuat.w);
-        worldBirthPoint = p.clone().applyQuaternion(q);
-        console.log('[BirthPointAlignment] 应用地球四元数旋转', {
-          originalP: { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) },
-          earthQuat: { x: +earthQuat.x.toFixed(4), y: +earthQuat.y.toFixed(4), z: +earthQuat.z.toFixed(4), w: +earthQuat.w.toFixed(4) },
-          rotatedP: { x: +worldBirthPoint.x.toFixed(4), y: +worldBirthPoint.y.toFixed(4), z: +worldBirthPoint.z.toFixed(4) }
-        });
-      } else {
-        console.warn('[BirthPointAlignment] 地球四元数未找到，使用原始坐标（可能导致对齐偏差）');
-      }
+      const comp = (window as any).__getComposition?.();
+      const yawDeg = (comp && typeof comp.earthYawDeg === 'number') ? comp.earthYawDeg : 0;
+      const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), THREE.MathUtils.degToRad(yawDeg));
+      worldBirthPoint = p.clone().applyQuaternion(qYaw);
+      console.log('[BirthPointAlignment] 应用地球自转角(Y轴)', {
+        originalP: { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) },
+        earthYawDeg: +yawDeg.toFixed?.(2) ?? yawDeg,
+        rotatedP: { x: +worldBirthPoint.x.toFixed(4), y: +worldBirthPoint.y.toFixed(4), z: +worldBirthPoint.z.toFixed(4) }
+      });
     } catch (e) {
-      console.warn('[BirthPointAlignment] 应用地球四元数失败:', e);
+      console.warn('[BirthPointAlignment] 应用自转角失败，使用原始坐标:', e);
     }
 
     const yaw = THREE.MathUtils.radToDeg(Math.atan2(worldBirthPoint.x, worldBirthPoint.z));
