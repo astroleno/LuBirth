@@ -30,7 +30,8 @@
       "Bash(mkdir:*)",
       "Bash(cp:*)",
       "Bash(git checkout:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

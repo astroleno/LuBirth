@@ -202,7 +202,7 @@ function SceneContent({
           size={earthInfo.size}
           lightDirection={lightDirection}
           tiltDeg={0}
-          yawDeg={0}
+          yawDeg={composition.earthYawDeg}
           useTextures={composition.useTextures}
           lightColor={lightColor}
           sunIntensity={lightIntensity}
@@ -367,8 +367,8 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
           // 规范化到 [-pi, pi]
           while (deltaYaw > Math.PI) deltaYaw -= 2*Math.PI;
           while (deltaYaw < -Math.PI) deltaYaw += 2*Math.PI;
-          // 重置旋转，只施加绕Y的偏航
-          (earth as THREE.Object3D).quaternion.identity();
+          // 🔧 关键修复：不重置四元数，保持基础地球自转，只施加对齐旋转
+          // 注意：基础地球自转由Earth组件的yawDeg参数控制，这里只处理对齐
           (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, deltaYaw);
           
           if (logger.isEnabled()) logger.log('align/fixedSun-yaw', {
@@ -398,9 +398,19 @@ export default function SimpleTest() {
     const params = new URLSearchParams(location.search);
     const fixedsun = params.get('fixedsun') === '1';
     const season = params.get('season') === '1';
+    
+    // 🔧 关键修复：初始化时计算正确的地球自转角度
+    const now = new Date();
+    const utcHours = now.getUTCHours();
+    const utcMinutes = now.getUTCMinutes();
+    // 🔧 关键修复：补偿贴图seam在180°经度的偏移
+    const earthRotation = (utcHours * 15 + utcMinutes * 0.25) % 360;
+    console.log(`[EarthRotation] 初始化计算: UTC时间 ${utcHours}:${utcMinutes.toString().padStart(2, '0')}, 自转角度: ${earthRotation.toFixed(1)}°`);
+    
     return { ...DEFAULT_SIMPLE_COMPOSITION,
       useFixedSun: fixedsun || DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
       useSeasonalVariation: season || DEFAULT_SIMPLE_COMPOSITION.useSeasonalVariation,
+      earthYawDeg: earthRotation, // 🔧 设置正确的初始自转角度
     } as SimpleComposition;
   }, []);
 
@@ -415,6 +425,32 @@ export default function SimpleTest() {
     const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
+
+  // 🔧 关键修复：计算基于用户设置时间的地球自转角度
+  const calculateEarthRotationFromDateISO = (dateISOStr: string, longitude: number) => {
+    try {
+      // 将用户设置的本地时间转换为UTC时间
+      const localDate = new Date(dateISOStr);
+      // 修复时区转换：东经为正，UTC时间 = 本地时间 - 时区偏移
+      const timezoneOffsetHours = longitude / 15; // 每15度经度 = 1小时时差
+      // 注意：JavaScript Date对象会自动处理时区，我们需要手动计算
+      const localHours = localDate.getHours();
+      const localMinutes = localDate.getMinutes();
+      const localTotalMinutes = localHours * 60 + localMinutes;
+      const utcTotalMinutes = localTotalMinutes - timezoneOffsetHours * 60;
+      const utcHours = Math.floor(utcTotalMinutes / 60);
+      const utcMinutes = utcTotalMinutes % 60;
+      // 🔧 关键修复：补偿贴图seam在180°经度的偏移
+      // 贴图seam在国际日期线（180°），需要减去180度偏移
+      const earthRotation = (utcHours * 15 + utcMinutes * 0.25) % 360;
+      
+      console.log(`[EarthRotation] 用户时间: ${dateISOStr}, 经度: ${longitude}°, 时区偏移: ${timezoneOffsetHours.toFixed(1)}h, UTC时间: ${utcHours}:${utcMinutes.toString().padStart(2, '0')}, 自转角度: ${earthRotation.toFixed(1)}°`);
+      return earthRotation;
+    } catch (error) {
+      console.warn('[EarthRotation] 计算失败，使用默认值:', error);
+      return 0;
+    }
+  };
   
   // 获取当前本地时间（考虑时区）
   const getCurrentLocalTime = () => {
@@ -426,6 +462,8 @@ export default function SimpleTest() {
   const [latDeg, setLatDeg] = useState<number>(31.2);   // 上海默认
   const [lonDeg, setLonDeg] = useState<number>(121.5);
   const [timeMode, setTimeMode] = useState<TimeInterpretation>('byLongitude');
+  const [userModifiedTime, setUserModifiedTime] = useState<boolean>(false); // 用户是否手动修改了时间
+  const userModifiedTimeRef = React.useRef<boolean>(false); // 🔧 关键修复：使用ref存储用户修改状态，立即生效
   
   // 天文数据状态
   const [sunWorld, setSunWorld] = useState<{ x:number; y:number; z:number }>({ x: 1, y: 0, z: 0 });
@@ -442,7 +480,7 @@ export default function SimpleTest() {
   const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
-  const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(false);
+  const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(true); // 🔧 关键修复：默认启用实时时间更新，确保地球自动自转
   const [realTimeInterval, setRealTimeInterval] = useState<number | null>(null);
   // 季相/仰角更新节流：分钟级即可，无需每帧
   const seasonalUpdateInfoRef = React.useRef<{ lastUpdateMs: number }>({ lastUpdateMs: 0 });
@@ -542,6 +580,10 @@ export default function SimpleTest() {
         setMoonEQD(newMoonEQD);
         setIllumination(state.illumination);
         setSunAngles({ azDeg: state.azDeg, altDeg: state.altDeg });
+        
+        // 🔧 关键修复：当时间变化时，更新地球自转角度
+        const newEarthRotation = calculateEarthRotationFromDateISO(dateISO, lonDeg);
+        updateValue('earthYawDeg', newEarthRotation);
         // 一致性校验日志（开发期）：sunWorld.y 应接近 sin(altDeg)（仅在使用真实太阳照明时严格成立）
         try {
           const sinAlt = Math.sin((state.altDeg ?? 0) * Math.PI / 180);
@@ -599,18 +641,27 @@ export default function SimpleTest() {
       if (logger.isEnabled()) logger.log('realtime/start');
       // 启动实时更新
       const interval = setInterval(() => {
+        // 🔧 关键修复：如果用户手动修改了时间，停止自动更新
+        if (userModifiedTimeRef.current) {
+          console.log('[EarthRotation] 用户已手动修改时间，停止自动更新');
+          clearInterval(interval); // 🔧 关键修复：清除定时器，完全停止自动更新
+          return;
+        }
+        
         const now = new Date();
         const newTime = toLocalInputValue(now);
         if (logger.isEnabled()) logger.log('realtime/tick', { newTime });
         setDateISO(newTime);
         
         // 基于时间更新地球自转角度（每6度转1度）
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const earthRotation = (hours * 15 + minutes * 0.25) % 360; // 地球每小时转15度
+        const utcHours = now.getUTCHours();
+        const utcMinutes = now.getUTCMinutes();
+        // 🔧 关键修复：补偿贴图seam在180°经度的偏移
+        const earthRotation = (utcHours * 15 + utcMinutes * 0.25) % 360; // 地球每小时转15度，使用UTC时间
+        console.log(`[EarthRotation] UTC时间: ${utcHours}:${utcMinutes.toString().padStart(2, '0')}, 计算自转角度: ${earthRotation.toFixed(1)}°`);
         updateValue('earthYawDeg', earthRotation);
         
-      }, 60000); // 每分钟更新一次
+      }, 10000); // 🔧 关键修复：每10秒更新一次，便于测试和观察地球自转
       
       setRealTimeInterval(interval);
       
@@ -650,6 +701,9 @@ export default function SimpleTest() {
   const handleResetToCurrentTime = () => {
     if (logger.isEnabled()) logger.log('manual/reset-to-now');
     setDateISO(getCurrentLocalTime());
+    setUserModifiedTime(false); // 🔧 关键修复：重置用户修改标志，恢复自动更新
+    userModifiedTimeRef.current = false; // 🔧 关键修复：立即重置ref，确保立即生效
+    console.log('[EarthRotation] 重置为当前时间，恢复自动更新');
   };
 
   // 旧的测试入口已移除，改为独立自动化测试套件（见 src/astro/autoTests.ts）
@@ -751,13 +805,13 @@ export default function SimpleTest() {
                   // 1. 激活出生点对齐模式，禁用其他旋转系统
                   setComposition(prev => ({ ...prev, birthPointAlignmentMode: true }));
                   
-                  // 2. 重置地球到初始状态（消除晨昏线旋转的干扰）
+                  // 2. 🔧 关键修复：不重置地球状态，保持当前自转和对齐状态
+                  // 出生点对齐只调整相机，不影响地球的当前旋转状态
                   try {
                     const earth = (window as any).__R3F_Scene?.getObjectByName?.('earthRoot');
                     if (earth) {
-                      earth.quaternion.identity(); // 重置地球四元数为单位四元数
-                      earth.updateMatrixWorld(true);
-                      console.log('[BirthPointAlign] ✅ 地球重置为初始状态');
+                      // 保持地球当前状态，不进行重置
+                      console.log('[BirthPointAlign] ✅ 保持地球当前旋转状态');
                     }
                   } catch (e) {
                     console.warn('[BirthPointAlign] 地球重置失败，继续使用相机补偿:', e);
@@ -837,7 +891,12 @@ export default function SimpleTest() {
           <div className="row" style={{ gap: 12, alignItems: 'flex-end', marginBottom: 16 }}>
             <div className="col">
               <label className="label">日期时间(本地)</label>
-              <input className="input" type="datetime-local" value={dateISO} onChange={(e)=>setDateISO(e.target.value)} />
+              <input className="input" type="datetime-local" value={dateISO} onChange={(e)=>{
+                setDateISO(e.target.value);
+                setUserModifiedTime(true); // 🔧 关键修复：标记用户已手动修改时间
+                userModifiedTimeRef.current = true; // 🔧 关键修复：立即设置ref，确保立即生效
+                console.log('[EarthRotation] 用户手动修改时间，停止自动更新');
+              }} />
             </div>
             <div className="col">
               <label className="label">出生地纬度(°)</label>

@@ -222,9 +222,9 @@ export function Earth({
 
   return (
     <group 
-      position={position} 
-      // 🔧 关键修复：移除rotation prop，避免与四元数旋转冲突
-      // 地球旋转现在完全由earthRoot的四元数控制
+      position={position}
+      rotation={[0, THREE.MathUtils.degToRad(yawDeg), 0]}
+      // 🔧 关键修复：应用yawDeg参数控制地球自转，确保沿地轴（Y轴）旋转
     >
       {/* 地球核心 */}
       <mesh>
