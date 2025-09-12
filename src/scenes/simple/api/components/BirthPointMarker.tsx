@@ -28,7 +28,9 @@ export function BirthPointMarker({ composition, earthSize }: BirthPointMarkerPro
   
   // 计算出生点位置
   const localFrame = calculateBirthPointLocalFrame(longitudeDeg, latitudeDeg);
-  const birthPointPosition = localFrame.p.clone().multiplyScalar(earthSize * 1.01); // 稍微高出地球表面
+  // 让标记跟随地球自转：绕世界+Y按 composition.earthYawDeg 旋转
+  const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(composition.earthYawDeg ?? 0));
+  const birthPointPosition = localFrame.p.clone().applyQuaternion(qYaw).multiplyScalar(earthSize * 1.01); // 稍微高出地球表面
   
   // 创建标记几何体（椭圆形状）
   const markerGeometry = new THREE.SphereGeometry(markerSize, 16, 8);

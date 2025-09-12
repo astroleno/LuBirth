@@ -157,7 +157,8 @@ try {
       ];
 
       const locations = testLocations || defaultTestLocations;
-      const scene = (window as any).__R3F_SCENE;
+      // 兼容不同大小写的注入名
+      const scene = (window as any).__R3F_Scene || (window as any).__R3F_SCENE;
       const results = locations.map(location => {
         try {
           // 计算世界坐标

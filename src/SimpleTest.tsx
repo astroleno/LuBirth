@@ -71,7 +71,7 @@ import { Clouds } from './scenes/simple/api/components/Clouds';
 import { CloudsOverlayFix } from './scenes/simple/api/components/Clouds';
 import { AtmosphereEffects } from './scenes/simple/api/components/AtmosphereEffects';
 import { getEarthState, type TimeInterpretation } from './scenes/simple/api/earthState';
-import { toUTCFromLocal } from './astro/ephemeris';
+import { toUTCFromLocal, calculateTerminatorLongitude } from './astro/ephemeris';
 import { logger } from './utils/logger';
 import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
@@ -158,23 +158,23 @@ function SceneContent({
     try { (window as any).__LightDir = lightDirection.toArray(); } catch {}
   }, [lightDirection, mode]);
 
-  // 出生点对齐锁：开启后根据当前地球自转与出生点，自动保持相机居中
+  // 出生点对齐锁：开启后只动相机，不改地球/光照
+  // 口径：黄昏点基准（最简）：yaw = (Lsun + 90°) − Lbirth
   React.useEffect(() => {
     if (!composition.enableBirthPointAlignment) return;
     try {
-      const params = {
-        longitudeDeg: composition.birthPointLongitudeDeg ?? lonDeg,
-        latitudeDeg: composition.birthPointLatitudeDeg ?? latDeg,
-        alphaDeg: composition.birthPointAlphaDeg ?? 12
-      };
-      const o = calculateCameraOrientationForBirthPoint(params, scene);
-      // 直接应用角度（如需平滑，可在此加入slerp或时间常数滤波）
-      setComposition(v => ({
-        ...v,
-        cameraAzimuthDeg: o.yaw,
-        cameraElevationDeg: o.pitch
-      }));
-      if (logger.isEnabled()) logger.log('birthPoint/lock/update', { params, orientation: o });
+      const L = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
+      const B = (composition.birthPointLatitudeDeg ?? latDeg) || 0;
+      const alpha = composition.birthPointAlphaDeg ?? 12;
+      const seam = composition.seamOffsetDeg ?? 0;
+      // 计算黄昏点经度：直接使用太阳世界坐标
+      const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize(); // Sun→Earth
+      let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+      // 方位角：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
+      let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
+      const pitch = -B - alpha; // 俯仰：沿经线抬升到目标高度
+      setComposition(v => ({ ...v, cameraAzimuthDeg: yaw, cameraElevationDeg: pitch }));
+      if (logger.isEnabled()) logger.log('birthPoint/lock/update', { L, B, alpha, seam, Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw = (Lsun+90) - (L+seam); pitch=-(B+alpha)' });
     } catch (e) {
       console.warn('[BirthPointAlign] 自动保持失败:', e);
     }
@@ -412,13 +412,11 @@ export default function SimpleTest() {
     const fixedsun = params.get('fixedsun') === '1';
     const season = params.get('season') === '1';
     
-    // 🔧 关键修复：初始化时计算正确的地球自转角度
+    // 🔧 关键修复：初始化时基于绝对UTC计算地球自转角度
     const now = new Date();
-    const utcHours = now.getUTCHours();
-    const utcMinutes = now.getUTCMinutes();
-    // 🔧 关键修复：补偿贴图seam在180°经度的偏移
-    const earthRotation = (utcHours * 15 + utcMinutes * 0.25) % 360;
-    console.log(`[EarthRotation] 初始化计算: UTC时间 ${utcHours}:${utcMinutes.toString().padStart(2, '0')}, 自转角度: ${earthRotation.toFixed(1)}°`);
+    const hoursFloat = ((now.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
+    const earthRotation = (hoursFloat * 15) % 360;
+    console.log(`[EarthRotation] 初始化: UTC=${now.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
     
     return { ...DEFAULT_SIMPLE_COMPOSITION,
       useFixedSun: fixedsun || DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
@@ -439,25 +437,15 @@ export default function SimpleTest() {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
-  // 🔧 关键修复：计算基于用户设置时间的地球自转角度
+  // 🔧 关键修复：基于“同一绝对UTC”计算地球自转角，避免跨日别名与凌晨重复
   const calculateEarthRotationFromDateISO = (dateISOStr: string, longitude: number) => {
     try {
-      // 将用户设置的本地时间转换为UTC时间
-      const localDate = new Date(dateISOStr);
-      // 修复时区转换：东经为正，UTC时间 = 本地时间 - 时区偏移
-      const timezoneOffsetHours = longitude / 15; // 每15度经度 = 1小时时差
-      // 注意：JavaScript Date对象会自动处理时区，我们需要手动计算
-      const localHours = localDate.getHours();
-      const localMinutes = localDate.getMinutes();
-      const localTotalMinutes = localHours * 60 + localMinutes;
-      const utcTotalMinutes = localTotalMinutes - timezoneOffsetHours * 60;
-      const utcHours = Math.floor(utcTotalMinutes / 60);
-      const utcMinutes = utcTotalMinutes % 60;
-      // 🔧 关键修复：补偿贴图seam在180°经度的偏移
-      // 贴图seam在国际日期线（180°），需要减去180度偏移
-      const earthRotation = (utcHours * 15 + utcMinutes * 0.25) % 360;
-      
-      console.log(`[EarthRotation] 用户时间: ${dateISOStr}, 经度: ${longitude}°, 时区偏移: ${timezoneOffsetHours.toFixed(1)}h, UTC时间: ${utcHours}:${utcMinutes.toString().padStart(2, '0')}, 自转角度: ${earthRotation.toFixed(1)}°`);
+      // 统一将本地民用时间解析为“绝对UTC”
+      const utc = toUTCFromLocal(dateISOStr, longitude);
+      // 当日UTC小时（含小数），包含日期信息，避免 23:xx 与次日 00:xx 折返为同一时刻
+      const hoursFloat = ((utc.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
+      const earthRotation = (hoursFloat * 15) % 360; // 24小时=360°
+      console.log(`[EarthRotation] local='${dateISOStr}', lon=${longitude} -> UTC=${utc.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
       return earthRotation;
     } catch (error) {
       console.warn('[EarthRotation] 计算失败，使用默认值:', error);
@@ -665,14 +653,16 @@ export default function SimpleTest() {
         const newTime = toLocalInputValue(now);
         if (logger.isEnabled()) logger.log('realtime/tick', { newTime });
         setDateISO(newTime);
-        
-        // 基于时间更新地球自转角度（每6度转1度）
-        const utcHours = now.getUTCHours();
-        const utcMinutes = now.getUTCMinutes();
-        // 🔧 关键修复：补偿贴图seam在180°经度的偏移
-        const earthRotation = (utcHours * 15 + utcMinutes * 0.25) % 360; // 地球每小时转15度，使用UTC时间
-        console.log(`[EarthRotation] UTC时间: ${utcHours}:${utcMinutes.toString().padStart(2, '0')}, 计算自转角度: ${earthRotation.toFixed(1)}°`);
-        updateValue('earthYawDeg', earthRotation);
+        // 基于“同一绝对UTC”更新地球自转角度
+        try {
+          const utc = toUTCFromLocal(newTime, lonDeg);
+          const hoursFloat = ((utc.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
+          const earthRotation = (hoursFloat * 15) % 360;
+          console.log(`[EarthRotation] realtime UTC=${utc.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
+          updateValue('earthYawDeg', earthRotation);
+        } catch (e) {
+          console.warn('[EarthRotation] realtime 计算失败:', e);
+        }
         
       }, 10000); // 🔧 关键修复：每10秒更新一次，便于测试和观察地球自转
       
@@ -692,7 +682,7 @@ export default function SimpleTest() {
         setRealTimeInterval(null);
       }
     }
-  }, [realTimeUpdate]); // 移除 realTimeInterval 依赖项避免无限循环
+  }, [realTimeUpdate, lonDeg]); // 依赖当前经度以保证UTC一致
 
   // 清理定时器
   React.useEffect(() => {
@@ -729,10 +719,15 @@ export default function SimpleTest() {
     console.log('[LightInfo] Raw sunWorld:', { x, y, z });
     console.log('[LightInfo] Real sun angles from ephemeris:', { azimuth: azDeg.toFixed(1), altitude: altDeg.toFixed(1) });
     
+    // 计算黄昏点经度：直接使用太阳世界坐标
+    const lightDir = new THREE.Vector3(-x, -y, -z).normalize(); // Sun→Earth
+    let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+    
     return {
       azimuth: azDeg.toFixed(1),
       elevation: altDeg.toFixed(1),
-      intensity: Math.sqrt(x*x + y*y + z*z).toFixed(3)
+      intensity: Math.sqrt(x*x + y*y + z*z).toFixed(3),
+      duskLongitude: lonDusk.toFixed(1)
     };
   }, [sunWorld, sunAngles]);
 
@@ -830,25 +825,29 @@ export default function SimpleTest() {
                     console.warn('[BirthPointAlign] 地球重置失败，继续使用相机补偿:', e);
                   }
                   
-                  // 3. 基于干净的地球状态计算相机朝向
-                  const params = {
-                    longitudeDeg: composition.birthPointLongitudeDeg ?? lonDeg,
-                    latitudeDeg: composition.birthPointLatitudeDeg ?? latDeg,
-                    alphaDeg: composition.birthPointAlphaDeg ?? 12
-                  };
-                  const scene = (window as any).__R3F_Scene;
-                  const o = calculateCameraOrientationForBirthPoint(params, scene);
-                  
-                  // 4. 应用相机朝向
+                  // 3. 以“黄昏交点”为0相位：yaw = (Lsun + 90) - (L + seam)
+                  const L = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
+                  const B = (composition.birthPointLatitudeDeg ?? latDeg) || 0;
+                  const alpha = composition.birthPointAlphaDeg ?? 12;
+                  const seam = composition.seamOffsetDeg ?? 0;
+                  // 计算黄昏点经度：直接使用太阳世界坐标
+                  const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize(); // Sun→Earth
+                  let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+                  while (lonDusk > 180) lonDusk -= 360; while (lonDusk < -180) lonDusk += 360;
+                  // 方位角：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
+                  let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
+                  const pitch = -B - alpha;
+
+                  // 4. 应用相机朝向（只动相机）
                   setComposition(v => ({
                     ...v,
                     enableBirthPointAlignment: true,
                     birthPointAlignmentMode: true,
-                    cameraAzimuthDeg: o.yaw,
-                    cameraElevationDeg: o.pitch
+                    cameraAzimuthDeg: yaw,
+                    cameraElevationDeg: pitch
                   }));
-                  
-                  console.log('[BirthPointAlign] ✅ 出生点对齐完成', { params, orientation: o });
+
+                  console.log('[BirthPointAlign] ✅ 出生点对齐完成(黄昏点基准)', { L, B, alpha, seam, Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw=(Lsun+90)-(L+seam); pitch=-(B+alpha)' });
                 } catch (e) {
                   console.error('[BirthPointAlign] ❌ 对齐失败:', e);
                   setComposition(prev => ({ ...prev, birthPointAlignmentMode: false })); // 失败时退出模式
@@ -1077,6 +1076,9 @@ export default function SimpleTest() {
           <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 16, padding: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="col">
               <span className="label">光照方向: 方位角 {lightInfo.azimuth}° · 仰角 {lightInfo.elevation}°</span>
+            </div>
+            <div className="col">
+              <span className="label">黄昏点经度: {lightInfo.duskLongitude}°</span>
             </div>
             <div className="col">
               <span className="label">光照强度: {lightInfo.intensity}</span>
@@ -1741,75 +1743,45 @@ export default function SimpleTest() {
                 initialLocation={{}}
               />
               <div style={{ marginTop: 8 }}>
-                <button className="btn" onClick={() => {
+                {/* 移除：经线居中（只转相机）按钮，统一使用黄昏点基准 */}
+                {/* <button className="btn" onClick={() => {
                   try {
                     const L0 = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
-                    // 以 0°=+Z 的几何经度为基准（不做 seam 偏移）
+                    // 规范化经度
                     let L = L0;
                     while (L > 180) L -= 360;
                     while (L < -180) L += 360;
-                     // 🔧 深度分析坐标系统问题
-                     // 原公式：L + 180 - 90 - 37.5 = L + 52.5 (偏移到美东)
-                     // 无偏移：L (偏移到夏威夷西部)
-                     // 问题可能在于：
-                     // 1. Three.js坐标系：Z轴正方向代表0°经度
-                     // 2. 地理坐标系：本初子午线为0°经度
-                     // 3. 贴图坐标系：贴图中心可能不是0°经度
-                     // 让我们尝试理论上的正确映射：经度直接映射到角度
-                     const textureLon = L; // 先尝试直接映射，通过实验找到正确偏移
-                     const lonRad = THREE.MathUtils.degToRad(textureLon);
-                    // 目标经线在地球局部坐标的方向（赤道法向）
-                    const vLocal = new THREE.Vector3(Math.sin(lonRad), 0, Math.cos(lonRad));
-                    // 🔧 修复：统一从scene.getObjectByName读取earthRoot四元数
-                    let vWorld = vLocal.clone();
+
+                    // 经线居中（考虑自转）：保持“晨昏线居中”的语义
+                    // yaw = normalize(earthYawDeg - (L + seam))
+                    const seam = composition.seamOffsetDeg ?? 0;
+                    // 读取真实世界 yaw（包含组 + 网格）
+                    let earthYaw = composition.earthYawDeg || 0;
                     try {
-                      const scene = (window as any).__R3F_Scene;
-                      const earthRoot = scene?.getObjectByName?.('earthRoot');
-                      if (earthRoot && earthRoot.quaternion) {
-                        vWorld.applyQuaternion(earthRoot.quaternion);
-                        console.log('[AlignDebug] 从earthRoot读取四元数', { 
-                          earthQuat: { 
-                            x: earthRoot.quaternion.x, 
-                            y: earthRoot.quaternion.y, 
-                            z: earthRoot.quaternion.z, 
-                            w: earthRoot.quaternion.w 
-                          },
-                          vLocal: vLocal.toArray(),
-                          vWorld: vWorld.toArray()
-                        });
-                      } else {
-                        console.warn('[AlignDebug] earthRoot节点未找到，使用局部坐标');
+                      const earthRoot = (window as any).__R3F_Scene?.getObjectByName?.('earthRoot');
+                      if (earthRoot) {
+                        const mesh = earthRoot.getObjectByProperty?.('type', 'Mesh');
+                        const q = new THREE.Quaternion();
+                        if (mesh) mesh.getWorldQuaternion(q); else earthRoot.getWorldQuaternion(q);
+                        const v = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+                        earthYaw = THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z));
                       }
-                    } catch (e) {
-                      console.warn('[AlignDebug] 应用地球四元数失败:', e);
-                    }
-                    // 计算该方向在世界 XZ 平面的方位角
-                    const gammaDeg = THREE.MathUtils.radToDeg(Math.atan2(vWorld.x, vWorld.z));
-                    // 🔧 重新理解：问题可能是地球自转！
-                    // 原逻辑: yaw = gammaDeg - 180
-                    // gammaDeg是出生点在当前地球旋转状态下的世界方位角
-                    // 减180°的含义：相机从"朝向出生点"变成"从出生点朝向地心"
-                    console.log('🚨🚨🚨 [经线居中] 重新理解原逻辑！', { 
-                      textureLon, 
-                      gammaDeg, 
-                      originalLogic: gammaDeg - 180,
-                      earthRotationDeg: 232.0  // 从日志获得的地球自转角度
-                    });
-                    // 🔧 最终修正：基于坐标测试验证，positionUtils中相机方位角直接对应经度
-                    // test_coordinate_system.js结果：az=121.5°正确对应上海东经121.5°
-                    // 因此最简单的映射：yaw = gammaDeg
-                    let yaw = gammaDeg;
+                    } catch {}
+                    let yaw = earthYaw - (L + seam);
                     while (yaw > 180) yaw -= 360;
                     while (yaw < -180) yaw += 360;
-                    setComposition(v => ({ ...v, cameraAzimuthDeg: yaw }));
-                     if (logger.isEnabled()) logger.log('align/meridian-center', { targetLonDeg: L0, textureLon, gammaDeg, cameraAzimuthDeg: yaw });
-                     console.log('[AlignDebug] 经度转换', { 
-                       targetL: L0, 
-                       textureLon: textureLon.toFixed(2),
-                       expectedVisualLon: textureLon.toFixed(2) // 🔧 直接映射，无偏移
-                     });
 
-                    // 立即命令式设置相机，避免 React/R3F 帧时序导致的滞后/被覆盖
+                    setComposition(v => ({ ...v, cameraAzimuthDeg: yaw }));
+                    if (logger.isEnabled()) logger.log('align/meridian-center', {
+                      targetLonDeg: L0,
+                      normalizedLon: L,
+                      earthWorldYawDeg: earthYaw,
+                      cameraAzimuthDeg: yaw,
+                      seamOffsetDeg: seam,
+                      formula: 'yaw = normalize(earthYawDeg - (L+seam))'
+                    });
+
+                    // 即刻同步相机，避免一帧延迟
                     try {
                       const cam: any = (window as any).__R3F_Camera;
                       if (cam) {
@@ -1828,48 +1800,94 @@ export default function SimpleTest() {
                       }
                     } catch {}
 
-                     // 误差自检（只读）：下一帧读取相机前向反解屏幕中心经度，验证应≈gammaDeg（世界方位）
-                     requestAnimationFrame(() => {
-                       try {
-                         const cam: any = (window as any).__R3F_Camera;
-                         if (cam && cam.position) {
-                           // 方法1：通过相机位置计算前向方向
-                           const forward = new THREE.Vector3().subVectors(new THREE.Vector3(0,0,0), cam.position).normalize();
-                           let centerLon1 = THREE.MathUtils.radToDeg(Math.atan2(forward.x, forward.z));
-                           while (centerLon1 > 180) centerLon1 -= 360;
-                           while (centerLon1 < -180) centerLon1 += 360;
-                           
-                           // 方法2：通过相机矩阵计算前向方向
-                           const forward2 = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-                           let centerLon2 = THREE.MathUtils.radToDeg(Math.atan2(forward2.x, forward2.z));
-                           while (centerLon2 > 180) centerLon2 -= 360;
-                           while (centerLon2 < -180) centerLon2 += 360;
-                           
-                           const expectedN = gammaDeg; // 期望中心经度
-                           const err1 = ((centerLon1 - expectedN + 540) % 360) - 180;
-                           const err2 = ((centerLon2 - expectedN + 540) % 360) - 180;
-                           
-                           console.log('[AlignCheck] center vs target', {
-                             targetL: L0,
-                             gammaDeg: +gammaDeg.toFixed(2),
-                             centerLon1: +centerLon1.toFixed(2),
-                             centerLon2: +centerLon2.toFixed(2),
-                             errorDeg1: +err1.toFixed(2),
-                             errorDeg2: +err2.toFixed(2)
-                           });
-                           
-                           // 分析相机方位角与屏幕中心经度的关系
-                           console.log('[AlignCheck:Analysis]', { 
-                             yawSet: +yaw.toFixed(2), 
-                             cameraPos: cam.position.toArray().map(x => +x.toFixed(2)),
-                             forward1: forward.toArray().map(x => +x.toFixed(2)),
-                             forward2: forward2.toArray().map(x => +x.toFixed(2))
-                           });
-                         }
-                       } catch (e) { console.warn('[AlignCheck] failed:', e); }
-                     });
+                    // 误差自检：中心经度 expected = normalize((earthYawDeg - (L+seam)) + 180)
+                    requestAnimationFrame(() => {
+                      try {
+                        const cam: any = (window as any).__R3F_Camera;
+                        if (cam && cam.position) {
+                          const forward = new THREE.Vector3().subVectors(new THREE.Vector3(0,0,0), cam.position).normalize();
+                          let centerLon1 = THREE.MathUtils.radToDeg(Math.atan2(forward.x, forward.z));
+                          while (centerLon1 > 180) centerLon1 -= 360;
+                          while (centerLon1 < -180) centerLon1 += 360;
+
+                          const forward2 = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+                          let centerLon2 = THREE.MathUtils.radToDeg(Math.atan2(forward2.x, forward2.z));
+                          while (centerLon2 > 180) centerLon2 -= 360;
+                          while (centerLon2 < -180) centerLon2 += 360;
+
+                          let expectedN = (earthYaw - (L + seam)) + 180;
+                          while (expectedN > 180) expectedN -= 360;
+                          while (expectedN < -180) expectedN += 360;
+
+                          const err1 = ((centerLon1 - expectedN + 540) % 360) - 180;
+                          const err2 = ((centerLon2 - expectedN + 540) % 360) - 180;
+                          console.log('[AlignCheck] center vs target', {
+                            targetL: L0,
+                            expectedCenterLon: +expectedN.toFixed(2),
+                            centerLon1: +centerLon1.toFixed(2),
+                            centerLon2: +centerLon2.toFixed(2),
+                            errorDeg1: +err1.toFixed(2),
+                            errorDeg2: +err2.toFixed(2)
+                          });
+                          console.log('[AlignCheck:Analysis]', {
+                            yawSet: +yaw.toFixed(2),
+                            cameraPos: cam.position.toArray().map((x:number) => +x.toFixed(2)),
+                            forward1: forward.toArray().map((x:number) => +x.toFixed(2)),
+                            forward2: forward2.toArray().map((x:number) => +x.toFixed(2))
+                          });
+                        }
+                      } catch (e) { console.warn('[AlignCheck] failed:', e); }
+                    });
                   } catch (e) { console.error('[Align] 经线居中失败:', e); }
-                }}>经线对齐至中心（只转相机）</button>
+                }}>经线对齐至中心（只转相机）</button> */}
+
+                <button className="btn" style={{ marginLeft: 8 }} onClick={() => {
+                  try {
+                    // 口径：黄昏点 − 出生经度
+                    const L0 = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
+                    let L = L0; while (L > 180) L -= 360; while (L < -180) L += 360;
+                    const seam = composition.seamOffsetDeg ?? 0;
+
+                    // 计算黄昏点经度：直接使用太阳世界坐标
+                    const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize(); // Sun→Earth
+                    let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+                    while (lonDusk > 180) lonDusk -= 360; while (lonDusk < -180) lonDusk += 360;
+                    // 绝对方位角（按用户约定）：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
+                    let yaw = (L + seam) - lonDusk;
+                    while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
+
+                    setComposition(vv => ({ ...vv, cameraAzimuthDeg: yaw }));
+
+                    if (logger.isEnabled()) logger.log('align/terminator-minus-birth', {
+                      sun: { x:+s.x.toFixed(4), y:+s.y.toFixed(4), z:+s.z.toFixed(4) },
+                      Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), birthLon: L, seam, yaw,
+                      formula: 'yaw = normalize((Lsun+90) - (L+seam))'
+                    });
+
+                    // 误差自检：中心经度 = normalize(yaw + 180)
+                    requestAnimationFrame(() => {
+                      try {
+                        const cam: any = (window as any).__R3F_Camera;
+                        if (cam && cam.position) {
+                          const forward = new THREE.Vector3().subVectors(new THREE.Vector3(0,0,0), cam.position).normalize();
+                          let centerLon1 = THREE.MathUtils.radToDeg(Math.atan2(forward.x, forward.z));
+                          while (centerLon1 > 180) centerLon1 -= 360; while (centerLon1 < -180) centerLon1 += 360;
+                          const forward2 = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+                          let centerLon2 = THREE.MathUtils.radToDeg(Math.atan2(forward2.x, forward2.z));
+                          while (centerLon2 > 180) centerLon2 -= 360; while (centerLon2 < -180) centerLon2 += 360;
+                          let expectedCenter = yaw + 180; while (expectedCenter > 180) expectedCenter -= 360; while (expectedCenter < -180) expectedCenter += 360;
+                          console.log('[AlignCheck:TermMinusBirth] center vs expected', {
+                            lonDusk: +lonDusk.toFixed(2), L, seam,
+                            expectedCenterLon: +expectedCenter.toFixed(2),
+                            centerLon1: +centerLon1.toFixed(2), centerLon2: +centerLon2.toFixed(2),
+                            err1: +((((centerLon1 - expectedCenter + 540)%360)-180).toFixed(2)),
+                            err2: +((((centerLon2 - expectedCenter + 540)%360)-180).toFixed(2))
+                          });
+                        }
+                      } catch {}
+                    });
+                  } catch (e) { console.error('[Align] 终交点-出生经度 对齐失败:', e); }
+                }}>对齐(晨昏交点 − 出生经度)</button>
                 <label style={{ marginLeft: 12 }} className="label">显示出生点标记</label>
                 <input type="checkbox" checked={!!composition.showBirthPointMarker} onChange={(e)=>setComposition(v=>({ ...v, showBirthPointMarker: e.target.checked }))} />
               </div>
@@ -1969,6 +1987,7 @@ function NoTiltProbe() {
     (window as any).setObliquityDeg = (deg: number) => { try { setComposition(prev=>({...prev, obliquityDeg:deg})); } catch {} };
     (window as any).setSeasonOffsetDays = (d: number) => { try { setComposition(prev=>({...prev, seasonOffsetDays:d})); } catch {} };
     (window as any).setEnableBirthPointAlignment = (on: boolean) => { try { setComposition(prev=>({ ...prev, enableBirthPointAlignment: on })); } catch {} };
+    (window as any).setSeamOffsetDeg = (deg: number) => { try { setComposition(prev=>({ ...prev, seamOffsetDeg: deg })); console.log('[SeamOffset] set to', deg); } catch {} };
     (window as any).getFixedSunDir = () => { try { return composition.fixedSunDir ?? null; } catch { return null; } };
     
     // 🔧 新增：便捷出生点对齐测试接口

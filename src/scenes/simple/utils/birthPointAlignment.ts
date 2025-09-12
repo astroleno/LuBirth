@@ -115,25 +115,32 @@ export function calculateCameraOrientationForBirthPoint(
     let worldBirthPoint = p.clone();
     try {
       if (scene) {
-        const earthRoot = scene.getObjectByName('earthRoot') as THREE.Object3D;
-        if (earthRoot && earthRoot.quaternion) {
-          // 应用地球当前的旋转状态到出生点坐标
-          worldBirthPoint = p.clone().applyQuaternion(earthRoot.quaternion);
-          console.log('[BirthPointAlignment] 从earthRoot读取地球姿态', {
+        const earthRoot = scene.getObjectByName('earthRoot') as THREE.Object3D | undefined;
+        let qEarth = new THREE.Quaternion();
+        let quatSource = 'identity';
+        if (earthRoot) {
+          // 优先读取地球网格的世界四元数（Earth 组件将 yaw 应用于子 mesh）
+          const earthMesh = earthRoot.getObjectByProperty('type', 'Mesh') as THREE.Object3D | undefined;
+          if (earthMesh) {
+            earthMesh.getWorldQuaternion(qEarth);
+            quatSource = 'earthMesh(world)';
+          } else {
+            // 回退：读取组自身四元数（AlignOnDemand 可能写入到组）
+            qEarth.copy(earthRoot.quaternion);
+            quatSource = 'earthRoot(local)';
+          }
+          worldBirthPoint = p.clone().applyQuaternion(qEarth);
+          console.log('[BirthPointAlignment] 读取地球姿态', {
+            source: quatSource,
             originalP: { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) },
-            earthQuat: { 
-              x: +earthRoot.quaternion.x.toFixed(4), 
-              y: +earthRoot.quaternion.y.toFixed(4), 
-              z: +earthRoot.quaternion.z.toFixed(4), 
-              w: +earthRoot.quaternion.w.toFixed(4) 
-            },
+            earthQuat: { x: +qEarth.x.toFixed(4), y: +qEarth.y.toFixed(4), z: +qEarth.z.toFixed(4), w: +qEarth.w.toFixed(4) },
             rotatedP: { x: +worldBirthPoint.x.toFixed(4), y: +worldBirthPoint.y.toFixed(4), z: +worldBirthPoint.z.toFixed(4) }
           });
         } else {
-          console.warn('[BirthPointAlignment] earthRoot节点未找到，使用原始坐标');
+          console.warn('[BirthPointAlignment] earthRoot 节点未找到，使用原始坐标');
         }
       } else {
-        console.warn('[BirthPointAlignment] 未提供scene参数，使用原始坐标');
+        console.warn('[BirthPointAlignment] 未提供 scene 参数，使用原始坐标');
       }
     } catch (e) {
       console.warn('[BirthPointAlignment] 读取地球姿态失败，使用原始坐标:', e);
@@ -143,10 +150,19 @@ export function calculateCameraOrientationForBirthPoint(
     // positionUtils中: x = R*sin(az), z = R*cos(az)，其中az=0对应+Z方向
     // 出生点世界坐标: x = cos(lat)*sin(lon), z = -cos(lat)*cos(lon)
     // 要让相机看向出生点，方位角应该直接对应经度
-    console.log('🚨🚨🚨 [BirthPointAlignment] 新算法执行！上海121.5° -> yaw =', longitudeDeg);
-    const yaw = longitudeDeg;
-    let pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1)));
-    // 为了让出生点在画面更高一些，降低相机俯仰角（向下看）
+    // 正确的相机极坐标（基于 positionUtils 的球面相机模型）：
+    // - 相机位于 (R, az=yaw, el=pitch) 的球面上，并始终 lookAt(0,0,0)
+    // - 要让出生点落在画面正中，需满足 unit(-cameraPos) 与 worldBirthPoint 对齐
+    //   因此：yaw = atan2(w.x, w.z) + 180°；pitch = -asin(w.y)
+    const yawRawDeg = THREE.MathUtils.radToDeg(Math.atan2(worldBirthPoint.x, worldBirthPoint.z));
+    let yaw = yawRawDeg + 180.0;
+    // 归一化到 [-180,180]
+    while (yaw > 180) yaw -= 360;
+    while (yaw < -180) yaw += 360;
+
+    // 基础俯仰用于让出生点居中：取反号（相机在出生点反方向）
+    let pitch = -THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1)));
+    // 叠加构图抬升角：相机进一步下压，使目标在画面更高
     pitch -= alphaDeg;
     const roll = 0;
 
@@ -158,9 +174,9 @@ export function calculateCameraOrientationForBirthPoint(
       originalP: { x:+p.x.toFixed(4), y:+p.y.toFixed(4), z:+p.z.toFixed(4) },
       worldP: { x:+worldBirthPoint.x.toFixed(4), y:+worldBirthPoint.y.toFixed(4), z:+worldBirthPoint.z.toFixed(4) },
       calculations: {
-        yaw: `atan2(${worldBirthPoint.x.toFixed(4)}, ${worldBirthPoint.z.toFixed(4)}) = ${yaw.toFixed(2)}°`,
-        pitchBeforeOffset: `asin(${worldBirthPoint.y.toFixed(4)}) = ${THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1))).toFixed(2)}°`,
-        pitch: `${THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1))).toFixed(2)}° - ${alphaDeg}° = ${pitch.toFixed(2)}°`,
+        yaw: `atan2(${worldBirthPoint.x.toFixed(4)}, ${worldBirthPoint.z.toFixed(4)}) + 180 = ${(yawRawDeg + 180).toFixed(2)}° → normalized ${yaw.toFixed(2)}°`,
+        pitchBase: `-asin(${worldBirthPoint.y.toFixed(4)}) = ${(-THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldBirthPoint.y, -1, 1)))).toFixed(2)}°`,
+        pitch: `pitchBase - ${alphaDeg}° = ${pitch.toFixed(2)}°`,
         roll: 0
       }
     });

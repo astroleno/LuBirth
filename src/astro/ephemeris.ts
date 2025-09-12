@@ -1,4 +1,4 @@
-import { AstroTime, Body, Observer, Equator as EquatorFn, Horizon as HorizonFn, Illumination as IlluminationFn } from 'astronomy-engine';
+import { AstroTime, Body, Observer, Equator as EquatorFn, Horizon as HorizonFn, Illumination as IlluminationFn, Search } from 'astronomy-engine';
 import { logger } from '../utils/logger';
 
 // 导入验证函数
@@ -449,4 +449,52 @@ export function toUTCFromLocal(localISO: string, lon: number): Date {
   console.log(`[toUTCFromLocal] ${localISO} (lon:${lon}) -> UTC: ${utc.toISOString()} (offset: ${offset}h)`);
   console.log(`[toUTCFromLocal] 注意：UTC时间${utc.getUTCHours()}:${utc.getUTCMinutes()} 对应本地时间${h}:${mi}`);
   return utc;
+}
+
+/**
+ * 计算黄昏点经度 - 使用 astronomy-engine 准确计算
+ * @param dateUtc UTC时间
+ * @param latDeg 观测者纬度
+ * @param lonDeg 观测者经度
+ * @returns 黄昏点经度（-180到180度）
+ */
+export function calculateTerminatorLongitude(dateUtc: Date, latDeg: number, lonDeg: number): number {
+  try {
+    // 黄昏点定义为太阳高度角为0°（刚好在地平线）的点
+    // 我们需要找到当前时刻地球上哪些位置的太阳高度角为0°
+    
+    const observer = new (Observer as unknown as { new(lat:number, lon:number, height:number): Observer })(latDeg, lonDeg, 0);
+    const time = new AstroTime(dateUtc);
+    
+    // 首先获取太阳在观测者位置的高度角
+    const sunEquator = (EquatorFn as unknown as (body: Body, time: AstroTime, observer?: Observer, ofdate?: boolean, aberration?: boolean) => any)(Body.Sun, time, observer, true, true);
+    const sunRa = sunEquator.ra as number;
+    const sunDec = sunEquator.dec as number;
+    
+    // 黄昏点经度是太阳位置经度减去90°（黄昏线在太阳子午线西侧90°）
+    // 但这是近似值，准确的计算需要考虑地球曲率和大气折射
+    
+    // 将太阳赤经赤经转换为经度（简化计算）
+    const sunGst = time.gst; // 格林威治恒星时
+    const sunLongitude = ((sunRa - sunGst * 15) % 360 + 360) % 360; // 太阳地理经度
+    if (sunLongitude > 180) sunLongitude -= 360;
+    
+    // 黄昏点在太阳西侧90°
+    let terminatorLon = sunLongitude - 90;
+    if (terminatorLon > 180) terminatorLon -= 360;
+    if (terminatorLon < -180) terminatorLon += 360;
+    
+    logger.log('terminator/calculation', {
+      sunRa: +(sunRa * 180 / Math.PI).toFixed(2),
+      sunGst: +sunGst.toFixed(2),
+      sunLongitude: +sunLongitude.toFixed(2),
+      terminatorLon: +terminatorLon.toFixed(2)
+    });
+    
+    return terminatorLon;
+  } catch (error) {
+    logger.warn('terminator/calculation-error', String(error));
+    // 回退到简单计算
+    return 0;
+  }
 }

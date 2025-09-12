@@ -80,6 +80,8 @@ export interface SimpleComposition {
   lookAtDistanceRatio?: number; // 相机朝向上下倍率（倍数，-10到10，0=地心，正数=上方，负数=下方）
   viewOffsetY?: number;        // 视口主点纵向偏移（-5..+5，上为正）
   smooth?: { enable: boolean; timeConstantMs: number } | undefined; // 可选平滑参数（占位）
+  // 贴图/坐标零点微调（用于绝对经度对齐的常数校准）
+  seamOffsetDeg?: number;      // 经度零点校准（度，正值向东偏移），默认0
   
   // 显示选项
   useTextures: boolean;        // 使用贴图
@@ -236,6 +238,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   birthPointMarkerSize: 0.06,
   birthPointMarkerColor: '#ff3b30',
   birthPointAlphaDeg: 12,
+  // 贴图 seam/零点校准（可选）：若绝对经度对齐存在恒定偏差，可调此值
+  seamOffsetDeg: 0,
 
   // 月球屏幕尺寸默认：占屏高度 18%
   moonScreenSize: 0.18,
@@ -327,6 +331,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     lookAtDistanceRatio: original.lookAtDistanceRatio ?? DEFAULT_SIMPLE_COMPOSITION.lookAtDistanceRatio,
     viewOffsetY: original.viewOffsetY ?? DEFAULT_SIMPLE_COMPOSITION.viewOffsetY,
     smooth: original.smooth ?? DEFAULT_SIMPLE_COMPOSITION.smooth,
+    seamOffsetDeg: original.seamOffsetDeg ?? DEFAULT_SIMPLE_COMPOSITION.seamOffsetDeg,
     
     // 显示选项
     useTextures: original.useTextures ?? DEFAULT_SIMPLE_COMPOSITION.useTextures,
