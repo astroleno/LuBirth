@@ -122,7 +122,10 @@ try {
           far: camera.far ?? null,
           view: (camera as any).view ?? null
         } : null,
-        earthCenterNDC: { x: +(ndc as any).x?.toFixed?.(4) ?? 0, y: +(ndc as any).y?.toFixed?.(4) ?? 0 },
+        earthCenterNDC: {
+          x: +(((ndc as any).x?.toFixed?.(4)) ?? 0),
+          y: +(((ndc as any).y?.toFixed?.(4)) ?? 0)
+        },
       };
       console.log('[CameraPolarValidation:JSON]', JSON.stringify(payload, null, 2));
       return payload;

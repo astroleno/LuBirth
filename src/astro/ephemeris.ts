@@ -476,7 +476,7 @@ export function calculateTerminatorLongitude(dateUtc: Date, latDeg: number, lonD
     
     // 将太阳赤经赤经转换为经度（简化计算）
     const sunGst = time.gst; // 格林威治恒星时
-    const sunLongitude = ((sunRa - sunGst * 15) % 360 + 360) % 360; // 太阳地理经度
+    let sunLongitude = ((sunRa - sunGst * 15) % 360 + 360) % 360; // 太阳地理经度
     if (sunLongitude > 180) sunLongitude -= 360;
     
     // 黄昏点在太阳西侧90°
