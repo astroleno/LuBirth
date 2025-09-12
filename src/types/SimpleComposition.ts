@@ -122,6 +122,9 @@ export interface SimpleComposition {
   // 月球屏幕尺寸（弱解耦）：占屏高度比例（0-1）
   moonScreenSize?: number;
 
+  // 纬度对齐（仅动相机俯仰）
+  latitudeAlignTargetDeg?: number; // 目标纬度（°N为正，默认80），对齐时将相机俯仰设置为 -target
+
 }
 
 // 默认值
@@ -249,6 +252,9 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   useSeasonalVariation: true,
   obliquityDeg: 23.44,
   seasonOffsetDays: 0,
+
+  // 纬度对齐默认目标（北纬28）
+  latitudeAlignTargetDeg: 28,
 };
 
 // 从原始Composition转换为SimpleComposition

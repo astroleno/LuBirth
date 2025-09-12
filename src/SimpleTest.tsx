@@ -386,33 +386,10 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
       
       const earth = scene.getObjectByName('earthRoot');
       if (earth) {
-        // 固定太阳模式：仅绕世界Y轴旋转，避免多轴联动
+        // 方案B：固定太阳模式下，禁止任何自动 yaw 对齐（仅在显式按钮时对齐）
         if (useFixedSun) {
-          const worldUp = new THREE.Vector3(0,1,0);
-          // 🔧 关键修复：使用全局太阳方向（与观察者无关）计算 yaw 对齐
-          // 问题：本地 sunWorld 随纬度变化，导致晨昏线相位偏移
-          // 解决：使用 lat=0 的全局太阳方向，确保晨昏线时刻与 ephemeris 一致
-          const globalSunState = getEarthState(dateISO, 0, 0, 'byLongitude'); // 赤道全局方向
-          const negGlobalSun = new THREE.Vector3(-globalSunState.sunDirWorld.x, -globalSunState.sunDirWorld.y, -globalSunState.sunDirWorld.z).normalize();
-          const yawGlobalSun = Math.atan2(negGlobalSun.x, negGlobalSun.z); // [-pi,pi]
-          
-          const f = fixedSunDir ?? [-1,0,0];
-          const fixed = new THREE.Vector3(f[0], f[1], f[2]).normalize();
-          const yawFixed = Math.atan2(fixed.x, fixed.z);
-          let deltaYaw = yawFixed - yawGlobalSun;
-          // 规范化到 [-pi, pi]
-          while (deltaYaw > Math.PI) deltaYaw -= 2*Math.PI;
-          while (deltaYaw < -Math.PI) deltaYaw += 2*Math.PI;
-          // 🔧 关键修复：不重置四元数，保持基础地球自转，只施加对齐旋转
-          // 注意：基础地球自转由Earth组件的yawDeg参数控制，这里只处理对齐
-          (earth as THREE.Object3D).rotateOnWorldAxis(worldUp, deltaYaw);
-          
-          if (logger.isEnabled()) logger.log('align/fixedSun-yaw', {
-            globalSunYaw: +(THREE.MathUtils.radToDeg(yawGlobalSun)).toFixed(2),
-            fixedYaw: +(THREE.MathUtils.radToDeg(yawFixed)).toFixed(2),
-            deltaYaw: +(THREE.MathUtils.radToDeg(deltaYaw)).toFixed(2),
-            globalSunDir: { x: +negGlobalSun.x.toFixed(4), y: +negGlobalSun.y.toFixed(4), z: +negGlobalSun.z.toFixed(4) }
-          });
+          if (logger.isEnabled()) logger.log('align/skip-fixed-sun', { tick, reason: '固定太阳模式下禁用自动yaw对齐' });
+          return;
         }
         if (logger.isEnabled()) logger.log('align/trigger', { tick, lonDeg, useFixedSun: !!useFixedSun });
         // 🔧 修复：禁用alignLongitudeOnly以避免倾斜问题
@@ -424,7 +401,7 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
     } catch (err) {
       if (logger.isEnabled()) logger.error('align/fail', String(err));
     }
-  }, [tick, useFixedSun, sunWorld.x, sunWorld.y, sunWorld.z, lonDeg]);
+  }, [tick, useFixedSun, lonDeg]);
   return null;
 }
 
@@ -522,9 +499,12 @@ export default function SimpleTest() {
   // 改进的光照更新函数 - 使用 useRef 避免无限循环
   const updateSunlight = React.useCallback(() => {
     try {
-      if (logger.isEnabled()) logger.log('sunlight/start', { dateISO, latDeg, lonDeg, timeMode });
+      // 使用出生点经纬驱动天文/光照与地球系统；观察点不影响地球系统
+      const bLat = composition.birthPointLatitudeDeg ?? latDeg;
+      const bLon = composition.birthPointLongitudeDeg ?? lonDeg;
+      if (logger.isEnabled()) logger.log('sunlight/start', { dateISO, by: 'birthPoint', latDeg: bLat, lonDeg: bLon, timeMode });
       
-      const state = getEarthState(dateISO, latDeg, lonDeg, timeMode);
+      const state = getEarthState(dateISO, bLat, bLon, timeMode);
       if (logger.isEnabled()) logger.log('sunlight/ephemeris', state);
       
       const newSunWorld = { 
@@ -549,7 +529,7 @@ export default function SimpleTest() {
           const intervalMin = composition.seasonalUpdateIntervalMin ?? 1;
           const needUpdate = (now - seasonalUpdateInfoRef.current.lastUpdateMs) > intervalMin * 60 * 1000;
           if (needUpdate) {
-            const utc = timeMode === 'byLongitude' ? toUTCFromLocal(dateISO, lonDeg) : new Date(dateISO);
+            const utc = timeMode === 'byLongitude' ? toUTCFromLocal(dateISO, bLon) : new Date(dateISO);
             const cur = composition.fixedSunDir ?? [-0.7071, 0.7071, 0];
             const yawRad = Math.atan2(cur[0], cur[2]); // atan2(x,z)
 
@@ -610,9 +590,11 @@ export default function SimpleTest() {
         setIllumination(state.illumination);
         setSunAngles({ azDeg: state.azDeg, altDeg: state.altDeg });
         
-        // 🔧 关键修复：当时间变化时，更新地球自转角度
-        const newEarthRotation = calculateEarthRotationFromDateISO(dateISO, lonDeg);
-        updateValue('earthYawDeg', newEarthRotation);
+        // 固定太阳模式下不在此处阶跃更新 yaw，避免抖动；保留平滑自转通道
+        if (!composition.useFixedSun) {
+          const newEarthRotation = calculateEarthRotationFromDateISO(dateISO, bLon);
+          updateValue('earthYawDeg', newEarthRotation);
+        }
         // 一致性校验日志（开发期）：sunWorld.y 应接近 sin(altDeg)（仅在使用真实太阳照明时严格成立）
         try {
           const sinAlt = Math.sin((state.altDeg ?? 0) * Math.PI / 180);
@@ -625,7 +607,7 @@ export default function SimpleTest() {
         
         // 计算月相信息
         try {
-          const moonPhase = calculateMoonPhase(new Date(dateISO), latDeg, lonDeg);
+          const moonPhase = calculateMoonPhase(new Date(dateISO), bLat, bLon);
           setMoonPhaseInfo(`${moonPhase.phaseName} (${moonPhase.phaseAngle.toFixed(1)}°)`);
         } catch (err) {
           setMoonPhaseInfo('计算失败');
@@ -654,7 +636,7 @@ export default function SimpleTest() {
       setIllumination(0.5);
       setSunAngles({ azDeg: 0, altDeg: 0 });
     }
-  }, [dateISO, latDeg, lonDeg, mode, timeMode, composition.useFixedSun, composition.useSeasonalVariation, composition.obliquityDeg, composition.seasonOffsetDays]);
+  }, [dateISO, latDeg, lonDeg, mode, timeMode, composition.useFixedSun, composition.useSeasonalVariation, composition.obliquityDeg, composition.seasonOffsetDays, composition.birthPointLatitudeDeg, composition.birthPointLongitudeDeg]);
 
   // 当日期或经纬度变化时，自动计算 sunWorld 以驱动光照
   React.useEffect(() => {
@@ -681,15 +663,18 @@ export default function SimpleTest() {
         const newTime = toLocalInputValue(now);
         if (logger.isEnabled()) logger.log('realtime/tick', { newTime });
         setDateISO(newTime);
-        // 基于“同一绝对UTC”更新地球自转角度
-        try {
-          const utc = toUTCFromLocal(newTime, lonDeg);
-          const hoursFloat = ((utc.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
-          const earthRotation = (hoursFloat * 15) % 360;
-          console.log(`[EarthRotation] realtime UTC=${utc.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
-          updateValue('earthYawDeg', earthRotation);
-        } catch (e) {
-          console.warn('[EarthRotation] realtime 计算失败:', e);
+        // 固定太阳模式下：不在10秒tick中写入 yaw，避免阶跃引起抖动
+        if (!composition.useFixedSun) {
+          try {
+            const bLon = composition.birthPointLongitudeDeg ?? lonDeg;
+            const utc = toUTCFromLocal(newTime, bLon);
+            const hoursFloat = ((utc.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
+            const earthRotation = (hoursFloat * 15) % 360;
+            console.log(`[EarthRotation] realtime UTC=${utc.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
+            updateValue('earthYawDeg', earthRotation);
+          } catch (e) {
+            console.warn('[EarthRotation] realtime 计算失败:', e);
+          }
         }
         
       }, 10000); // 🔧 关键修复：每10秒更新一次，便于测试和观察地球自转
@@ -710,7 +695,7 @@ export default function SimpleTest() {
         setRealTimeInterval(null);
       }
     }
-  }, [realTimeUpdate, lonDeg]); // 依赖当前经度以保证UTC一致
+  }, [realTimeUpdate, lonDeg, composition.birthPointLongitudeDeg]); // 依赖出生点经度以保证UTC一致
 
   // 轻量平滑自转：在实时模式且未手动修改时间时，每250ms用UTC毫秒推导 yaw（24h=360°）
   React.useEffect(() => {
@@ -917,6 +902,8 @@ export default function SimpleTest() {
               </div>
             )}
           </div>
+
+          
 
           {/* 时间同步状态指示器 */}
           <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 16, padding: '8px 12px', background: realTimeUpdate ? 'rgba(0,255,0,0.1)' : 'rgba(255,255,255,0.05)', borderRadius: '4px', border: realTimeUpdate ? '1px solid rgba(0,255,0,0.3)' : '1px solid rgba(255,255,255,0.1)' }}>
@@ -1185,7 +1172,32 @@ export default function SimpleTest() {
               }}>计算月相</button>
             </div>
             <div className="col">
-              <button className="btn" onClick={() => setAlignTick(t=>t+1)}>对齐到当前经度（仅方位角）</button>
+              <button className="btn" onClick={() => {
+                try {
+                  // 与“对齐放大”复用同一口径：基于当前地球世界yaw与观察地经度对齐经线
+                  const seam = composition.seamOffsetDeg ?? 0;
+                  const L0 = lonDeg || 0;
+                  let L = L0; while (L > 180) L -= 360; while (L < -180) L += 360;
+                  let earthYaw = composition.earthYawDeg || 0;
+                  try {
+                    const earthRoot = (window as any).__R3F_Scene?.getObjectByName?.('earthRoot');
+                    if (earthRoot) {
+                      const mesh = earthRoot.getObjectByProperty?.('type', 'Mesh');
+                      const q = new THREE.Quaternion();
+                      if (mesh) mesh.getWorldQuaternion(q); else earthRoot.getWorldQuaternion(q);
+                      const v = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+                      earthYaw = THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z));
+                    }
+                  } catch {}
+                  let yaw = earthYaw - (L + seam);
+                  while (yaw > 180) yaw -= 360;
+                  while (yaw < -180) yaw += 360;
+                  setComposition(prev => ({ ...prev, cameraAzimuthDeg: yaw }));
+                  console.log('[AlignMeridianOnly] yaw=', yaw.toFixed(2), { earthYaw, L, seam });
+                } catch (e) {
+                  console.error('[AlignMeridianOnly] failed:', e);
+                }
+              }}>对齐到当前经度（仅方位角）</button>
             </div>
             <div className="col">
               <button className="btn" onClick={() => {
@@ -1803,6 +1815,101 @@ export default function SimpleTest() {
                 }}
                 initialLocation={{}}
               />
+              {/* 观察地经纬度（可手动覆盖） */}
+              <div className="row" style={{ marginTop: 8, gap: 12, alignItems: 'center' }}>
+                <div className="col">
+                  <label className="label">观察地纬度(°)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step={0.1}
+                    value={latDeg}
+                    onChange={(e)=>setLatDeg(parseFloat(e.target.value))}
+                  />
+                </div>
+                <div className="col">
+                  <label className="label">观察地经度(°E为正)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step={0.1}
+                    value={lonDeg}
+                    onChange={(e)=>setLonDeg(parseFloat(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              {/* 纬度对齐（仅动相机俯仰；目标纬度独立于地点） */}
+              <div className="row" style={{ marginTop: 8, gap: 12, alignItems: 'center' }}>
+                <div className="col">
+                  <label className="label">目标纬度(°N为正，默认28)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step={0.1}
+                    value={composition.latitudeAlignTargetDeg ?? 28}
+                    onChange={(e)=>{
+                      const v = parseFloat(e.target.value);
+                      setComposition(prev => ({ ...prev, latitudeAlignTargetDeg: v }));
+                    }}
+                  />
+                </div>
+                <div className="col">
+                  <button className="btn" onClick={() => {
+                    try {
+                      const target = composition.latitudeAlignTargetDeg ?? 28; // 被减数（目标屏幕纬线）
+                      const obsLat = latDeg; // 观察地纬度
+                      // 非累加：每次直接计算绝对俯仰
+                      // 旋转纬度 = 目标纬度 − 观察地纬度；Δpitch = −(目标 − 观察地)；基线取0
+                      let newPitch = -(target - obsLat);
+                      if (newPitch > 85) newPitch = 85;
+                      if (newPitch < -85) newPitch = -85;
+                      setComposition(prev => ({ ...prev, cameraElevationDeg: newPitch }));
+                      // 对齐后关闭实时，避免后续tick导致状态跳变
+                      try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
+                      console.log('[LatitudeAlign] obsLat(N)=', obsLat, 'target(N)=', target, 'newPitch=', newPitch);
+                    } catch (e) {
+                      console.error('[LatitudeAlign] failed:', e);
+                    }
+                  }}>对齐纬度</button>
+                </div>
+                <div className="col">
+                  <button className="btn" style={{ backgroundColor: '#2E8B57', color: 'white' }} onClick={() => {
+                    try {
+                      // 一键：先经度（使用“晨昏交点 − 观察经度”的同口径）
+                      const seam = composition.seamOffsetDeg ?? 0;
+                      const L0 = lonDeg || 0;
+                      let L = L0; while (L > 180) L -= 360; while (L < -180) L += 360;
+                      const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
+                      let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+                      while (lonDusk > 180) lonDusk -= 360; while (lonDusk < -180) lonDusk += 360;
+                      let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
+
+                      const targetLat = composition.latitudeAlignTargetDeg ?? 28;
+                      const obsLat = latDeg;
+                      let pitch = -(targetLat - obsLat); // 非累加：绝对重算
+                      if (pitch > 85) pitch = 85;
+                      if (pitch < -85) pitch = -85;
+
+                      setComposition(prev => ({
+                        ...prev,
+                        cameraAzimuthDeg: yaw,
+                        cameraElevationDeg: pitch,
+                        earthSize: 1.68,
+                        lookAtDistanceRatio: 1.08
+                      }));
+                      // 对齐后关闭实时与自动更新，避免后续tick带来抖动
+                      try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
+                      console.log('[AlignZoom] yaw=', yaw.toFixed(2), 'pitch=', pitch.toFixed(2), 'earthSize=1.68', 'lookAtR=1.08', { lonDusk: +lonDusk.toFixed(2), L, seam, targetLat, obsLat });
+                    } catch (e) {
+                      console.error('[AlignZoom] failed:', e);
+                    }
+                  }}>对齐放大</button>
+                </div>
+                <div className="col">
+                  <span className="label">仅影响相机：Δpitch = −(目标纬度 − 观察地纬度)</span>
+                </div>
+              </div>
               <div style={{ marginTop: 8 }}>
                 {/* 移除：经线居中（只转相机）按钮，统一使用黄昏点基准 */}
                 {/* <button className="btn" onClick={() => {
@@ -1904,8 +2011,8 @@ export default function SimpleTest() {
 
                 <button className="btn" style={{ marginLeft: 8 }} onClick={() => {
                   try {
-                    // 口径：黄昏点 − 出生经度
-                    const L0 = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
+                    // 口径：黄昏点 − 观察经度
+                    const L0 = lonDeg || 0;
                     let L = L0; while (L > 180) L -= 360; while (L < -180) L += 360;
                     const seam = composition.seamOffsetDeg ?? 0;
 
@@ -1918,8 +2025,10 @@ export default function SimpleTest() {
                     while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
 
                     setComposition(vv => ({ ...vv, cameraAzimuthDeg: yaw }));
+                    // 对齐后关闭实时与自动更新，避免后续tick带来抖动
+                    try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
 
-                    if (logger.isEnabled()) logger.log('align/terminator-minus-birth', {
+                    if (logger.isEnabled()) logger.log('align/terminator-minus-observe', {
                       sun: { x:+s.x.toFixed(4), y:+s.y.toFixed(4), z:+s.z.toFixed(4) },
                       Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), birthLon: L, seam, yaw,
                       formula: 'yaw = normalize((Lsun+90) - (L+seam))'
@@ -1947,8 +2056,8 @@ export default function SimpleTest() {
                         }
                       } catch {}
                     });
-                  } catch (e) { console.error('[Align] 终交点-出生经度 对齐失败:', e); }
-                }}>对齐(晨昏交点 − 出生经度)</button>
+                  } catch (e) { console.error('[Align] 终交点-观察经度 对齐失败:', e); }
+                }}>对齐(晨昏交点 − 观察经度)</button>
                 <label style={{ marginLeft: 12 }} className="label">显示出生点标记</label>
                 <input type="checkbox" checked={!!composition.showBirthPointMarker} onChange={(e)=>setComposition(v=>({ ...v, showBirthPointMarker: e.target.checked }))} />
               </div>
