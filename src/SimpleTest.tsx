@@ -426,6 +426,11 @@ export default function SimpleTest() {
   }, []);
 
   const [composition, setComposition] = useState<SimpleComposition>(initialComp);
+  
+  // 通用更新器：更新 composition 的某个字段
+  const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean) => {
+    setComposition(prev => ({ ...prev, [key]: value }));
+  }, []);
   const [uiHidden, setUiHidden] = useState(false);
   // 改进的本地时间转换函数
   const toLocalInputValue = (d: Date) => {
@@ -684,6 +689,29 @@ export default function SimpleTest() {
     }
   }, [realTimeUpdate, lonDeg]); // 依赖当前经度以保证UTC一致
 
+  // 轻量平滑自转：在实时模式且未手动修改时间时，每250ms用UTC毫秒推导 yaw（24h=360°）
+  React.useEffect(() => {
+    if (!realTimeUpdate) return;
+    let timer: any = null;
+    const step = 250; // ms
+    const lastYawRef = { v: composition.earthYawDeg ?? 0 };
+    timer = setInterval(() => {
+      try {
+        if (userModifiedTimeRef.current) return; // 用户接管时间时停止平滑
+        const nowMs = Date.now();
+        const dayMs = 24 * 3600_000;
+        const hoursFloat = ((nowMs % dayMs) + dayMs) % dayMs / 3600_000;
+        const yaw = (hoursFloat * 15) % 360;
+        // 小阈值避免无谓重渲染
+        if (Math.abs(yaw - lastYawRef.v) > 0.02) {
+          updateValue('earthYawDeg', yaw);
+          lastYawRef.v = yaw;
+        }
+      } catch {}
+    }, step);
+    return () => { if (timer) clearInterval(timer); };
+  }, [realTimeUpdate, updateValue, composition.earthYawDeg]);
+
   // 清理定时器
   React.useEffect(() => {
     return () => {
@@ -731,9 +759,7 @@ export default function SimpleTest() {
     };
   }, [sunWorld, sunAngles]);
 
-  const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean) => {
-    setComposition(prev => ({ ...prev, [key]: value }));
-  }, []);
+  
 
   // 保持首屏：晨昏线居中（不自动对齐出生点；改为用户手动触发）
 
