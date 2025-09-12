@@ -163,18 +163,41 @@ function SceneContent({
   React.useEffect(() => {
     if (!composition.enableBirthPointAlignment) return;
     try {
-      const L = (composition.birthPointLongitudeDeg ?? lonDeg) || 0;
-      const B = (composition.birthPointLatitudeDeg ?? latDeg) || 0;
+      // 统一数值化与标准化，避免选择器传入字符串或超范围角度
+      let L = Number((composition.birthPointLongitudeDeg ?? lonDeg) || 0);
+      while (L > 180) L -= 360; while (L < -180) L += 360;
+      const B = Number((composition.birthPointLatitudeDeg ?? latDeg) || 0);
       const alpha = composition.birthPointAlphaDeg ?? 12;
       const seam = composition.seamOffsetDeg ?? 0;
-      // 计算黄昏点经度：直接使用太阳世界坐标
-      const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize(); // Sun→Earth
-      let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+      // 计算黄昏点经度：使用“全局太阳方向”（与观测者经纬无关），避免选择器改变经度导致UTC/恒星时变化
+      let lonDusk = 0;
+      try {
+        const globalSun = getEarthState?.(dateISO, 0, 0, 'byLongitude');
+        if (globalSun && globalSun.sunDirWorld) {
+          const g = globalSun.sunDirWorld;
+          const gLight = new THREE.Vector3(-g.x, -g.y, -g.z).normalize();
+          lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-gLight.x, gLight.z));
+        } else {
+          // 回退：使用当前 sunWorld（可能受选择器经度影响）
+          const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
+          lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+        }
+      } catch {
+        const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
+        lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+      }
+      while (lonDusk > 180) lonDusk -= 360; while (lonDusk < -180) lonDusk += 360;
       // 方位角：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
       let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
       const pitch = -B - alpha; // 俯仰：沿经线抬升到目标高度
-      setComposition(v => ({ ...v, cameraAzimuthDeg: yaw, cameraElevationDeg: pitch }));
-      if (logger.isEnabled()) logger.log('birthPoint/lock/update', { L, B, alpha, seam, Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw = (Lsun+90) - (L+seam); pitch=-(B+alpha)' });
+      // 覆盖式对齐：先清零再设为目标，避免累计
+      setComposition(v => ({ ...v, cameraAzimuthDeg: 0, cameraElevationDeg: 0 }));
+      requestAnimationFrame(() => {
+        try {
+          setComposition(v => ({ ...v, cameraAzimuthDeg: yaw, cameraElevationDeg: pitch }));
+        } catch {}
+      });
+      if (logger.isEnabled()) logger.log('birthPoint/lock/update', { L, B, alpha, seam, lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw = (Lsun+90) - (L+seam); pitch=-(B+alpha)' });
     } catch (e) {
       console.warn('[BirthPointAlign] 自动保持失败:', e);
     }
@@ -939,13 +962,29 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <label className="label">出生地纬度(°)</label>
-              <input className="input" type="number" step={0.1} value={latDeg}
-                     onChange={(e)=>setLatDeg(parseFloat(e.target.value))} />
+              <input
+                className="input"
+                type="number"
+                step={0.1}
+                value={composition.birthPointLatitudeDeg ?? 0}
+                onChange={(e)=>{
+                  const v = parseFloat(e.target.value);
+                  setComposition(prev => ({ ...prev, birthPointLatitudeDeg: v }));
+                }}
+              />
             </div>
             <div className="col">
               <label className="label">出生地经度(°E为正)</label>
-              <input className="input" type="number" step={0.1} value={lonDeg}
-                     onChange={(e)=>setLonDeg(parseFloat(e.target.value))} />
+              <input
+                className="input"
+                type="number"
+                step={0.1}
+                value={composition.birthPointLongitudeDeg ?? 0}
+                onChange={(e)=>{
+                  const v = parseFloat(e.target.value);
+                  setComposition(prev => ({ ...prev, birthPointLongitudeDeg: v }));
+                }}
+              />
             </div>
             <div className="col">
               <label className="label">时间解释模式</label>
@@ -1753,17 +1792,13 @@ export default function SimpleTest() {
           {/* 出生点 UI：三级城市选择 + 经纬度输入（可覆盖） */}
           <div className="row" style={{ marginBottom: 16, gap: 12, alignItems: 'flex-start' }}>
             <div className="col" style={{ minWidth: 380 }}>
-              <label className="label">出生地点（三级选择或搜索）</label>
+              <label className="label">观察地点（三级选择或搜索）</label>
               <LocationSelector
                 onLocationChange={(loc:any)=>{
                   try {
+                    // 下方地点：观察点 → 只更新观测经纬度，用于天文/光照
                     setLatDeg(loc.lat);
                     setLonDeg(loc.lon);
-                    setComposition(v=>({
-                      ...v,
-                      birthPointLatitudeDeg: loc.lat,
-                      birthPointLongitudeDeg: loc.lon
-                    }));
                   } catch (e) { console.error('[LocationSelector] set failed', e); }
                 }}
                 initialLocation={{}}
