@@ -34,7 +34,8 @@
       "Bash(find:*)",
       "Bash(npm install:*)",
       "WebFetch(domain:github.com)",
-      "Bash(git clone:*)"
+      "Bash(git clone:*)",
+      "WebFetch(domain:discourse.threejs.org)"
     ],
     "deny": [],
     "ask": []

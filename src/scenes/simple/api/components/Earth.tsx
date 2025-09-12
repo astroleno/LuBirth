@@ -22,7 +22,13 @@ export function Earth({
   earthLightIntensity = 1.0,
   nightFalloff = 1.6,
   dayAmbient = 0.02,
-  terminatorLift = 0.01
+  terminatorLift = 0.01,
+  // 大气弧光参数
+  rimStrength = 1.46,
+  rimWidth = 0.50,
+  rimHeight = 0.01,
+  rimRadius = 0.005,
+  haloWidth = 0.01,
 }: {
   position: [number, number, number];
   size: number;
@@ -43,6 +49,12 @@ export function Earth({
   nightFalloff?: number;
   dayAmbient?: number;
   terminatorLift?: number;
+  // 大气弧光参数
+  rimStrength?: number;
+  rimWidth?: number;
+  rimHeight?: number;
+  rimRadius?: number;
+  haloWidth?: number;
 }) {
   // 加载纹理
   const {
@@ -79,6 +91,12 @@ export function Earth({
         broadShiny: { value: 24.0 }, // 固定值
         nightGamma: { value: 1.1 }, // 固定值
         nightFalloff: { value: nightFalloff },
+        // 大气弧光参数
+        rimStrength: { value: rimStrength },
+        rimWidth: { value: rimWidth },
+        rimHeight: { value: rimHeight },
+        rimRadius: { value: rimRadius },
+        haloWidth: { value: haloWidth },
       },
       vertexShader: `
         varying vec2 vUv; 
@@ -112,6 +130,12 @@ export function Earth({
         uniform float broadStrength; 
         uniform float broadShiny; 
         uniform float nightGamma;
+        // 大气弧光参数
+        uniform float rimStrength;
+        uniform float rimWidth;
+        uniform float rimHeight;
+        uniform float rimRadius;
+        uniform float haloWidth;
         
         varying vec2 vUv; 
         varying vec3 vNormalW; 
@@ -157,7 +181,26 @@ export function Earth({
           // 在终止线附近做少量亮度提拉，便于手动调节"太暗"情况
           vec3 liftCol = vec3(lift) * rim;
           
-          gl_FragColor = vec4(dayCol + nightCol + liftCol + specCol, 1.0);
+          // 大气弧光效果 - 优化渐变
+          float fresnel = 1.0 - max(dot(n, normalize(vViewW)), 0.0);
+          
+          // 多层渐变效果：内层锐利，外层柔和
+          float innerRim = pow(fresnel, max(rimWidth * 1.5, 0.8));
+          float outerRim = pow(fresnel, max(rimWidth * 0.8, 0.3));
+          
+          // 组合渐变：内层更亮，外层更柔和
+          float rimEffect = (innerRim * 0.7 + outerRim * 0.3) * rimStrength;
+          
+          // 根据光照方向调整弧光强度（昼侧更亮，夜侧更柔和）
+          float dayNightRim = 0.15 + 0.85 * max(ndl, 0.0);
+          rimEffect *= dayNightRim;
+          
+          // 渐变颜色：从边缘的亮蓝到中心的深蓝
+          vec3 innerColor = vec3(0.3, 0.7, 1.0);  // 亮蓝色
+          vec3 outerColor = vec3(0.1, 0.3, 0.6);  // 深蓝色
+          vec3 rimColor = mix(outerColor, innerColor, innerRim) * rimEffect;
+          
+          gl_FragColor = vec4(dayCol + nightCol + liftCol + specCol + rimColor, 1.0);
         }
       `,
     });
@@ -198,11 +241,27 @@ export function Earth({
         if (earthDNMaterial.uniforms.lightColor?.value) {
           earthDNMaterial.uniforms.lightColor.value.copy(lightColor);
         }
+        // 更新大气弧光参数
+        if (earthDNMaterial.uniforms.rimStrength) {
+          earthDNMaterial.uniforms.rimStrength.value = rimStrength;
+        }
+        if (earthDNMaterial.uniforms.rimWidth) {
+          earthDNMaterial.uniforms.rimWidth.value = rimWidth;
+        }
+        if (earthDNMaterial.uniforms.rimHeight) {
+          earthDNMaterial.uniforms.rimHeight.value = rimHeight;
+        }
+        if (earthDNMaterial.uniforms.rimRadius) {
+          earthDNMaterial.uniforms.rimRadius.value = rimRadius;
+        }
+        if (earthDNMaterial.uniforms.haloWidth) {
+          earthDNMaterial.uniforms.haloWidth.value = haloWidth;
+        }
       } catch (error) {
         console.error('[SimpleEarth] Error updating uniforms:', error);
       }
     }
-  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor]);
+  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth]);
 
   // 调试信息
   useEffect(() => {

@@ -67,9 +67,8 @@ import { BirthPointMarker } from './scenes/simple/api/components/BirthPointMarke
 import { calculateCameraOrientationForBirthPoint, calculateBirthPointLocalFrame, alphaToScreenY, validateBirthPointAlignment } from './scenes/simple/utils/birthPointAlignment';
 import { LocationSelector } from './components/LocationSelector';
 import { Moon } from './scenes/simple/api/components/Moon';
-import { Clouds } from './scenes/simple/api/components/Clouds';
-import { CloudsOverlayFix } from './scenes/simple/api/components/Clouds';
-import { AtmosphereEffects } from './scenes/simple/api/components/AtmosphereEffects';
+import { Clouds, CloudsWithLayers } from './scenes/simple/api/components/Clouds';
+import { AtmosphereEffects, setupAtmosphereConsoleCommands } from './scenes/simple/api/components/AtmosphereEffects';
 import { getEarthState, type TimeInterpretation } from './scenes/simple/api/earthState';
 import { toUTCFromLocal, calculateTerminatorLongitude } from './astro/ephemeris';
 import { logger } from './utils/logger';
@@ -191,12 +190,13 @@ function SceneContent({
       let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
       const pitch = -B - alpha; // 俯仰：沿经线抬升到目标高度
       // 覆盖式对齐：先清零再设为目标，避免累计
-      setComposition(v => ({ ...v, cameraAzimuthDeg: 0, cameraElevationDeg: 0 }));
-      requestAnimationFrame(() => {
-        try {
-          setComposition(v => ({ ...v, cameraAzimuthDeg: yaw, cameraElevationDeg: pitch }));
-        } catch {}
-      });
+      // 注意：这里应该通过props传递setComposition，暂时注释掉
+      // setComposition(v => ({ ...v, cameraAzimuthDeg: 0, cameraElevationDeg: 0 }));
+      // requestAnimationFrame(() => {
+      //   try {
+      //     setComposition(v => ({ ...v, cameraAzimuthDeg: yaw, cameraElevationDeg: pitch }));
+      //   } catch {}
+      // });
       if (logger.isEnabled()) logger.log('birthPoint/lock/update', { L, B, alpha, seam, lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw = (Lsun+90) - (L+seam); pitch=-(B+alpha)' });
     } catch (e) {
       console.warn('[BirthPointAlign] 自动保持失败:', e);
@@ -247,49 +247,64 @@ function SceneContent({
           shininess={composition.shininess}
           specStrength={composition.specStrength}
           broadStrength={composition.broadStrength}
-        />
-        
-        {/* 大气效果 */}
-        <AtmosphereEffects
-          earthSize={earthInfo.size}
+          // 大气弧光参数
           rimStrength={composition.rimStrength}
           rimWidth={composition.rimWidth}
+          rimHeight={composition.rimHeight}
           rimRadius={composition.rimRadius}
           haloWidth={composition.haloWidth}
-          earthGlowStrength={composition.earthGlowStrength}
-          earthGlowHeight={composition.earthGlowHeight}
-          earthGlowDayNightRatio={composition.earthGlowDayNightRatio}
-        lightDirection={lightDirection}
         />
+        
         
         {/* 云层 */}
         {composition.useClouds && earthClouds && (
           <>
-            <Clouds
+            <CloudsWithLayers
               radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
               texture={earthClouds}
               position={[0, 0, 0]}
               yawDeg={composition.cloudYawDeg}
               pitchDeg={composition.cloudPitchDeg}
               lightDir={lightDirection}
-        lightColor={lightColor}
+              lightColor={lightColor}
               strength={composition.cloudStrength}
               sunI={lightIntensity}
               cloudGamma={composition.cloudGamma}
               cloudBlack={composition.cloudBlack}
               cloudWhite={composition.cloudWhite}
               cloudContrast={composition.cloudContrast}
-            />
-            
-            {/* 云层叠加修正 */}
-            <CloudsOverlayFix
-              radius={earthInfo.size * (1.0 + composition.cloudHeight)}
-              strength={0.15}
-              color="#ffffff"
-              position={[0, 0, 0]}
-              lightDir={lightDirection}
+              // 置换贴图参数
+              displacementScale={composition.cloudDisplacementScale ?? 0.05}
+              displacementBias={composition.cloudDisplacementBias ?? 0.02}
+              // UV滚动速度参数
+              scrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
+              scrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
+              // 多层参数
+              numLayers={composition.cloudNumLayers ?? 3}
+              layerSpacing={composition.cloudLayerSpacing ?? 0.002}
             />
           </>
+        )}
+
+        {/* 大气辉光增强 */}
+        {composition.enableAtmosphere && (
+          <AtmosphereEffects
+            radius={earthInfo.size}
+            lightDirection={lightDirection}
+            intensity={composition.atmoIntensity ?? 1.0}
+            thickness={composition.atmoThickness ?? 0.05}
+            color={composition.atmoColor ?? [0.43, 0.65, 1.0]}
+            fresnelPower={composition.atmoFresnelPower ?? 2.0}
+            mainContrast={composition.atmoContrast ?? 0.5}
+            mainSoftness={composition.atmoSoftness ?? 0.5}
+            nearShell={composition.atmoNearShell ?? true}
+            nearStrength={composition.atmoNearStrength ?? 1.0}
+            nearThicknessFactor={composition.atmoNearThickness ?? 0.35}
+            nearContrast={composition.atmoNearContrast ?? 0.6}
+            nearSoftness={composition.atmoNearSoftness ?? 0.5}
+            visible={true}
+            renderOrder={10}
+          />
         )}
 
         {/* 出生点标记（可选） */}
@@ -412,6 +427,25 @@ export default function SimpleTest() {
     const fixedsun = params.get('fixedsun') === '1';
     const season = params.get('season') === '1';
     
+    // 云层URL参数（仅当提供参数时才覆盖默认值）
+    const dualLayerParam = params.get('duallayer');
+    const dualLayer = dualLayerParam !== null ? (dualLayerParam === '1') : undefined;
+    
+    // 大气辉光URL参数（仅当提供参数时才覆盖默认值）
+    const atmoParam = params.get('atmo');
+    const enableAtmosphere = atmoParam !== null ? (atmoParam === '1') : undefined;
+    const atmoIntensity = params.get('atmoi') ? parseFloat(params.get('atmoi')!) : undefined;
+    const atmoThickness = params.get('atmoth') ? parseFloat(params.get('atmoth')!) : undefined;
+    const atmoFresnelPower = params.get('atmofp') ? parseFloat(params.get('atmofp')!) : undefined;
+    const atmoSoftness = params.get('atmosf') ? parseFloat(params.get('atmosf')!) : undefined;
+    const atmoContrast = params.get('atmoc') ? parseFloat(params.get('atmoc')!) : undefined;
+    const atmoNearShellParam = params.get('atmons');
+    const atmoNearShell = atmoNearShellParam !== null ? (atmoNearShellParam === '1') : undefined;
+    const atmoNearStrength = params.get('atmonsi') ? parseFloat(params.get('atmonsi')!) : undefined;
+    const atmoNearThickness = params.get('atmonth') ? parseFloat(params.get('atmonth')!) : undefined;
+    const atmoNearContrast = params.get('atmonc') ? parseFloat(params.get('atmonc')!) : undefined;
+    const atmoNearSoftness = params.get('atmonsf') ? parseFloat(params.get('atmonsf')!) : undefined;
+    
     // 🔧 关键修复：初始化时基于绝对UTC计算地球自转角度
     const now = new Date();
     const hoursFloat = ((now.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
@@ -422,6 +456,18 @@ export default function SimpleTest() {
       useFixedSun: fixedsun || DEFAULT_SIMPLE_COMPOSITION.useFixedSun,
       useSeasonalVariation: season || DEFAULT_SIMPLE_COMPOSITION.useSeasonalVariation,
       earthYawDeg: earthRotation, // 🔧 设置正确的初始自转角度
+      // 大气辉光参数
+      enableAtmosphere: enableAtmosphere !== undefined ? enableAtmosphere : DEFAULT_SIMPLE_COMPOSITION.enableAtmosphere,
+      atmoIntensity: atmoIntensity !== undefined ? atmoIntensity : DEFAULT_SIMPLE_COMPOSITION.atmoIntensity,
+      atmoThickness: atmoThickness !== undefined ? atmoThickness : DEFAULT_SIMPLE_COMPOSITION.atmoThickness,
+      atmoFresnelPower: atmoFresnelPower !== undefined ? atmoFresnelPower : DEFAULT_SIMPLE_COMPOSITION.atmoFresnelPower,
+      atmoSoftness: atmoSoftness !== undefined ? atmoSoftness : DEFAULT_SIMPLE_COMPOSITION.atmoSoftness,
+      atmoContrast: atmoContrast !== undefined ? atmoContrast : DEFAULT_SIMPLE_COMPOSITION.atmoContrast,
+      atmoNearShell: atmoNearShell !== undefined ? atmoNearShell : DEFAULT_SIMPLE_COMPOSITION.atmoNearShell,
+      atmoNearStrength: atmoNearStrength !== undefined ? atmoNearStrength : DEFAULT_SIMPLE_COMPOSITION.atmoNearStrength,
+      atmoNearThickness: atmoNearThickness !== undefined ? atmoNearThickness : DEFAULT_SIMPLE_COMPOSITION.atmoNearThickness,
+      atmoNearContrast: atmoNearContrast !== undefined ? atmoNearContrast : DEFAULT_SIMPLE_COMPOSITION.atmoNearContrast,
+      atmoNearSoftness: atmoNearSoftness !== undefined ? atmoNearSoftness : DEFAULT_SIMPLE_COMPOSITION.atmoNearSoftness,
     } as SimpleComposition;
   }, []);
 
@@ -431,6 +477,7 @@ export default function SimpleTest() {
   const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean) => {
     setComposition(prev => ({ ...prev, [key]: value }));
   }, []);
+
   const [uiHidden, setUiHidden] = useState(false);
   // 改进的本地时间转换函数
   const toLocalInputValue = (d: Date) => {
@@ -467,6 +514,64 @@ export default function SimpleTest() {
   const [dateISO, setDateISO] = useState(() => getCurrentLocalTime());
   const [latDeg, setLatDeg] = useState<number>(31.2);   // 上海默认
   const [lonDeg, setLonDeg] = useState<number>(121.5);
+
+  // 控制台命令注入
+  React.useEffect(() => {
+    // 便捷接口：修改时间与固定太阳开关，及固定太阳方位锁定测试
+    (window as any).setSceneTime = (iso: string) => { try { setDateISO(iso); } catch {} };
+    (window as any).setUseFixedSun = (on: boolean) => { try { setComposition((prev: any)=>({...prev, useFixedSun:on})); } catch {} };
+    (window as any).setUseSeasonalVariation = (on: boolean) => { try { setComposition((prev: any)=>({...prev, useSeasonalVariation:on})); } catch {} };
+    (window as any).setObliquityDeg = (deg: number) => { try { setComposition((prev: any)=>({...prev, obliquityDeg:deg})); } catch {} };
+    (window as any).setSeasonOffsetDays = (d: number) => { try { setComposition((prev: any)=>({...prev, seasonOffsetDays:d})); } catch {} };
+    (window as any).setEnableBirthPointAlignment = (on: boolean) => { try { setComposition((prev: any)=>({ ...prev, enableBirthPointAlignment: on })); } catch {} };
+    (window as any).setSeamOffsetDeg = (deg: number) => { try { setComposition((prev: any)=>({ ...prev, seamOffsetDeg: deg })); console.log('[SeamOffset] set to', deg); } catch {} };
+    (window as any).getFixedSunDir = () => { try { return composition.fixedSunDir ?? null; } catch { return null; } };
+    
+    // 云层控制台命令
+    (window as any).setCloudDisplacement = (scale: number, bias: number) => { try { setComposition((prev: any)=>({ ...prev, cloudDisplacementScale: scale, cloudDisplacementBias: bias })); console.log('[Clouds] Displacement set to scale:', scale, 'bias:', bias); } catch {} };
+    (window as any).setCloudScrollSpeed = (u: number, v: number) => { try { setComposition((prev: any)=>({ ...prev, cloudScrollSpeedU: u, cloudScrollSpeedV: v })); console.log('[Clouds] Scroll speed set to U:', u, 'V:', v); } catch {} };
+    (window as any).getCloudSettings = () => { 
+      try { 
+        return {
+          displacementScale: composition.cloudDisplacementScale,
+          displacementBias: composition.cloudDisplacementBias,
+          scrollSpeedU: composition.cloudScrollSpeedU,
+          scrollSpeedV: composition.cloudScrollSpeedV,
+          gamma: composition.cloudGamma,
+          contrast: composition.cloudContrast,
+          black: composition.cloudBlack,
+          white: composition.cloudWhite
+        }; 
+      } catch { return null; } 
+    };
+    
+    // 🔧 新增：便捷出生点对齐测试接口
+    (window as any).testBirthPointAlignment = (lat: number, lon: number, alpha: number = 12) => {
+      try {
+        console.log(`[TestAlignment] 测试出生点对齐: ${lat}°N, ${lon}°E, α=${alpha}°`);
+        const params = { longitudeDeg: lon, latitudeDeg: lat, alphaDeg: alpha };
+        const scene = (window as any).__R3F_Scene;
+        const o = calculateCameraOrientationForBirthPoint(params, scene);
+        setComposition((v: any) => ({
+          ...v,
+          birthPointLatitudeDeg: lat,
+          birthPointLongitudeDeg: lon,
+          birthPointAlphaDeg: alpha,
+          enableBirthPointAlignment: true,
+          cameraAzimuthDeg: o.yaw,
+          cameraElevationDeg: o.pitch
+        }));
+        console.log('[TestAlignment] 对齐完成，相机角度:', { yaw: o.yaw.toFixed(2), pitch: o.pitch.toFixed(2) });
+        return o;
+      } catch (e) {
+        console.error('[TestAlignment] 测试失败:', e);
+        return null;
+      }
+    };
+    
+    // 大气辉光控制台命令
+    setupAtmosphereConsoleCommands(setComposition, composition);
+  }, [composition, setComposition, setDateISO]);
   const [timeMode, setTimeMode] = useState<TimeInterpretation>('byLongitude');
   const [userModifiedTime, setUserModifiedTime] = useState<boolean>(false); // 用户是否手动修改了时间
   const userModifiedTimeRef = React.useRef<boolean>(false); // 🔧 关键修复：使用ref存储用户修改状态，立即生效
@@ -881,7 +986,7 @@ export default function SimpleTest() {
                     cameraElevationDeg: pitch
                   }));
 
-                  console.log('[BirthPointAlign] ✅ 出生点对齐完成(黄昏点基准)', { L, B, alpha, seam, Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw=(Lsun+90)-(L+seam); pitch=-(B+alpha)' });
+                  console.log('[BirthPointAlign] ✅ 出生点对齐完成(黄昏点基准)', { L, B, alpha, seam, lonDusk: +lonDusk.toFixed(2), yaw, pitch, formula: 'yaw=(Lsun+90)-(L+seam); pitch=-(B+alpha)' });
                 } catch (e) {
                   console.error('[BirthPointAlign] ❌ 对齐失败:', e);
                   setComposition(prev => ({ ...prev, birthPointAlignmentMode: false })); // 失败时退出模式
@@ -1609,54 +1714,107 @@ export default function SimpleTest() {
           {/* 大气效果控制 */}
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">
-              <label className="label">大气弧光: 强度 {composition.rimStrength.toFixed(2)} · 宽度 {composition.rimWidth.toFixed(2)}</label>
+              <label className="label">大气弧光: 强度 {composition.rimStrength.toFixed(2)} · 宽度 {composition.rimWidth.toFixed(2)} · 高度 {composition.rimHeight.toFixed(3)}</label>
               <div className="row">
                 <input className="input" type="range" min={0} max={2} step={0.01}
                        value={composition.rimStrength}
                        onChange={(e) => updateValue('rimStrength', parseFloat(e.target.value))} />
-                <input className="input" type="range" min={0} max={0.5} step={0.01}
+                <input className="input" type="range" min={0} max={3} step={0.01}
                        value={composition.rimWidth}
                        onChange={(e) => updateValue('rimWidth', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0} max={0.05} step={0.001}
+                       value={composition.rimHeight}
+                       onChange={(e) => updateValue('rimHeight', parseFloat(e.target.value))} />
               </div>
             </div>
-            {/* 地球辉光控制 */}
-            <div className="row" style={{ marginBottom: 20, padding: '12px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <div className="col" style={{ flex: 1, marginRight: 16 }}>
-                <div className="label" style={{ marginBottom: 8, fontSize: '14px', fontWeight: 500 }}>地球辉光: 强度</div>
-                <input
-                  type="range"
-                  min={0} max={3} step={0.01}
-                  value={composition.earthGlowStrength}
-                  onChange={(e) => updateValue('earthGlowStrength', parseFloat(e.target.value))}
-                  className="input"
-                  style={{ width: '100%' }}
-                />
-                <span style={{ fontSize: '12px', opacity: 0.8 }}>{composition.earthGlowStrength.toFixed(2)}</span>
+          </div>
+
+          {/* 大气辉光增强控制 */}
+          <div className="row" style={{ marginBottom: 16, padding: '12px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="col">
+              <div className="row" style={{ marginBottom: 8 }}>
+                <label>
+                  <input type="checkbox" checked={composition.enableAtmosphere ?? true} 
+                         onChange={(e) => updateValue('enableAtmosphere', e.target.checked)} /> 
+                  大气辉光增强
+                </label>
               </div>
-              <div className="col" style={{ flex: 1, marginRight: 16 }}>
-                <div className="label" style={{ marginBottom: 8, fontSize: '14px', fontWeight: 500 }}>高度</div>
-                <input
-                  type="range"
-                  min={0.001} max={0.2} step={0.001}
-                  value={composition.earthGlowHeight}
-                  onChange={(e) => updateValue('earthGlowHeight', parseFloat(e.target.value))}
-                  className="input"
-                  style={{ width: '100%' }}
-                />
-                <span style={{ fontSize: '12px', opacity: 0.8 }}>{composition.earthGlowHeight.toFixed(3)}</span>
+              <div className="row" style={{ gap: 12 }}>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>强度</div>
+                  <input type="range" min={0} max={4} step={0.1}
+                         value={composition.atmoIntensity ?? 1.0}
+                         onChange={(e) => updateValue('atmoIntensity', parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoIntensity ?? 1.0).toFixed(1)}</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>厚度</div>
+                  <input type="range" min={0.02} max={0.08} step={0.01}
+                         value={composition.atmoThickness ?? 0.05}
+                         onChange={(e) => updateValue('atmoThickness', parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoThickness ?? 0.05).toFixed(2)}</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>Fresnel</div>
+                  <input type="range" min={1} max={3} step={0.1}
+                         value={composition.atmoFresnelPower ?? 2.0}
+                         onChange={(e) => updateValue('atmoFresnelPower', parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoFresnelPower ?? 2.0).toFixed(1)}</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>大气柔度</div>
+                  <input type="range" min={0} max={3} step={0.01}
+                         value={composition.atmoSoftness ?? 0.5}
+                         onChange={(e) => updateValue('atmoSoftness', parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoSoftness ?? 0.5).toFixed(2)}</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>大气对比</div>
+                  <input type="range" min={0} max={1} step={0.01}
+                         value={composition.atmoContrast ?? 0.5}
+                         onChange={(e) => updateValue('atmoContrast', parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoContrast ?? 0.5).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="col" style={{ flex: 1 }}>
-                <div className="label" style={{ marginBottom: 8, fontSize: '14px', fontWeight: 500 }}>日侧夜侧对比</div>
-                <input
-                  type="range"
-                  min={0} max={1} step={0.01}
-                  value={composition.earthGlowDayNightRatio}
-                  onChange={(e) => updateValue('earthGlowDayNightRatio', parseFloat(e.target.value))}
-                  className="input"
-                  style={{ width: '100%' }}
-                />
-                <span style={{ fontSize: '12px', opacity: 0.8 }}>{composition.earthGlowDayNightRatio.toFixed(2)}</span>
+              <div className="row" style={{ marginTop: 8 }}>
+                <label>
+                  <input type="checkbox" checked={composition.atmoNearShell ?? true} 
+                         onChange={(e) => updateValue('atmoNearShell', e.target.checked)} /> 
+                  近地薄壳渐变
+                </label>
               </div>
+              {composition.atmoNearShell && (
+                <div className="row" style={{ gap: 12, marginTop: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>近地强度</div>
+                    <input type="range" min={0} max={4} step={0.1}
+                           value={composition.atmoNearStrength ?? 1.0}
+                           onChange={(e) => updateValue('atmoNearStrength', parseFloat(e.target.value))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoNearStrength ?? 1.0).toFixed(1)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>近地厚度</div>
+                    <input type="range" min={0} max={1} step={0.01}
+                           value={composition.atmoNearThickness ?? 0.35}
+                           onChange={(e) => updateValue('atmoNearThickness', parseFloat(e.target.value))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoNearThickness ?? 0.35).toFixed(2)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>近地对比</div>
+                    <input type="range" min={0} max={1} step={0.01}
+                           value={composition.atmoNearContrast ?? 0.6}
+                           onChange={(e) => updateValue('atmoNearContrast', parseFloat(e.target.value))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoNearContrast ?? 0.6).toFixed(2)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>近地柔度</div>
+                    <input type="range" min={0} max={3} step={0.01}
+                           value={composition.atmoNearSoftness ?? 0.5}
+                           onChange={(e) => updateValue('atmoNearSoftness', parseFloat(e.target.value))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoNearSoftness ?? 0.5).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
@@ -1732,6 +1890,38 @@ export default function SimpleTest() {
                        value={composition.cloudPitchDeg}
                        onChange={(e) => updateValue('cloudPitchDeg', parseInt(e.target.value))} />
               </div>
+            </div>
+          </div>
+          
+          {/* 云层置换控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">置换强度: {((composition.cloudDisplacementScale ?? 0.05) * 100).toFixed(1)}%</label>
+              <input className="input" type="range" min={0.0} max={0.1} step={0.001}
+                     value={composition.cloudDisplacementScale ?? 0.05}
+                     onChange={(e) => updateValue('cloudDisplacementScale', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">置换偏移: {((composition.cloudDisplacementBias ?? 0.02) * 100).toFixed(1)}%</label>
+              <input className="input" type="range" min={-0.5} max={0.5} step={0.01}
+                     value={composition.cloudDisplacementBias ?? 0.02}
+                     onChange={(e) => updateValue('cloudDisplacementBias', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 云层滚动速度控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">U方向滚动: {((composition.cloudScrollSpeedU ?? 0.0003) * 10000).toFixed(1)}</label>
+              <input className="input" type="range" min={0.0} max={0.001} step={0.00001}
+                     value={composition.cloudScrollSpeedU ?? 0.0003}
+                     onChange={(e) => updateValue('cloudScrollSpeedU', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">V方向滚动: {((composition.cloudScrollSpeedV ?? 0.00015) * 10000).toFixed(1)}</label>
+              <input className="input" type="range" min={0.0} max={0.0005} step={0.00001}
+                     value={composition.cloudScrollSpeedV ?? 0.00015}
+                     onChange={(e) => updateValue('cloudScrollSpeedV', parseFloat(e.target.value))} />
             </div>
           </div>
           
@@ -2029,8 +2219,7 @@ export default function SimpleTest() {
                     try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
 
                     if (logger.isEnabled()) logger.log('align/terminator-minus-observe', {
-                      sun: { x:+s.x.toFixed(4), y:+s.y.toFixed(4), z:+s.z.toFixed(4) },
-                      Lsun: +Lsun.toFixed(2), lonDusk: +lonDusk.toFixed(2), birthLon: L, seam, yaw,
+                      lonDusk: +lonDusk.toFixed(2), birthLon: L, seam, yaw,
                       formula: 'yaw = normalize((Lsun+90) - (L+seam))'
                     });
 
@@ -2149,39 +2338,6 @@ function NoTiltProbe() {
       console[ok?'log':'error']('[NoTiltTest] ' + (ok?'✅ PASS':'❌ FAIL'), payload);
       console.log('[NoTiltTest:JSON]', JSON.stringify(payload, null, 2));
       return payload;
-    };
-    // 便捷接口：修改时间与固定太阳开关，及固定太阳方位锁定测试
-    (window as any).setSceneTime = (iso: string) => { try { setDateISO(iso); } catch {} };
-    (window as any).setUseFixedSun = (on: boolean) => { try { setComposition(prev=>({...prev, useFixedSun:on})); } catch {} };
-      (window as any).setUseSeasonalVariation = (on: boolean) => { try { setComposition(prev=>({...prev, useSeasonalVariation:on})); } catch {} };
-    (window as any).setObliquityDeg = (deg: number) => { try { setComposition(prev=>({...prev, obliquityDeg:deg})); } catch {} };
-    (window as any).setSeasonOffsetDays = (d: number) => { try { setComposition(prev=>({...prev, seasonOffsetDays:d})); } catch {} };
-    (window as any).setEnableBirthPointAlignment = (on: boolean) => { try { setComposition(prev=>({ ...prev, enableBirthPointAlignment: on })); } catch {} };
-    (window as any).setSeamOffsetDeg = (deg: number) => { try { setComposition(prev=>({ ...prev, seamOffsetDeg: deg })); console.log('[SeamOffset] set to', deg); } catch {} };
-    (window as any).getFixedSunDir = () => { try { return composition.fixedSunDir ?? null; } catch { return null; } };
-    
-    // 🔧 新增：便捷出生点对齐测试接口
-    (window as any).testBirthPointAlignment = (lat: number, lon: number, alpha: number = 12) => {
-      try {
-        console.log(`[TestAlignment] 测试出生点对齐: ${lat}°N, ${lon}°E, α=${alpha}°`);
-        const params = { longitudeDeg: lon, latitudeDeg: lat, alphaDeg: alpha };
-        const scene = (window as any).__R3F_Scene;
-        const o = calculateCameraOrientationForBirthPoint(params, scene);
-        setComposition(v => ({
-          ...v,
-          birthPointLatitudeDeg: lat,
-          birthPointLongitudeDeg: lon,
-          birthPointAlphaDeg: alpha,
-          enableBirthPointAlignment: true,
-          cameraAzimuthDeg: o.yaw,
-          cameraElevationDeg: o.pitch
-        }));
-        console.log('[TestAlignment] 对齐完成，相机角度:', { yaw: o.yaw.toFixed(2), pitch: o.pitch.toFixed(2) });
-        return o;
-      } catch (e) {
-        console.error('[TestAlignment] 测试失败:', e);
-        return null;
-      }
     };
 
     // 🔧 新增：坐标系诊断函数
@@ -2324,7 +2480,7 @@ function NoTiltProbe() {
     (window as any).runSeasonalAutoTest = async () => {
       try {
         // 使用最新的 composition 值，而不是闭包快照
-        const getComp = () => (window as any).__getComposition?.() ?? composition;
+        const getComp = () => (window as any).__getComposition?.() ?? {};
         const comp = getComp();
         const utc = new Date('2024-06-21T12:00:00Z');
         const dSum = seasonalSunDirWorldYUp(utc, 0, (comp.obliquityDeg ?? 23.44), (comp.seasonOffsetDays ?? 0));
@@ -2345,7 +2501,7 @@ function NoTiltProbe() {
       }
     };
     // 只读 composition getter，避免闭包旧值
-    (window as any).__getComposition = () => { try { return { ...composition }; } catch { return null; } };
+    (window as any).__getComposition = () => { try { return {}; } catch { return null; } };
   }, [scene]);
   return null;
 }

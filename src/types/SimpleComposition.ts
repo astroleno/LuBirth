@@ -31,11 +31,23 @@ export interface SimpleComposition {
   // 大气效果参数
   rimStrength: number;         // 大气弧光强度
   rimWidth: number;            // 大气弧光宽度
+  rimHeight: number;           // 大气弧光高度
   rimRadius: number;           // 弧光贴合半径差 (0.001-0.01)
   haloWidth: number;           // 近表面halo宽度
-  earthGlowStrength: number;   // 地球辉光强度
-  earthGlowHeight: number;     // 地球辉光高度
-  earthGlowDayNightRatio: number; // 地球辉光日侧夜侧对比度 (0=无对比, 1=完全对比)
+  
+  // 大气辉光增强参数
+  enableAtmosphere?: boolean;  // 启用大气辉光增强
+  atmoIntensity?: number;      // 大气辉光强度 (0-2)
+  atmoThickness?: number;      // 大气厚度 (0.02-0.08)
+  atmoColor?: [number, number, number]; // 大气颜色 RGB
+  atmoFresnelPower?: number;   // Fresnel曲线幂次
+  atmoContrast?: number;       // 主层昼夜对比(0=均匀,1=仅昼侧)
+  atmoSoftness?: number;       // 主层柔度(0=陡、3=柔)
+  atmoNearShell?: boolean;     // 启用近地薄壳渐变
+  atmoNearStrength?: number;   // 近地薄壳强度(0-4)
+  atmoNearThickness?: number;  // 近地薄壳厚度系数(0-1)，乘以 thickness
+  atmoNearContrast?: number;   // 近地昼夜对比(0=均匀,1=仅昼侧)
+  atmoNearSoftness?: number;   // 近地渐变柔度(0=陡、1=柔)
   
   // 地球材质控制
   earthLightIntensity: number; // 地球材质亮度
@@ -70,6 +82,20 @@ export interface SimpleComposition {
   cloudBlack: number;          // 云层黑场
   cloudWhite: number;          // 云层白场
   cloudContrast: number;       // 云层对比度
+  
+  // 置换贴图参数
+  cloudDisplacementScale?: number; // 置换强度
+  cloudDisplacementBias?: number;  // 置换偏移
+  // UV滚动速度参数
+  cloudScrollSpeedU?: number;      // U方向滚动速度
+  cloudScrollSpeedV?: number;      // V方向滚动速度
+  
+  // 云层厚度参数
+  cloudNumLayers?: number;         // 云层层数（默认3）
+  cloudLayerSpacing?: number;      // 层间距（默认0.002）
+  cloudEnablePatch?: boolean;      // 启用动态patch（默认false）
+  cloudPatchSize?: number;         // patch大小（默认0.15）
+  cloudPatchDistance?: number;     // patch显示距离（默认10）
   
   // 控制参数
   exposure: number;            // 曝光
@@ -125,6 +151,11 @@ export interface SimpleComposition {
   // 纬度对齐（仅动相机俯仰）
   latitudeAlignTargetDeg?: number; // 目标纬度（°N为正，默认80），对齐时将相机俯仰设置为 -target
 
+  // 季节模式参数
+  useSeasonalVariation?: boolean;   // 是否使用季节变化
+  obliquityDeg?: number;           // 地轴倾角（度）
+  seasonOffsetDays?: number;       // 季节偏移天数
+
 }
 
 // 默认值
@@ -158,13 +189,25 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightIntensity: 3.0,         // 夜景强度
   
   // 大气效果参数
-  rimStrength: 0.15,           // 大气弧光强度
-  rimWidth: 0.08,              // 大气弧光宽度
+  rimStrength: 2.00,           // 大气弧光强度
+  rimWidth: 1.86,              // 大气弧光宽度
+  rimHeight: 0.01,             // 大气弧光高度
   rimRadius: 0.005,            // 弧光贴合半径差 (0.001-0.01)
   haloWidth: 0.01,             // 近表面halo宽度
-  earthGlowStrength: 0.8,      // 地球辉光强度 (调整到更明显的值)
-  earthGlowHeight: 0.05,       // 地球辉光高度 (调整到更明显的值)
-  earthGlowDayNightRatio: 0.5, // 地球辉光日侧夜侧对比度 (0=无对比, 1=完全对比)
+  
+  // 大气辉光增强参数
+  enableAtmosphere: true,      // 启用大气辉光增强
+  atmoIntensity: 1.1,          // 大气辉光强度默认
+  atmoThickness: 0.06,         // 大气厚度默认
+  atmoColor: [0.43, 0.65, 1.0], // 大气颜色 RGB (蓝色)
+  atmoFresnelPower: 3.0,       // Fresnel曲线幂次默认
+  atmoContrast: 0.48,          // 主层昼夜对比默认
+  atmoSoftness: 0.0,           // 主层柔度默认
+  atmoNearShell: true,         // 启用近地薄壳渐变
+  atmoNearStrength: 0.5,       // 近地薄壳强度默认
+  atmoNearThickness: 0.10,     // 近地薄壳厚度默认（占主厚度）
+  atmoNearContrast: 0.40,      // 近地昼夜对比默认
+  atmoNearSoftness: 0.0,       // 近地渐变柔度默认
   
   // 地球材质控制
   earthLightIntensity: 1.0,    // 地球材质亮度
@@ -191,14 +234,28 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightLift: 0.02,
   
   // 云层参数
-  cloudStrength: 0.8,          // 云层强度
-  cloudHeight: 0.008,          // 云层高度
+  cloudStrength: 1.2,          // 云层强度（增强）
+  cloudHeight: 0.001,          // 云层高度
   cloudYawDeg: 0,              // 云层经度旋转
   cloudPitchDeg: 0,            // 云层纬度旋转
-  cloudGamma: 1.15,            // 云层Gamma值
-  cloudBlack: 0.4,             // 云层黑场
-  cloudWhite: 0.85,            // 云层白场
-  cloudContrast: 1.2,          // 云层对比度
+  cloudGamma: 0.7,             // 云层Gamma值（提高对比度）
+  cloudBlack: 0.1,             // 云层黑场（增加对比度）
+  cloudWhite: 0.9,             // 云层白场（保持细节）
+  cloudContrast: 1.8,          // 云层对比度（更锐利）
+  
+  // 置换贴图参数
+  cloudDisplacementScale: 0.08, // 置换强度（增强细节）
+  cloudDisplacementBias: 0.03,  // 置换偏移（增加基础厚度）
+  // UV滚动速度参数
+  cloudScrollSpeedU: 0.0003,    // U方向滚动速度（x3提升）
+  cloudScrollSpeedV: 0.00015,   // V方向滚动速度（x3提升）
+  
+  // 云层厚度参数
+  cloudNumLayers: 3,            // 云层层数（默认3）
+  cloudLayerSpacing: 0.0005,    // 层间距（默认0.0005，减少近距离观察的层间分离）
+  cloudEnablePatch: false,      // 启用动态patch（默认false）
+  cloudPatchSize: 0.15,         // patch大小（默认0.15）
+  cloudPatchDistance: 10,       // patch显示距离（默认10）
   
   // 控制参数
   exposure: 1.0,               // 曝光
@@ -291,11 +348,22 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 大气效果参数
     rimStrength: original.rimStrength ?? DEFAULT_SIMPLE_COMPOSITION.rimStrength,
     rimWidth: original.rimWidth ?? DEFAULT_SIMPLE_COMPOSITION.rimWidth,
+    rimHeight: original.rimHeight ?? DEFAULT_SIMPLE_COMPOSITION.rimHeight,
     rimRadius: original.rimRadius ?? DEFAULT_SIMPLE_COMPOSITION.rimRadius,
     haloWidth: original.haloWidth ?? DEFAULT_SIMPLE_COMPOSITION.haloWidth,
-    earthGlowStrength: original.earthGlowStrength ?? DEFAULT_SIMPLE_COMPOSITION.earthGlowStrength,
-    earthGlowHeight: original.earthGlowHeight ?? DEFAULT_SIMPLE_COMPOSITION.earthGlowHeight,
-    earthGlowDayNightRatio: original.earthGlowDayNightRatio ?? DEFAULT_SIMPLE_COMPOSITION.earthGlowDayNightRatio,
+    
+    // 大气辉光增强参数
+    enableAtmosphere: original.enableAtmosphere ?? DEFAULT_SIMPLE_COMPOSITION.enableAtmosphere,
+    atmoIntensity: original.atmoIntensity ?? DEFAULT_SIMPLE_COMPOSITION.atmoIntensity,
+    atmoThickness: original.atmoThickness ?? DEFAULT_SIMPLE_COMPOSITION.atmoThickness,
+    atmoColor: original.atmoColor ?? DEFAULT_SIMPLE_COMPOSITION.atmoColor,
+    atmoFresnelPower: original.atmoFresnelPower ?? DEFAULT_SIMPLE_COMPOSITION.atmoFresnelPower,
+    atmoContrast: original.atmoContrast ?? DEFAULT_SIMPLE_COMPOSITION.atmoContrast,
+    atmoNearShell: original.atmoNearShell ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearShell,
+    atmoNearStrength: original.atmoNearStrength ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearStrength,
+    atmoNearThickness: original.atmoNearThickness ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearThickness,
+    atmoNearContrast: original.atmoNearContrast ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearContrast,
+    atmoNearSoftness: original.atmoNearSoftness ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearSoftness,
     
     // 地球材质控制
     earthLightIntensity: original.earthLightIntensity ?? DEFAULT_SIMPLE_COMPOSITION.earthLightIntensity,
@@ -328,6 +396,20 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     cloudBlack: original.cloudBlack ?? DEFAULT_SIMPLE_COMPOSITION.cloudBlack,
     cloudWhite: original.cloudWhite ?? DEFAULT_SIMPLE_COMPOSITION.cloudWhite,
     cloudContrast: original.cloudContrast ?? DEFAULT_SIMPLE_COMPOSITION.cloudContrast,
+    
+    // 置换贴图参数
+    cloudDisplacementScale: original.cloudDisplacementScale ?? DEFAULT_SIMPLE_COMPOSITION.cloudDisplacementScale,
+    cloudDisplacementBias: original.cloudDisplacementBias ?? DEFAULT_SIMPLE_COMPOSITION.cloudDisplacementBias,
+    // UV滚动速度参数
+    cloudScrollSpeedU: original.cloudScrollSpeedU ?? DEFAULT_SIMPLE_COMPOSITION.cloudScrollSpeedU,
+    cloudScrollSpeedV: original.cloudScrollSpeedV ?? DEFAULT_SIMPLE_COMPOSITION.cloudScrollSpeedV,
+    
+    // 云层厚度参数
+    cloudNumLayers: original.cloudNumLayers ?? DEFAULT_SIMPLE_COMPOSITION.cloudNumLayers,
+    cloudLayerSpacing: original.cloudLayerSpacing ?? DEFAULT_SIMPLE_COMPOSITION.cloudLayerSpacing,
+    cloudEnablePatch: original.cloudEnablePatch ?? DEFAULT_SIMPLE_COMPOSITION.cloudEnablePatch,
+    cloudPatchSize: original.cloudPatchSize ?? DEFAULT_SIMPLE_COMPOSITION.cloudPatchSize,
+    cloudPatchDistance: original.cloudPatchDistance ?? DEFAULT_SIMPLE_COMPOSITION.cloudPatchDistance,
     
     // 控制参数
     exposure: original.exposure ?? DEFAULT_SIMPLE_COMPOSITION.exposure,
