@@ -210,9 +210,9 @@ export interface SimpleComposition {
   obliquityDeg?: number;           // 地轴倾角（度）
   seasonOffsetDays?: number;       // 季节偏移天数
 
-  // 地表细节 LOD（预留，便于POM/置换并存）
-  earthDetailLOD?: 'auto' | 'normal' | 'pom' | 'displacement';
-  earthNearDistance?: number; // 近景阈值（使用置换/POM）
+  // 地表细节 LOD（预留，便于置换并存）
+  earthDetailLOD?: 'auto' | 'normal' | 'displacement';
+  earthNearDistance?: number; // 近景阈值（使用置换）
   earthFarDistance?: number;  // 远景阈值（仅法线）
 
   // 阴影与细分控制
@@ -240,8 +240,6 @@ export interface SimpleComposition {
   cloudPanoramaThicknessVariation?: number; // 全景厚度变化，默认0.3
   
   // 近景场景参数
-  cloudCloseupUsePOM?: boolean;       // 近景启用POM，默认true
-  cloudCloseupPOMSteps?: number;      // POM步数，默认16
   cloudCloseupUseVolumeScattering?: boolean; // 近景启用体积散射，默认true
   cloudCloseupVolumeDensity?: number; // 体积密度，默认0.3
   cloudCloseupScatteringStrength?: number; // 散射强度，默认0.5
@@ -360,8 +358,6 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   cloudPanoramaThicknessVariation: 0.3, // 全景厚度变化
   
   // 近景场景参数默认
-  cloudCloseupUsePOM: true,         // 近景启用POM
-  cloudCloseupPOMSteps: 16,         // POM步数
   cloudCloseupUseVolumeScattering: true, // 近景启用体积散射
   cloudCloseupVolumeDensity: 0.3,   // 体积密度
   cloudCloseupScatteringStrength: 0.5, // 散射强度
@@ -701,8 +697,6 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     cloudPanoramaThicknessVariation: original.cloudPanoramaThicknessVariation ?? DEFAULT_SIMPLE_COMPOSITION.cloudPanoramaThicknessVariation,
     
     // 近景场景参数
-    cloudCloseupUsePOM: original.cloudCloseupUsePOM ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupUsePOM,
-    cloudCloseupPOMSteps: original.cloudCloseupPOMSteps ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupPOMSteps,
     cloudCloseupUseVolumeScattering: original.cloudCloseupUseVolumeScattering ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupUseVolumeScattering,
     cloudCloseupVolumeDensity: original.cloudCloseupVolumeDensity ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupVolumeDensity,
     cloudCloseupScatteringStrength: original.cloudCloseupScatteringStrength ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupScatteringStrength,

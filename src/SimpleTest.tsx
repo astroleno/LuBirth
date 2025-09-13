@@ -227,9 +227,9 @@ function SceneContent({
           height: height.toFixed(2),
           numLayers: numLayers,
           layerSpacing: layerSpacing.toFixed(4),
-          pomEnabled: composition.cloudUsePOM ?? false,
-          pomScale: (composition.cloudPOMParallaxScale ?? 0.5).toFixed(2),
-          pomSteps: composition.cloudPOMSteps ?? 16,
+          volumeScatteringEnabled: composition.cloudUseVolumeScattering ?? false,
+          thicknessMappingEnabled: composition.cloudUseThicknessMapping ?? false,
+          selfShadowEnabled: composition.cloudUseSelfShadow ?? false,
           aligned: isAlignedAndZoomed
         };
       };
@@ -2342,7 +2342,6 @@ export default function SimpleTest() {
                         onChange={(e) => updateValue('earthDetailLOD' as any, e.target.value as any)}>
                   <option value="auto">自动（按距离）</option>
                   <option value="normal">仅法线</option>
-                  <option value="pom">POM（中距离）</option>
                   <option value="displacement">置换（近景）</option>
                 </select>
                 <div className="col" style={{ flex: 1 }}>
@@ -2360,7 +2359,7 @@ export default function SimpleTest() {
                   <span style={{ fontSize: '10px', opacity: 0.8 }}>{(((composition as any).earthFarDistance ?? 18)).toFixed(0)}m</span>
                 </div>
               </div>
-          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：当前仅作为参数占位；近景将用于置换/POM，中远景使用法线。</div>
+          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：当前仅作为参数占位；近景将用于置换，中远景使用法线。</div>
             </div>
           </div>
 
@@ -2929,18 +2928,43 @@ export default function SimpleTest() {
                         cameraElevationDeg: pitch,
                         earthSize: 1.68,
                         lookAtDistanceRatio: 1.08,
-                        // 第5步：设置16层云层增强厚度效果
+                        // 月光参数
+                        moonBrightness: 0.4,
+                        moonEarthMapIntensity: 0.6,
+                        // 云层基础参数
                         cloudNumLayers: 16,
-                        cloudLayerSpacing: 0.0008,  // 稍微减小层间距，增加密度
-                        // 增强厚度效果的参数
-                        cloudStrength: 1.2,         // 增加云层强度
-                        cloudContrast: 1.8,         // 增加对比度
-                        cloudDisplacementScale: 0.08, // 增加置换强度
-                        cloudDisplacementBias: 0.03,  // 增加置换偏移
-                        // 启用POM增强深度感（保守参数）
-                        cloudUsePOM: true,          // 启用POM
-                        cloudPOMParallaxScale: 0.3,  // 保守的视差效果
-                        cloudPOMSteps: 8             // 减少步数避免过度计算
+                        cloudLayerSpacing: 0.0015,
+                        cloudStrength: 0.25,
+                        cloudHeight: 0.003,
+                        cloudYawDeg: 0,
+                        cloudPitchDeg: 0,
+                        cloudDisplacementScale: 0.02,
+                        cloudDisplacementBias: 0.03,
+                        cloudScrollSpeedU: 0.001,
+                        cloudScrollSpeedV: 0.002,
+                        cloudGamma: 0.50,
+                        cloudContrast: 0.9,
+                        cloudBlack: 0.00,
+                        cloudWhite: 0.90,
+                        // 启用体积散射
+                        cloudUseVolumeScattering: true,
+                        cloudVolumeDensity: 1.10,
+                        cloudScatteringStrength: 1.50,
+                        cloudScatteringG: -0.50,
+                        cloudRimEffect: 0.10,
+                        cloudDensityEnhancement: 2.00,
+                        cloudNoiseScale: 2.00,
+                        cloudNoiseStrength: 0.70,
+                        // 启用厚度映射
+                        cloudUseThicknessMapping: true,
+                        cloudThicknessScale: 4.00,
+                        cloudThicknessBias: 1.00,
+                        cloudThicknessPower: 1.50,
+                        // 启用云层自身阴影
+                        cloudUseSelfShadow: true,
+                        cloudSelfShadowStrength: 1.00,
+                        cloudSelfShadowSteps: 16,
+                        cloudSelfShadowDistance: 0.02
                       }));
                       // 设置对齐状态，启用体积渲染
                       setIsAlignedAndZoomed(true);
