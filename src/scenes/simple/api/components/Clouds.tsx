@@ -25,11 +25,11 @@ class PerformanceMonitor {
         if (this.memoryUsage.length > 60) this.memoryUsage.shift(); // 保留最近60秒
       }
       
-      // 每10秒输出一次性能报告
-      if (this.frameCount === 0 && this.memoryUsage.length > 0) {
-        const avgMemory = this.memoryUsage.reduce((a, b) => a + b, 0) / this.memoryUsage.length;
-        console.log(`[Clouds Performance] FPS: ${this.fps}, Memory: ${avgMemory.toFixed(1)}MB`);
-      }
+      // 每10秒输出一次性能报告 - 已关闭
+      // if (this.frameCount === 0 && this.memoryUsage.length > 0) {
+      //   const avgMemory = this.memoryUsage.reduce((a, b) => a + b, 0) / this.memoryUsage.length;
+      //   console.log(`[Clouds Performance] FPS: ${this.fps}, Memory: ${avgMemory.toFixed(1)}MB`);
+      // }
     }
   }
   
@@ -210,6 +210,29 @@ export function Clouds({
   // Triplanar采样参数
   useTriplanar = false,
   triplanarScale = 0.1,
+  // 体积散射参数
+  useVolumeScattering = false,
+  volumeDensity = 0.3,
+  scatteringStrength = 0.5,
+  scatteringG = 0.3,
+  rimEffect = 0.3,
+  densityEnhancement = 1.5,
+  scatteringColor = [1.0, 0.95, 0.9],
+  noiseScale = 1.0,
+  noiseStrength = 0.8,
+  
+  // 厚度映射参数
+  useThicknessMapping = false,
+  thicknessScale = 1.0,
+  thicknessBias = 0.0,
+  thicknessPower = 1.0,
+  
+  // 自身阴影参数
+  useSelfShadow = false,
+  selfShadowStrength = 0.5,
+  selfShadowSteps = 8,
+  selfShadowDistance = 0.02,
+  
   // 混合参数
   blendMode = "alpha",
   opacity = 1.0,
@@ -238,6 +261,29 @@ export function Clouds({
   // Triplanar采样参数
   useTriplanar?: boolean;
   triplanarScale?: number;
+  // 体积散射参数
+  useVolumeScattering?: boolean;
+  volumeDensity?: number;
+  scatteringStrength?: number;
+  scatteringG?: number;
+  rimEffect?: number;
+  densityEnhancement?: number;
+  scatteringColor?: [number, number, number];
+  noiseScale?: number;
+  noiseStrength?: number;
+  
+  // 厚度映射参数
+  useThicknessMapping?: boolean;
+  thicknessScale?: number;
+  thicknessBias?: number;
+  thicknessPower?: number;
+  
+  // 自身阴影参数
+  useSelfShadow?: boolean;
+  selfShadowStrength?: number;
+  selfShadowSteps?: number;
+  selfShadowDistance?: number;
+  
   // 混合参数
   blendMode?: "additive" | "alpha" | "multiply";
   opacity?: number;
@@ -271,6 +317,29 @@ export function Clouds({
           // Triplanar参数
           useTriplanar: { value: useTriplanar ?? false },
           triplanarScale: { value: triplanarScale ?? 0.1 },
+          // 体积散射参数
+          useVolumeScattering: { value: useVolumeScattering ?? false },
+          volumeDensity: { value: volumeDensity ?? 0.3 },
+          scatteringStrength: { value: scatteringStrength ?? 0.5 },
+          scatteringG: { value: scatteringG ?? 0.3 },
+          rimEffect: { value: rimEffect ?? 0.3 },
+          densityEnhancement: { value: densityEnhancement ?? 1.5 },
+          scatteringColor: { value: new THREE.Vector3(...(scatteringColor ?? [1.0, 0.95, 0.9])) },
+          noiseScale: { value: noiseScale ?? 1.0 },
+          noiseStrength: { value: noiseStrength ?? 0.8 },
+          
+          // 厚度映射参数
+          useThicknessMapping: { value: useThicknessMapping ?? false },
+          thicknessScale: { value: thicknessScale ?? 1.0 },
+          thicknessBias: { value: thicknessBias ?? 0.0 },
+          thicknessPower: { value: thicknessPower ?? 1.0 },
+          
+          // 自身阴影参数
+          useSelfShadow: { value: useSelfShadow ?? false },
+          selfShadowStrength: { value: selfShadowStrength ?? 0.5 },
+          selfShadowSteps: { value: selfShadowSteps ?? 8 },
+          selfShadowDistance: { value: selfShadowDistance ?? 0.02 },
+          
           // 混合参数
           opacity: { value: opacity ?? 1.0 }
         },
@@ -283,7 +352,6 @@ export function Clouds({
           varying vec3 vNormalW;
           varying vec3 vPosition;
           varying vec3 vViewPosition;
-          
           void main(){ 
             vUv = uv; 
             
@@ -298,6 +366,7 @@ export function Clouds({
             vPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
             vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
             vViewPosition = mvPosition.xyz;
+            
             gl_Position = projectionMatrix * mvPosition; 
           }
         `,
@@ -315,6 +384,26 @@ export function Clouds({
           uniform float polarSlowdown;
           uniform bool useTriplanar;
           uniform float triplanarScale;
+          uniform bool useVolumeScattering;
+          uniform float volumeDensity;
+          uniform float scatteringStrength;
+          uniform float scatteringG;
+          uniform float rimEffect;
+          uniform float densityEnhancement;
+          uniform vec3 scatteringColor;
+          uniform float noiseScale;
+          uniform float noiseStrength;
+          
+          uniform bool useThicknessMapping;
+          uniform float thicknessScale;
+          uniform float thicknessBias;
+          uniform float thicknessPower;
+          
+          uniform bool useSelfShadow;
+          uniform float selfShadowStrength;
+          uniform int selfShadowSteps;
+          uniform float selfShadowDistance;
+          
           uniform float opacity;
           varying vec2 vUv; 
           varying vec3 vNormalW;
@@ -337,6 +426,118 @@ export function Clouds({
             return texX.rgb * blend.x + texY.rgb * blend.y + texZ.rgb * blend.z;
           }
           
+          // Henyey-Greenstein相位函数
+          float henyeyGreenstein(float cosTheta, float g) {
+            return (1.0 - g * g) / (4.0 * 3.14159 * pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5));
+          }
+          
+          // 蓝噪声抖动
+          float blueNoise(vec2 uv) {
+            return fract(sin(dot(uv * 100.0, vec2(12.9898, 78.233))) * 43758.5453);
+          }
+          
+          // 体积散射计算（增强版）
+          vec3 calculateVolumeScattering(vec3 color, vec3 lightDir, vec3 normal, float density) {
+            if (!useVolumeScattering) return color;
+            
+            // 计算光照方向与法线的夹角
+            float cosTheta = dot(normal, normalize(lightDir));
+            
+            // 使用Henyey-Greenstein相位函数
+            float phase = henyeyGreenstein(cosTheta, scatteringG);
+            
+            // 增强散射强度：基础强度 + 密度增强
+            float baseScattering = phase * scatteringStrength;
+            float densityEnhancementFactor = pow(density, 0.5) * densityEnhancement;
+            float scattering = baseScattering * densityEnhancementFactor;
+            
+            // 添加边缘增强效果
+            float rimEffectFactor = 1.0 - abs(cosTheta);
+            scattering += rimEffectFactor * rimEffect * density;
+            
+            // 散射颜色混合 - 使用可配置的散射颜色
+            vec3 scatteredColor = mix(color, scatteringColor, scattering);
+            
+            return scatteredColor;
+          }
+          
+          // 体积密度采样（增强版）
+          float sampleVolumeDensity(vec2 uv, float depth) {
+            // 基于深度的密度变化 - 增强对比度
+            float density = 1.0 - smoothstep(0.0, 0.8, depth); // 调整阈值让更多区域有密度
+            
+            // 添加蓝噪声变化 - 使用可配置的噪声参数
+            float noise = blueNoise(uv * noiseScale);
+            density *= (0.6 + noiseStrength * noise); // 使用可配置的噪声强度
+            
+            // 添加多层噪声
+            float noise2 = blueNoise(uv * noiseScale * 2.0 + 0.5);
+            density *= (0.7 + noiseStrength * 0.6 * noise2);
+            
+            // 应用体积密度参数
+            density *= volumeDensity;
+            
+            // 确保最小密度
+            density = max(density, 0.1);
+            
+            return density;
+          }
+          
+          // 厚度映射函数 - 基于置换贴图计算厚度（增强版）
+          float calculateThicknessMapping(vec2 uv, float depth) {
+            if (!useThicknessMapping) return 1.0;
+            
+            // 使用置换贴图作为厚度基础
+            float displacement = texture2D(map, uv).r;
+            
+            // 增强厚度映射：让亮的地方明显更厚
+            float thickness = pow(displacement, thicknessPower) * thicknessScale + thicknessBias;
+            
+            // 大幅增强厚度范围：0.2-5.0倍
+            thickness = clamp(thickness, 0.2, 5.0);
+            
+            // 添加对比度增强：让厚薄差异更明显
+            thickness = pow(thickness, 0.7); // 增强对比度
+            
+            return thickness;
+          }
+          
+          // 云层自身阴影计算函数
+          float calculateSelfShadow(vec2 uv, vec3 lightDir, vec3 normal) {
+            if (!useSelfShadow) return 1.0;
+            
+            // 计算光照方向在UV空间的投影
+            vec3 lightDirNormalized = normalize(lightDir);
+            vec2 lightDirUV = lightDirNormalized.xz * selfShadowDistance;
+            
+            // 步进采样计算阴影
+            float shadow = 1.0;
+            float stepSize = 1.0 / float(selfShadowSteps);
+            
+            for (int i = 0; i < 16; i++) {
+              if (i >= selfShadowSteps) break;
+              
+              float t = float(i) * stepSize;
+              vec2 shadowUV = uv - lightDirUV * t;
+              
+              // 检查UV边界
+              if (shadowUV.x < 0.0 || shadowUV.x > 1.0 || shadowUV.y < 0.0 || shadowUV.y > 1.0) {
+                break;
+              }
+              
+              // 采样云层密度
+              float cloudDensity = texture2D(map, shadowUV).r;
+              
+              // 如果遇到高密度云层，产生阴影
+              if (cloudDensity > 0.3) {
+                float shadowFactor = cloudDensity * selfShadowStrength * (1.0 - t);
+                shadow = min(shadow, 1.0 - shadowFactor);
+              }
+            }
+            
+            return shadow;
+          }
+          
           void main(){ 
             vec3 n = normalize(vNormalW);
             float ndl = max(dot(n, normalize(lightDir)), 0.0);
@@ -349,6 +550,7 @@ export function Clouds({
               // 使用传统UV采样
               float latFactor = clamp(sqrt(max(0.0, 1.0 - n.y*n.y)), 0.2, 1.0);
               vec2 uv = vUv + uvOffset * (polarSlowdown * latFactor);
+              
               src = texture2D(map, uv).rgb;
             }
             
@@ -389,8 +591,38 @@ export function Clouds({
             // 应用暖色调偏移
             c = mix(c, c * warmTint, tintStrength);
             
-            vec3 col = mix(c, vec3(1.0), 0.40) * l * lightColor;
-            float a = clamp(dayW * strength * d * opacity, 0.0, 1.0);
+            // 计算体积密度
+            float density = sampleVolumeDensity(vUv, d);
+            
+            // 计算厚度映射
+            float thickness = calculateThicknessMapping(vUv, d);
+            
+            // 应用厚度映射到密度
+            density *= thickness;
+            
+            // 应用体积散射
+            c = calculateVolumeScattering(c, lightDir, n, density);
+            
+            // 计算自身阴影
+            float selfShadow = calculateSelfShadow(vUv, lightDir, n);
+            
+            // 厚度映射直接影响云层颜色和透明度
+            float finalOpacity = opacity;
+            if (useThicknessMapping) {
+              // 厚的地方更亮更不透明
+              float thicknessEffect = thickness * 0.3; // 厚度对颜色的影响
+              c = mix(c, c * 1.2, thicknessEffect); // 厚的地方更亮
+              
+              // 厚度影响透明度
+              float thicknessAlpha = 1.0 + thicknessEffect;
+              finalOpacity *= thicknessAlpha;
+            }
+            
+            // 应用自身阴影到光照
+            float shadowedLight = l * selfShadow;
+            
+            vec3 col = c * shadowedLight * lightColor;
+            float a = clamp(dayW * strength * d * finalOpacity, 0.0, 1.0);
             gl_FragColor = vec4(col, a);
           }
         `,
@@ -409,7 +641,7 @@ export function Clouds({
       console.error('[Clouds] ❌ 云层材质创建失败:', error);
       return null;
     }
-  }, [texture, lightDir, lightColor, strength, sunI, cloudGamma, cloudBlack, cloudWhite, cloudContrast, displacementScale, displacementBias, scrollSpeedU, scrollSpeedV]);
+  }, [texture, lightDir, lightColor, strength, sunI, cloudGamma, cloudBlack, cloudWhite, cloudContrast, displacementScale, displacementBias, scrollSpeedU, scrollSpeedV, useTriplanar, triplanarScale, useVolumeScattering, volumeDensity, scatteringStrength, scatteringG, opacity]);
 
   // 更新着色器uniforms
   useEffect(() => {
@@ -451,11 +683,62 @@ export function Clouds({
         if (cloudMaterial.uniforms.uvOffset) {
           (cloudMaterial.uniforms.uvOffset.value as THREE.Vector2).set(tAccum.current.u, tAccum.current.v);
         }
+        if (cloudMaterial.uniforms.useVolumeScattering) {
+          cloudMaterial.uniforms.useVolumeScattering.value = useVolumeScattering ?? false;
+        }
+        if (cloudMaterial.uniforms.volumeDensity) {
+          cloudMaterial.uniforms.volumeDensity.value = volumeDensity ?? 0.3;
+        }
+        if (cloudMaterial.uniforms.scatteringStrength) {
+          cloudMaterial.uniforms.scatteringStrength.value = scatteringStrength ?? 0.5;
+        }
+        if (cloudMaterial.uniforms.scatteringG) {
+          cloudMaterial.uniforms.scatteringG.value = scatteringG ?? 0.3;
+        }
+        if (cloudMaterial.uniforms.rimEffect) {
+          cloudMaterial.uniforms.rimEffect.value = rimEffect ?? 0.3;
+        }
+        if (cloudMaterial.uniforms.densityEnhancement) {
+          cloudMaterial.uniforms.densityEnhancement.value = densityEnhancement ?? 1.5;
+        }
+        if (cloudMaterial.uniforms.scatteringColor) {
+          (cloudMaterial.uniforms.scatteringColor.value as THREE.Vector3).set(...(scatteringColor ?? [1.0, 0.95, 0.9]));
+        }
+        if (cloudMaterial.uniforms.noiseScale) {
+          cloudMaterial.uniforms.noiseScale.value = noiseScale ?? 1.0;
+        }
+        if (cloudMaterial.uniforms.noiseStrength) {
+          cloudMaterial.uniforms.noiseStrength.value = noiseStrength ?? 0.8;
+        }
+        if (cloudMaterial.uniforms.useThicknessMapping) {
+          cloudMaterial.uniforms.useThicknessMapping.value = useThicknessMapping ?? false;
+        }
+        if (cloudMaterial.uniforms.thicknessScale) {
+          cloudMaterial.uniforms.thicknessScale.value = thicknessScale ?? 1.0;
+        }
+        if (cloudMaterial.uniforms.thicknessBias) {
+          cloudMaterial.uniforms.thicknessBias.value = thicknessBias ?? 0.0;
+        }
+        if (cloudMaterial.uniforms.thicknessPower) {
+          cloudMaterial.uniforms.thicknessPower.value = thicknessPower ?? 1.0;
+        }
+        if (cloudMaterial.uniforms.useSelfShadow) {
+          cloudMaterial.uniforms.useSelfShadow.value = useSelfShadow ?? false;
+        }
+        if (cloudMaterial.uniforms.selfShadowStrength) {
+          cloudMaterial.uniforms.selfShadowStrength.value = selfShadowStrength ?? 0.5;
+        }
+        if (cloudMaterial.uniforms.selfShadowSteps) {
+          cloudMaterial.uniforms.selfShadowSteps.value = selfShadowSteps ?? 8;
+        }
+        if (cloudMaterial.uniforms.selfShadowDistance) {
+          cloudMaterial.uniforms.selfShadowDistance.value = selfShadowDistance ?? 0.02;
+        }
       } catch (error) {
         console.error('[SimpleClouds] Error updating uniforms:', error);
       }
     }
-  }, [cloudMaterial, texture, lightDir, lightColor, strength, sunI, cloudGamma, cloudBlack, cloudWhite, cloudContrast, displacementScale, displacementBias, scrollSpeedU, scrollSpeedV]);
+  }, [cloudMaterial, texture, lightDir, lightColor, strength, sunI, cloudGamma, cloudBlack, cloudWhite, cloudContrast, displacementScale, displacementBias, scrollSpeedU, scrollSpeedV, useTriplanar, triplanarScale, useVolumeScattering, volumeDensity, scatteringStrength, scatteringG, rimEffect, densityEnhancement, scatteringColor, noiseScale, noiseStrength, useThicknessMapping, thicknessScale, thicknessBias, thicknessPower, useSelfShadow, selfShadowStrength, selfShadowSteps, selfShadowDistance, opacity]);
 
   // UV滚动动画
   useFrame((_, delta) => {
@@ -516,6 +799,29 @@ export function CloudsWithLayers({
   // Triplanar参数
   useTriplanar = false,
   triplanarScale = 0.1,
+  // 体积散射参数
+  useVolumeScattering = false,
+  volumeDensity = 0.3,
+  scatteringStrength = 0.5,
+  scatteringG = 0.3,
+  rimEffect = 0.3,
+  densityEnhancement = 1.5,
+  scatteringColor = [1.0, 0.95, 0.9],
+  noiseScale = 1.0,
+  noiseStrength = 0.8,
+  
+  // 厚度映射参数
+  useThicknessMapping = false,
+  thicknessScale = 1.0,
+  thicknessBias = 0.0,
+  thicknessPower = 1.0,
+  
+  // 自身阴影参数
+  useSelfShadow = false,
+  selfShadowStrength = 0.5,
+  selfShadowSteps = 8,
+  selfShadowDistance = 0.02,
+  
   // 混合参数
   blendMode = "alpha",
   opacity = 1.0,
@@ -547,6 +853,29 @@ export function CloudsWithLayers({
   // Triplanar参数
   useTriplanar?: boolean;
   triplanarScale?: number;
+  // 体积散射参数
+  useVolumeScattering?: boolean;
+  volumeDensity?: number;
+  scatteringStrength?: number;
+  scatteringG?: number;
+  rimEffect?: number;
+  densityEnhancement?: number;
+  scatteringColor?: [number, number, number];
+  noiseScale?: number;
+  noiseStrength?: number;
+  
+  // 厚度映射参数
+  useThicknessMapping?: boolean;
+  thicknessScale?: number;
+  thicknessBias?: number;
+  thicknessPower?: number;
+  
+  // 自身阴影参数
+  useSelfShadow?: boolean;
+  selfShadowStrength?: number;
+  selfShadowSteps?: number;
+  selfShadowDistance?: number;
+  
   // 混合参数
   blendMode?: "additive" | "alpha" | "multiply";
   opacity?: number;
@@ -580,11 +909,11 @@ export function CloudsWithLayers({
         layerSpacing: layerSpacing * 0.3 // 减少层间距，避免视觉分离
       };
     } else {
-      // 远距离观察：保持Z轴叠加，轻微差异
+      // 远距离观察：保持Z轴叠加，所有层完全同步
       return {
         strength: strength * (0.9 - layerIndex * 0.03), // 轻微强度递减
-        displacementScale: displacementScale * (1 + layerIndex * 0.05), // 最小化置换差异
-        displacementBias: displacementBias * (1 + layerIndex * 0.02), // 最小化偏移差异
+        displacementScale: displacementScale, // 所有层使用相同的置换强度
+        displacementBias: displacementBias, // 所有层使用相同的置换偏移
         scrollSpeedU: scrollSpeedU, // 保持同步滚动
         scrollSpeedV: scrollSpeedV, // 避免XY平面错位
         layerSpacing: layerSpacing
@@ -600,13 +929,13 @@ export function CloudsWithLayers({
   useEffect(() => {
     console.log(`[CloudsWithLayers] 初始化 ${numLayers} 层云系统，层间距: ${layerSpacing}`);
     
-    // 5秒后输出性能报告
-    const timer = setTimeout(() => {
-      const stats = perfMonitor.getStats();
-      console.log(`[CloudsWithLayers] 性能报告 - FPS: ${stats.fps}, 内存: ${stats.avgMemory.toFixed(1)}MB`);
-    }, 5000);
+    // 5秒后输出性能报告 - 已关闭
+    // const timer = setTimeout(() => {
+    //   const stats = perfMonitor.getStats();
+    //   console.log(`[CloudsWithLayers] 性能报告 - FPS: ${stats.fps}, 内存: ${stats.avgMemory.toFixed(1)}MB`);
+    // }, 5000);
     
-    return () => clearTimeout(timer);
+    // return () => clearTimeout(timer);
   }, [numLayers, layerSpacing]);
 
   return (
@@ -639,6 +968,28 @@ export function CloudsWithLayers({
             // Triplanar和混合参数
             useTriplanar={useTriplanar}
             triplanarScale={triplanarScale}
+            // 体积散射参数
+            useVolumeScattering={useVolumeScattering ?? false}
+            volumeDensity={volumeDensity ?? 0.3}
+            scatteringStrength={scatteringStrength ?? 0.5}
+            scatteringG={scatteringG ?? 0.3}
+            rimEffect={rimEffect ?? 0.3}
+            densityEnhancement={densityEnhancement ?? 1.5}
+            scatteringColor={scatteringColor ?? [1.0, 0.95, 0.9]}
+            noiseScale={noiseScale ?? 1.0}
+            noiseStrength={noiseStrength ?? 0.8}
+            
+            // 厚度映射参数
+            useThicknessMapping={useThicknessMapping ?? false}
+            thicknessScale={thicknessScale ?? 1.0}
+            thicknessBias={thicknessBias ?? 0.0}
+            thicknessPower={thicknessPower ?? 1.0}
+            
+            useSelfShadow={useSelfShadow ?? false}
+            selfShadowStrength={selfShadowStrength ?? 0.5}
+            selfShadowSteps={selfShadowSteps ?? 8}
+            selfShadowDistance={selfShadowDistance ?? 0.02}
+            
             blendMode={blendMode}
             opacity={opacity}
             // 只有第一层报告UV偏移，避免重复回调

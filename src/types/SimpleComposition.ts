@@ -125,6 +125,32 @@ export interface SimpleComposition {
   cloudPatchSize?: number;         // patch大小（默认0.15）
   cloudPatchDistance?: number;     // patch显示距离（默认10）
   
+  // 体积散射参数
+  cloudUseVolumeScattering?: boolean;  // 启用体积散射（默认false）
+  cloudVolumeDensity?: number;         // 体积密度（默认0.3）
+  cloudScatteringStrength?: number;    // 散射强度（默认0.5）
+  cloudScatteringG?: number;           // 相位函数参数（默认0.3）
+  cloudRimEffect?: number;             // 边缘增强效果（默认0.3）
+  cloudDensityEnhancement?: number;    // 密度增强倍数（默认1.5）
+  cloudScatteringColor?: [number, number, number]; // 散射颜色RGB（默认[1.0, 0.95, 0.9]）
+  cloudNoiseScale?: number;            // 噪声缩放（默认1.0）
+  cloudNoiseStrength?: number;         // 噪声强度（默认0.8）
+  
+  // 厚度映射参数
+  cloudUseThicknessMapping?: boolean;  // 启用厚度映射（默认false）
+  cloudThicknessScale?: number;        // 厚度缩放（默认1.0）
+  cloudThicknessBias?: number;         // 厚度偏移（默认0.0）
+  cloudThicknessPower?: number;        // 厚度幂次（默认1.0）
+  
+  // 夜半球地球贴图光照控制
+  nightEarthLightInfluence?: number;   // 夜半球地球贴图受太阳光影响程度（0-1）
+  
+  // 云层自身阴影参数
+  cloudUseSelfShadow?: boolean;        // 启用云层自身阴影（默认false）
+  cloudSelfShadowStrength?: number;    // 自身阴影强度（默认0.5）
+  cloudSelfShadowSteps?: number;       // 自身阴影步数（默认8）
+  cloudSelfShadowDistance?: number;    // 自身阴影距离（默认0.02）
+  
   // 控制参数
   exposure: number;            // 曝光
   cameraDistance: number;      // 相机距离
@@ -259,7 +285,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightFalloff: 1.0,           // 夜景衰减系数（0.5-3.0，默认1.0）
   terminatorLift: 0.006,       // 终止线提亮（0.0-0.05，默认0.006）
   terminatorTint: [1.0, 0.9, 0.8, 0.01], // 终止线暖色调 [r,g,b,a]
-  nightEarthMapIntensity: 0.50, // 月光下地球贴图强度（0.0-0.8，默认0.50）
+  nightEarthMapIntensity: 0.15, // 月光下地球贴图强度（0.0-0.8，默认0.15）
   nightEarthMapHue: 200,       // 月光地球贴图色调（0-360，默认200）
   nightEarthMapSaturation: 0.30, // 月光地球贴图饱和度（0-2，默认0.30）
   nightEarthMapLightness: 0.25,  // 月光地球贴图亮度（0-2，默认0.25）
@@ -311,8 +337,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
 
   // 阴影与细分控制默认
   enableTerrainShadow: true,
-  enableCloudShadow: false,
-  cloudShadowStrength: 0.4,
+  enableCloudShadow: true,   // 默认启用云层投影
+  cloudShadowStrength: 0.4,  // 云层投影强度（默认启用）
   useSegLOD: true,
   earthSegmentsBase: 144,
   earthSegmentsHigh: 2048,
@@ -345,7 +371,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   cloudPerformanceMode: 'auto',     // 性能模式
   
   // 月球材质控制
-  moonLightIntensity: 1.0,     // 月球材质亮度
+  moonLightIntensity: 0.10,    // 月球材质亮度
   moonLightTempK: 5600,        // 月球材质色温
   // 月球外观增强默认
   moonTintH: 0,
@@ -365,21 +391,21 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightLift: 0.02,
   
   // 云层参数
-  cloudStrength: 0.81,          // 云层强度
-  cloudHeight: 0.002,          // 云层高度
+  cloudStrength: 0.60,          // 云层强度
+  cloudHeight: 0.003,          // 云层高度
   cloudYawDeg: 0,              // 云层经度旋转
   cloudPitchDeg: 0,            // 云层纬度旋转
   cloudGamma: 0.50,            // 云层Gamma值
   cloudBlack: 0.00,            // 云层黑点
-  cloudWhite: 0.81,            // 云层白点
-  cloudContrast: 1.0,          // 云层对比度
+  cloudWhite: 0.90,            // 云层白点
+  cloudContrast: 1.1,          // 云层对比度
   
   // 置换贴图参数
-  cloudDisplacementScale: 0.064,  // 置换强度 6.4%
-  cloudDisplacementBias: 0.01,  // 置换偏移 1.0%
+  cloudDisplacementScale: 0.0,     // 置换强度 0.0%
+  cloudDisplacementBias: 0.03,     // 置换偏移 3.0%
   // UV滚动速度参数
-  cloudScrollSpeedU: 0.0003,    // U方向滚动速度（= 3.0 标签）
-  cloudScrollSpeedV: 0.00015,   // V方向滚动速度（= 1.5 标签）
+  cloudScrollSpeedU: 0.0003,       // U方向滚动速度（= 3.0 标签）
+  cloudScrollSpeedV: 0.00015,      // V方向滚动速度（= 1.5 标签）
   
   // 云层厚度参数
   cloudNumLayers: 3,            // 云层层数（默认3）
@@ -387,6 +413,32 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   cloudEnablePatch: false,      // 启用动态patch（默认false）
   cloudPatchSize: 0.15,         // patch大小（默认0.15）
   cloudPatchDistance: 10,       // patch显示距离（默认10）
+  
+  // 体积散射参数
+  cloudUseVolumeScattering: true,   // 启用体积散射（默认true）
+  cloudVolumeDensity: 1.0,          // 体积密度（默认1.0）
+  cloudScatteringStrength: 1.5,     // 散射强度（默认1.5）
+  cloudScatteringG: -0.5,           // 相位函数参数（默认-0.5，后向散射）
+  cloudRimEffect: 0.2,              // 边缘增强效果（默认0.2）
+  cloudDensityEnhancement: 2.0,     // 密度增强倍数（默认2.0）
+  cloudScatteringColor: [1.0, 0.95, 0.9], // 散射颜色RGB（默认暖白色）
+  cloudNoiseScale: 2.0,             // 噪声缩放（默认2.0）
+  cloudNoiseStrength: 0.7,          // 噪声强度（默认0.7）
+  
+  // 厚度映射参数
+  cloudUseThicknessMapping: true,   // 启用厚度映射（默认true）
+  cloudThicknessScale: 2.0,         // 厚度缩放（默认2.0，增强）
+  cloudThicknessBias: 0.2,          // 厚度偏移（默认0.2，增强）
+  cloudThicknessPower: 0.6,         // 厚度幂次（默认0.6，让亮的地方更突出）
+  
+  // 夜半球地球贴图光照控制
+  nightEarthLightInfluence: 0.3,    // 夜半球地球贴图受太阳光影响程度（0-1，默认0.3）
+  
+  // 云层自身阴影参数
+  cloudUseSelfShadow: true,         // 启用云层自身阴影（默认true）
+  cloudSelfShadowStrength: 0.5,     // 自身阴影强度（默认0.5）
+  cloudSelfShadowSteps: 8,          // 自身阴影步数（默认8）
+  cloudSelfShadowDistance: 0.02,    // 自身阴影距离（默认0.02）
   
   // 控制参数
   exposure: 1.0,               // 曝光

@@ -130,20 +130,20 @@ import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
 import { calculateMoonPhase } from './scenes/simple/utils/moonPhaseCalculator';
 
-// 带UV offset输出的云层包装组件
-function CloudsWithOffset({ 
-  onOffsetUpdate,
-  ...props 
-}: Parameters<typeof CloudsWithLayers>[0] & { 
-  onOffsetUpdate: (offset: THREE.Vector2) => void 
-}) {
-  return (
-    <CloudsWithLayers 
-      {...props}
-      onUvUpdate={onOffsetUpdate}
-    />
-  );
-}
+// 带UV offset输出的云层包装组件 - 不再需要，因为云层阴影改为基于世界坐标
+// function CloudsWithOffset({ 
+//   onOffsetUpdate,
+//   ...props 
+// }: Parameters<typeof CloudsWithLayers>[0] & { 
+//   onOffsetUpdate: (offset: THREE.Vector2) => void 
+// }) {
+//   return (
+//     <CloudsWithLayers 
+//       {...props}
+//       onUvUpdate={onOffsetUpdate}
+//     />
+//   );
+// }
 
 // 场景内容组件
 function SceneContent({ 
@@ -187,8 +187,8 @@ function SceneContent({
 }) {
   const { camera, scene } = useThree();
   
-  // 云层UV偏移状态 - 用于同步云层阴影
-  const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
+  // 云层UV偏移状态 - 不再需要，因为云层阴影改为基于世界坐标
+  // const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
     // 暴露当前相机用于验证
   React.useEffect(() => {
     try { (window as any).__R3F_Camera = camera; } catch {}
@@ -206,6 +206,20 @@ function SceneContent({
         console.log(`[Cloud Test] 地球大小: ${earthSize.toFixed(2)}, 相机距离: ${distance.toFixed(2)}km`);
         console.log(`[Cloud Test] 云层层数: ${numLayers} (直接使用配置值)`);
         console.log(`[Cloud Test] 层间距: ${layerSpacing.toFixed(4)}`);
+        console.log(`[Cloud Test] 体积散射状态: ${composition.cloudUseVolumeScattering ? '启用' : '禁用'}`);
+        console.log(`[Cloud Test] 体积密度: ${(composition.cloudVolumeDensity ?? 0.6).toFixed(2)}`);
+        console.log(`[Cloud Test] 散射强度: ${(composition.cloudScatteringStrength ?? 0.8).toFixed(2)}`);
+        console.log(`[Cloud Test] 相位函数G: ${(composition.cloudScatteringG ?? 0.2).toFixed(2)}`);
+        console.log(`[Cloud Test] 边缘增强: ${(composition.cloudRimEffect ?? 0.3).toFixed(2)}`);
+        console.log(`[Cloud Test] 密度增强: ${(composition.cloudDensityEnhancement ?? 1.5).toFixed(2)}`);
+        console.log(`[Cloud Test] 噪声缩放: ${(composition.cloudNoiseScale ?? 1.0).toFixed(2)}`);
+        console.log(`[Cloud Test] 噪声强度: ${(composition.cloudNoiseStrength ?? 0.8).toFixed(2)}`);
+        console.log(`[Cloud Test] 厚度映射状态: ${composition.cloudUseThicknessMapping ? '启用' : '禁用'}`);
+        if (composition.cloudUseThicknessMapping) {
+          console.log(`[Cloud Test] 厚度缩放: ${(composition.cloudThicknessScale ?? 2.0).toFixed(2)}`);
+          console.log(`[Cloud Test] 厚度偏移: ${(composition.cloudThicknessBias ?? 0.2).toFixed(2)}`);
+          console.log(`[Cloud Test] 厚度幂次: ${(composition.cloudThicknessPower ?? 0.6).toFixed(2)}`);
+        }
         console.log(`[Cloud Test] 对齐放大状态: ${isAlignedAndZoomed ? '已对齐放大' : '未对齐'}`);
         return {
           earthSize: earthSize.toFixed(2),
@@ -213,6 +227,10 @@ function SceneContent({
           height: height.toFixed(2),
           numLayers: numLayers,
           layerSpacing: layerSpacing.toFixed(4),
+          // POM已移除
+          // pomEnabled: composition.cloudUsePOM ?? false,
+          // pomScale: (composition.cloudPOMParallaxScale ?? 0.5).toFixed(2),
+          // pomSteps: composition.cloudPOMSteps ?? 16,
           aligned: isAlignedAndZoomed
         };
       };
@@ -395,6 +413,7 @@ function SceneContent({
           nightHemisphereBrightness={composition.nightHemisphereBrightness}
           nightGlowBlur={composition.nightGlowBlur}
           nightGlowOpacity={composition.nightGlowOpacity}
+          nightEarthLightInfluence={composition.nightEarthLightInfluence}
           shininess={composition.shininess}
           specStrength={composition.specStrength}
           broadStrength={composition.broadStrength}
@@ -414,7 +433,12 @@ function SceneContent({
           cloudShadowMap={(composition.enableCloudShadow ?? false) ? earthClouds : undefined}
           cloudShadowStrength={composition.cloudShadowStrength ?? 0.4}
           enableCloudShadow={composition.enableCloudShadow ?? false}
-          cloudUvOffset={cloudUvOffset}
+          // 云层同步参数
+          cloudYawDeg={composition.cloudYawDeg ?? 0}
+          cloudPitchDeg={composition.cloudPitchDeg ?? 0}
+          cloudScrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
+          cloudScrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
+          // cloudUvOffset={cloudUvOffset} // 不再使用UV偏移方式
           // DEM地形参数
           demNormalStrength={demParams.demNormalStrength}
           demNormalWeight={demParams.demNormalWeight}
@@ -445,7 +469,7 @@ function SceneContent({
         
         {/* 云层 - 根据earthSize自动调整层数 */}
         {composition.useClouds && earthClouds && (
-          <CloudsWithOffset
+          <CloudsWithLayers
             radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
             texture={earthClouds}
             position={[0, 0, 0]}
@@ -470,9 +494,31 @@ function SceneContent({
             layerSpacing={composition.cloudLayerSpacing ?? 0.002}
             // 禁用Triplanar避免性能问题
             useTriplanar={false}
+        // 体积散射参数
+        useVolumeScattering={composition.cloudUseVolumeScattering ?? false}
+        volumeDensity={composition.cloudVolumeDensity ?? 0.6}
+        scatteringStrength={composition.cloudScatteringStrength ?? 0.8}
+        scatteringG={composition.cloudScatteringG ?? 0.2}
+        rimEffect={composition.cloudRimEffect ?? 0.3}
+        densityEnhancement={composition.cloudDensityEnhancement ?? 1.5}
+        scatteringColor={composition.cloudScatteringColor ?? [1.0, 0.95, 0.9]}
+        noiseScale={composition.cloudNoiseScale ?? 1.0}
+        noiseStrength={composition.cloudNoiseStrength ?? 0.8}
+        
+        // 厚度映射参数
+        useThicknessMapping={composition.cloudUseThicknessMapping ?? false}
+        thicknessScale={composition.cloudThicknessScale ?? 1.0}
+        thicknessBias={composition.cloudThicknessBias ?? 0.0}
+        thicknessPower={composition.cloudThicknessPower ?? 1.0}
+        
+        // 自身阴影参数
+        useSelfShadow={composition.cloudUseSelfShadow ?? false}
+        selfShadowStrength={composition.cloudSelfShadowStrength ?? 0.5}
+        selfShadowSteps={composition.cloudSelfShadowSteps ?? 8}
+        selfShadowDistance={composition.cloudSelfShadowDistance ?? 0.02}
             blendMode="alpha"
             opacity={1.0}
-            onOffsetUpdate={(offset) => setCloudUvOffset(offset)}
+            // onOffsetUpdate={(offset) => setCloudUvOffset(offset)} // 不再需要UV偏移同步
           />
         )}
 
@@ -2455,10 +2501,10 @@ export default function SimpleTest() {
                 </label>
                 <label>
                   <input type="checkbox" checked={composition.enableCloudShadow ?? false}
-                         onChange={(e) => updateValue('enableCloudShadow', e.target.checked)} /> 云层阴影（云贴图暗化）
+                         onChange={(e) => updateValue('enableCloudShadow', e.target.checked)} /> 云层投影（云贴图暗化）
                 </label>
               </div>
-              <label className="label">云层阴影强度: {Math.round((composition.cloudShadowStrength ?? 0.4) * 100)}%</label>
+              <label className="label">云层投影强度: {Math.round((composition.cloudShadowStrength ?? 0.4) * 100)}%</label>
               <input className="input" type="range" min={0} max={1} step={0.01}
                      value={composition.cloudShadowStrength ?? 0.4}
                      onChange={(e) => updateValue('cloudShadowStrength', parseFloat(e.target.value))} />
@@ -2628,6 +2674,129 @@ export default function SimpleTest() {
                      value={composition.cloudLayerSpacing ?? 0.002}
                      onChange={(e) => updateValue('cloudLayerSpacing', parseFloat(e.target.value))} />
             </div>
+            
+            {/* 体积散射控制 */}
+            <div className="row">
+              <label className="checkbox">
+                <input type="checkbox" checked={composition.cloudUseVolumeScattering ?? false}
+                       onChange={(e) => updateValue('cloudUseVolumeScattering', e.target.checked)} />
+                启用体积散射
+              </label>
+            </div>
+            <div className="row">
+              <label className="label">体积密度: {(composition.cloudVolumeDensity ?? 0.6).toFixed(2)}</label>
+              <input className="input" type="range" min={0.1} max={1.2} step={0.1}
+                     value={composition.cloudVolumeDensity ?? 0.6}
+                     onChange={(e) => updateValue('cloudVolumeDensity', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">散射强度: {(composition.cloudScatteringStrength ?? 0.8).toFixed(2)}</label>
+              <input className="input" type="range" min={0.1} max={1.5} step={0.1}
+                     value={composition.cloudScatteringStrength ?? 0.8}
+                     onChange={(e) => updateValue('cloudScatteringStrength', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">相位函数G: {(composition.cloudScatteringG ?? 0.2).toFixed(2)}</label>
+              <input className="input" type="range" min={-0.5} max={0.5} step={0.1}
+                     value={composition.cloudScatteringG ?? 0.2}
+                     onChange={(e) => updateValue('cloudScatteringG', parseFloat(e.target.value))} />
+            </div>
+            
+            {/* 体积散射高级参数 */}
+            <div className="row">
+              <label className="label">边缘增强: {(composition.cloudRimEffect ?? 0.3).toFixed(2)}</label>
+              <input className="input" type="range" min={0.0} max={1.0} step={0.1}
+                     value={composition.cloudRimEffect ?? 0.3}
+                     onChange={(e) => updateValue('cloudRimEffect', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">密度增强: {(composition.cloudDensityEnhancement ?? 1.5).toFixed(2)}</label>
+              <input className="input" type="range" min={0.5} max={3.0} step={0.1}
+                     value={composition.cloudDensityEnhancement ?? 1.5}
+                     onChange={(e) => updateValue('cloudDensityEnhancement', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">噪声缩放: {(composition.cloudNoiseScale ?? 1.0).toFixed(2)}</label>
+              <input className="input" type="range" min={0.5} max={2.0} step={0.1}
+                     value={composition.cloudNoiseScale ?? 1.0}
+                     onChange={(e) => updateValue('cloudNoiseScale', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">噪声强度: {(composition.cloudNoiseStrength ?? 0.8).toFixed(2)}</label>
+              <input className="input" type="range" min={0.1} max={1.5} step={0.1}
+                     value={composition.cloudNoiseStrength ?? 0.8}
+                     onChange={(e) => updateValue('cloudNoiseStrength', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 厚度映射控制 */}
+          <div className="section">
+            <h3>厚度映射控制</h3>
+            <div className="row">
+              <label className="checkbox">
+                <input type="checkbox" checked={composition.cloudUseThicknessMapping ?? false}
+                       onChange={(e) => updateValue('cloudUseThicknessMapping', e.target.checked)} />
+                启用厚度映射（最亮的地方最厚）
+              </label>
+            </div>
+            <div className="row">
+              <label className="label">厚度缩放: {(composition.cloudThicknessScale ?? 2.0).toFixed(2)}</label>
+              <input className="input" type="range" min={0.5} max={4.0} step={0.1}
+                     value={composition.cloudThicknessScale ?? 2.0}
+                     onChange={(e) => updateValue('cloudThicknessScale', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">厚度偏移: {(composition.cloudThicknessBias ?? 0.2).toFixed(2)}</label>
+              <input className="input" type="range" min={-0.5} max={1.0} step={0.1}
+                     value={composition.cloudThicknessBias ?? 0.2}
+                     onChange={(e) => updateValue('cloudThicknessBias', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">厚度幂次: {(composition.cloudThicknessPower ?? 0.6).toFixed(2)}</label>
+              <input className="input" type="range" min={0.3} max={1.5} step={0.1}
+                     value={composition.cloudThicknessPower ?? 0.6}
+                     onChange={(e) => updateValue('cloudThicknessPower', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 云层自身阴影控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <h3>云层自身阴影控制</h3>
+            <div className="row">
+              <label>
+                <input type="checkbox" checked={composition.cloudUseSelfShadow ?? false}
+                       onChange={(e) => updateValue('cloudUseSelfShadow', e.target.checked)} /> 启用云层自身阴影（大幅提升体积感）
+              </label>
+            </div>
+            <div className="row">
+              <label className="label">自身阴影强度: {(composition.cloudSelfShadowStrength ?? 0.5).toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={1} step={0.1}
+                     value={composition.cloudSelfShadowStrength ?? 0.5}
+                     onChange={(e) => updateValue('cloudSelfShadowStrength', parseFloat(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">自身阴影步数: {composition.cloudSelfShadowSteps ?? 8}</label>
+              <input className="input" type="range" min={4} max={16} step={1}
+                     value={composition.cloudSelfShadowSteps ?? 8}
+                     onChange={(e) => updateValue('cloudSelfShadowSteps', parseInt(e.target.value))} />
+            </div>
+            <div className="row">
+              <label className="label">自身阴影距离: {(composition.cloudSelfShadowDistance ?? 0.02).toFixed(3)}</label>
+              <input className="input" type="range" min={0.005} max={0.05} step={0.005}
+                     value={composition.cloudSelfShadowDistance ?? 0.02}
+                     onChange={(e) => updateValue('cloudSelfShadowDistance', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          {/* 夜半球地球贴图光照控制 */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <h3>夜半球地球贴图光照控制</h3>
+            <div className="row">
+              <label className="label">夜半球光照影响: {((composition.nightEarthLightInfluence ?? 0.3) * 100).toFixed(0)}%</label>
+              <input className="input" type="range" min={0} max={1} step={0.1}
+                     value={composition.nightEarthLightInfluence ?? 0.3}
+                     onChange={(e) => updateValue('nightEarthLightInfluence', parseFloat(e.target.value))} />
+            </div>
           </div>
           
           {/* 相机和曝光控制 */}
@@ -2768,12 +2937,39 @@ export default function SimpleTest() {
                         lookAtDistanceRatio: 1.08,
                         // 第5步：设置16层云层增强厚度效果
                         cloudNumLayers: 16,
-                        cloudLayerSpacing: 0.0008,  // 稍微减小层间距，增加密度
-                        // 增强厚度效果的参数
-                        cloudStrength: 1.2,         // 增加云层强度
-                        cloudContrast: 1.8,         // 增加对比度
-                        cloudDisplacementScale: 0.08, // 增加置换强度
-                        cloudDisplacementBias: 0.03   // 增加置换偏移
+                        cloudLayerSpacing: 0.0015,  // 层间距
+                        // 云层基础参数
+                        cloudStrength: 0.29,        // 云层强度
+                        cloudHeight: 0.003,         // 云层高度
+                        cloudYawDeg: 0,             // 经度旋转
+                        cloudPitchDeg: 0,           // 纬度旋转
+                        cloudDisplacementScale: 0.0, // 置换强度
+                        cloudDisplacementBias: 0.01, // 置换偏移
+                        cloudScrollSpeedU: 3.0,     // U方向滚动
+                        cloudScrollSpeedV: 1.5,     // V方向滚动
+                        cloudGamma: 0.50,           // 云层Gamma
+                        cloudContrast: 1.2,         // 对比度
+                        cloudBlack: 0.00,           // 云层黑点
+                        cloudWhite: 0.90,           // 云层白点
+                        // 体积散射参数
+                        cloudUseVolumeScattering: true,
+                        cloudVolumeDensity: 1.10,
+                        cloudScatteringStrength: 1.50,
+                        cloudScatteringG: -0.50,
+                        cloudRimEffect: 0.10,
+                        cloudDensityEnhancement: 2.00,
+                        cloudNoiseScale: 2.00,
+                        cloudNoiseStrength: 0.70,
+                        // 厚度映射参数
+                        cloudUseThicknessMapping: true,
+                        cloudThicknessScale: 4.00,
+                        cloudThicknessBias: 1.00,
+                        cloudThicknessPower: 1.50,
+                        // 自身阴影参数
+                        cloudUseSelfShadow: true,
+                        cloudSelfShadowStrength: 1.00,
+                        cloudSelfShadowSteps: 16,
+                        cloudSelfShadowDistance: 0.02
                       }));
                       // 设置对齐状态，启用体积渲染
                       setIsAlignedAndZoomed(true);
@@ -2785,10 +2981,31 @@ export default function SimpleTest() {
                         earthSize: 1.68, 
                         lookAtR: 1.08, 
                         cloudLayers: 16, 
-                        layerSpacing: 0.0008,
-                        cloudStrength: 1.2,
-                        cloudContrast: 1.8,
-                        displacementScale: 0.08,
+                        layerSpacing: 0.0015,
+                        cloudStrength: 0.29,
+                        cloudHeight: 0.003,
+                        cloudContrast: 1.2,
+                        cloudDisplacementScale: 0.0,
+                        cloudDisplacementBias: 0.01,
+                        // 体积散射参数
+                        cloudUseVolumeScattering: true,
+                        cloudVolumeDensity: 1.10,
+                        cloudScatteringStrength: 1.50,
+                        cloudScatteringG: -0.50,
+                        cloudRimEffect: 0.10,
+                        cloudDensityEnhancement: 2.00,
+                        cloudNoiseScale: 2.00,
+                        cloudNoiseStrength: 0.70,
+                        // 厚度映射参数
+                        cloudUseThicknessMapping: true,
+                        cloudThicknessScale: 4.00,
+                        cloudThicknessBias: 1.00,
+                        cloudThicknessPower: 1.50,
+                        // 自身阴影参数
+                        cloudUseSelfShadow: true,
+                        cloudSelfShadowStrength: 1.00,
+                        cloudSelfShadowSteps: 16,
+                        cloudSelfShadowDistance: 0.02,
                         lonDusk: +lonDusk.toFixed(2), 
                         L, seam, targetLat, obsLat 
                       });
