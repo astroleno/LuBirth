@@ -302,6 +302,10 @@ function SceneContent({
             nearThicknessFactor={composition.atmoNearThickness ?? 0.35}
             nearContrast={composition.atmoNearContrast ?? 0.6}
             nearSoftness={composition.atmoNearSoftness ?? 0.5}
+            useAlphaWeightedAdditive={(composition as any).atmoBlendUseAlpha ?? false}
+            softBoundaryDelta={(composition as any).atmoSoftBoundary ?? 0.0}
+            perceptualFloor={(composition as any).atmoPerceptualFloor ?? 0.0}
+            scaleHeight={(composition as any).atmoScaleHeight ?? 0.0}
             visible={true}
             renderOrder={10}
           />
@@ -1815,6 +1819,30 @@ export default function SimpleTest() {
                   </div>
                 </div>
               )}
+
+              {/* 大气融合 · 实验参数（仅裁“不可见尾巴”，默认关闭） */}
+              <div className="row" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
+                <div className="col" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox"
+                         checked={(composition as any).atmoBlendUseAlpha ?? false}
+                         onChange={(e) => updateValue('atmoBlendUseAlpha' as any, e.target.checked)} />
+                  <span style={{ fontSize: 12 }}>Alpha 加权加法混合</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>感知地板 (线性域)</div>
+                  <input type="range" min={0} max={0.01} step={0.001}
+                         value={(composition as any).atmoPerceptualFloor ?? 0.0}
+                         onChange={(e) => updateValue('atmoPerceptualFloor' as any, parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(((composition as any).atmoPerceptualFloor ?? 0.0)).toFixed(3)}</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>尺度高度 H/R</div>
+                  <input type="range" min={0} max={0.06} step={0.002}
+                         value={(composition as any).atmoScaleHeight ?? 0.0}
+                         onChange={(e) => updateValue('atmoScaleHeight' as any, parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(((composition as any).atmoScaleHeight ?? 0.0)).toFixed(3)}</span>
+                </div>
+              </div>
             </div>
           </div>
           

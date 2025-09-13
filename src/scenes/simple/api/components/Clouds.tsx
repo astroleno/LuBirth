@@ -104,18 +104,21 @@ if (typeof window !== 'undefined') {
     
     // 参数建议
     getRecommendations: () => {
-      console.log('[Clouds Debug] 参数优化建议:');
+      console.log('[Clouds Debug] Z轴叠加优化说明:');
+      console.log('问题分析: 之前多层云层在XY平面上产生位移，导致拉伸变形');
+      console.log('解决方案: 真正的Z轴（径向）叠加，避免XY平面错位');
+      console.log('');
       console.log('近距离观察 (相机距离 < 8):');
-      console.log('- 层间距: 0.0005 * 0.5 = 0.00025');
-      console.log('- 置换强度递增: 15% (保持细节)');
-      console.log('- UV滚动: 轻微差异 5%');
-      console.log('- 强度递减: 3% (保持清晰度)');
+      console.log('- 层间距: 0.0005 * 0.3 = 0.00015 (减少视觉分离)');
+      console.log('- 置换强度: 所有层相同 (避免XY平面位移)');
+      console.log('- UV滚动: 完全同步 (避免层间错位)');
+      console.log('- 强度递减: 2% (轻微差异)');
       console.log('');
       console.log('远距离观察 (相机距离 >= 8):');
-      console.log('- 层间距: 0.0005');
-      console.log('- 置换强度递增: 10%');
-      console.log('- UV滚动: 微调差异 2%');
-      console.log('- 强度递减: 5%');
+      console.log('- 层间距: 0.0005 (正常间距)');
+      console.log('- 置换强度: 最小化差异 5% (保持Z轴叠加)');
+      console.log('- UV滚动: 完全同步 (避免拉伸)');
+      console.log('- 强度递减: 3% (轻微差异)');
     },
     
     // 快速清晰度调整
@@ -157,6 +160,28 @@ if (typeof window !== 'undefined') {
       console.log(`- 云层对比度: ${config.contrast}`);
       console.log(`- 置换强度: ${config.displacementScale}`);
       console.log('请在UI中手动调整这些参数');
+    },
+    
+    // Z轴叠加测试
+    testZAxisLayering: () => {
+      console.log('[Clouds Debug] Z轴叠加测试说明:');
+      console.log('✅ 正确的Z轴叠加效果:');
+      console.log('- 云层只在径向（Z轴）上叠加不同高度');
+      console.log('- 所有层使用相同的UV坐标和置换参数');
+      console.log('- 没有XY平面上的位移或拉伸');
+      console.log('- 云层看起来像真正的体积云');
+      console.log('');
+      console.log('❌ 错误的XY平面位移效果:');
+      console.log('- 云层在XY平面上产生错位');
+      console.log('- 出现拉伸、变形、不自然的条纹');
+      console.log('- 层间UV滚动速度不同导致视觉冲突');
+      console.log('- 置换强度差异过大导致变形');
+      console.log('');
+      console.log('测试方法:');
+      console.log('1. 将相机距离调整到 5-8 之间');
+      console.log('2. 观察云层是否只在径向叠加');
+      console.log('3. 检查是否有XY平面上的拉伸变形');
+      console.log('4. 运行 cloudLayersDebug.getPerformance() 监控性能');
     }
   };
 }

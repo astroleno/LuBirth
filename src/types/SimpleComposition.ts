@@ -48,6 +48,11 @@ export interface SimpleComposition {
   atmoNearThickness?: number;  // 近地薄壳厚度系数(0-1)，乘以 thickness
   atmoNearContrast?: number;   // 近地昼夜对比(0=均匀,1=仅昼侧)
   atmoNearSoftness?: number;   // 近地渐变柔度(0=陡、1=柔)
+  // 大气外缘融合实验参数（默认0关闭，不改变观感）
+  atmoSoftBoundary?: number;   // 外半径软边比例（0=关，建议0.005-0.01）
+  atmoPerceptualFloor?: number; // 感知地板（线性域，0=关，建议0.003-0.006）
+  atmoBlendUseAlpha?: boolean;  // Alpha加权加法混合（默认false）
+  atmoScaleHeight?: number;     // 指数尺度高度（地球半径比例，0=关，建议0.02-0.04）
   
   // 地球材质控制
   earthLightIntensity: number; // 地球材质亮度
@@ -208,6 +213,11 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   atmoNearThickness: 0.10,     // 近地薄壳厚度默认（占主厚度）
   atmoNearContrast: 0.40,      // 近地昼夜对比默认
   atmoNearSoftness: 0.0,       // 近地渐变柔度默认
+  // 大气外缘融合实验参数（默认关闭）
+  atmoSoftBoundary: 0.0,
+  atmoPerceptualFloor: 0.0,
+  atmoBlendUseAlpha: false,
+  atmoScaleHeight: 0.0,
   
   // 地球材质控制
   earthLightIntensity: 1.0,    // 地球材质亮度
@@ -364,6 +374,10 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     atmoNearThickness: original.atmoNearThickness ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearThickness,
     atmoNearContrast: original.atmoNearContrast ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearContrast,
     atmoNearSoftness: original.atmoNearSoftness ?? DEFAULT_SIMPLE_COMPOSITION.atmoNearSoftness,
+    atmoSoftBoundary: original.atmoSoftBoundary ?? DEFAULT_SIMPLE_COMPOSITION.atmoSoftBoundary,
+    atmoPerceptualFloor: original.atmoPerceptualFloor ?? DEFAULT_SIMPLE_COMPOSITION.atmoPerceptualFloor,
+    atmoBlendUseAlpha: original.atmoBlendUseAlpha ?? DEFAULT_SIMPLE_COMPOSITION.atmoBlendUseAlpha,
+    atmoScaleHeight: original.atmoScaleHeight ?? DEFAULT_SIMPLE_COMPOSITION.atmoScaleHeight,
     
     // 地球材质控制
     earthLightIntensity: original.earthLightIntensity ?? DEFAULT_SIMPLE_COMPOSITION.earthLightIntensity,

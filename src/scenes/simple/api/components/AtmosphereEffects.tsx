@@ -17,6 +17,11 @@ export function AtmosphereEffects({
   nearThicknessFactor = 0.35,
   nearContrast = 0.6,
   nearSoftness = 0.5,
+  useAlphaWeightedAdditive = false,
+  // 实验参数：几何外缘软边与感知地板（默认关闭，保证现有观感不变）
+  softBoundaryDelta = 0.0,      // 外半径软边比例（0=关，建议 0.005~0.01）
+  perceptualFloor = 0.0,        // 线性域感知地板（0=关，建议 0.003~0.006）
+  scaleHeight = 0.0,            // 指数型尺度高度（地球半径比例，0=关，建议 0.02~0.04）
   visible = true,
   renderOrder = 5
 }: {
@@ -33,6 +38,10 @@ export function AtmosphereEffects({
   nearThicknessFactor?: number;
   nearContrast?: number;
   nearSoftness?: number;
+  useAlphaWeightedAdditive?: boolean;
+  softBoundaryDelta?: number;
+  perceptualFloor?: number;
+  scaleHeight?: number;
   visible?: boolean;
   renderOrder?: number;
 }) {
@@ -41,7 +50,7 @@ export function AtmosphereEffects({
 
   // 主大气层材质
   const atmosphereMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
+    const mat = new THREE.ShaderMaterial({
       vertexShader: `
         uniform float thickness;
         uniform float earthRadius;
@@ -80,6 +89,9 @@ export function AtmosphereEffects({
         uniform float mainContrast;
         uniform float mainSoftness;
         uniform float earthRadius;
+        uniform float softBoundaryDelta;
+        uniform float perceptualFloor;
+        uniform float scaleHeight;
 
         varying vec3 vWorldNormal;
         varying vec3 vWorldPos;
@@ -117,8 +129,40 @@ export function AtmosphereEffects({
           float expoMain = mix(1.2, 0.35, sMain);
           float heightEffect = pow(optical, expoMain);
 
+          // 光学域软阈值：仅在夜侧抑制“几乎不穿过大气”的残留（消除夜半球淡雾）
+          float eps = 0.02; // 很小的阈值，不影响可见区
+          float wOpt = smoothstep(eps, eps * 3.0, optical);
+          float wNight = mix(wOpt, 1.0, day); // 夜侧用软阈值，昼侧保持 1
+
+          // 几何外缘软边：在 b 接近 outerRadius 的极窄带内把贡献平滑拉向 0（默认关闭）
+          float sd = softBoundaryDelta;
+          float sb = 1.0;
+          if (sd > 0.0) {
+            float edge0 = outerRadius * (1.0 - sd);
+            float edge1 = outerRadius;
+            sb = 1.0 - smoothstep(edge0, edge1, b);
+          }
+
           // 最终强度（基于 Fresnel 与路径长度）
-          float finalIntensity = baseIntensity * edgeEffect * heightEffect;
+          float finalIntensity = baseIntensity * edgeEffect * heightEffect * wNight * sb;
+
+          // 指数尺度高度：对“最近高度”做指数衰减，快速压低高空尾巴（默认关闭）
+          if (scaleHeight > 0.0) {
+            float Hrad = max(scaleHeight * earthRadius, 1e-5);
+            float hClose = max(b - earthRadius, 0.0);
+            float wScale = exp(-hClose / Hrad);
+            // 在外半径附近再给一个很小的物理域软带，避免边界小残留
+            float edgeSoft = Hrad * 2.0;
+            float wEdge = smoothstep(0.0, edgeSoft, outerRadius - b);
+            finalIntensity *= (wScale * wEdge);
+          }
+
+          // 感知地板：极小强度在输出前平滑压到 0，避免“灰尾”（默认关闭）
+          if (perceptualFloor > 0.0) {
+            float T = perceptualFloor;           // 线性域阈值
+            float pf = smoothstep(T, T * 2.0, finalIntensity);
+            finalIntensity *= pf;
+          }
 
           // 颜色：基础蓝色
           vec3 finalColor = baseColor * finalIntensity;
@@ -141,20 +185,31 @@ export function AtmosphereEffects({
         fresnelPower: { value: fresnelPower },
         mainContrast: { value: mainContrast },
         mainSoftness: { value: mainSoftness },
-        earthRadius: { value: radius }
+        earthRadius: { value: radius },
+        softBoundaryDelta: { value: softBoundaryDelta },
+        perceptualFloor: { value: perceptualFloor },
+        scaleHeight: { value: scaleHeight }
       },
       transparent: true,
       depthWrite: false,
       side: THREE.BackSide,
-      blending: THREE.AdditiveBlending
     });
-  }, [lightDirection, intensity, color, thickness, fresnelPower, mainContrast, mainSoftness]);
+    if (useAlphaWeightedAdditive) {
+      mat.blending = THREE.CustomBlending;
+      mat.blendEquation = THREE.AddEquation;
+      mat.blendSrc = THREE.SrcAlphaFactor; // 颜色乘以 alpha 再相加
+      mat.blendDst = THREE.OneFactor;
+    } else {
+      mat.blending = THREE.AdditiveBlending;
+    }
+    return mat;
+  }, [lightDirection, intensity, color, thickness, fresnelPower, mainContrast, mainSoftness, useAlphaWeightedAdditive]);
 
   // 近地薄壳材质
   const nearShellMaterial = useMemo(() => {
     if (!nearShell) return null;
     
-    return new THREE.ShaderMaterial({
+    const mat = new THREE.ShaderMaterial({
       vertexShader: `
         uniform float thickness;
         uniform float nearFactor;
@@ -195,6 +250,9 @@ export function AtmosphereEffects({
         uniform float nearContrast;
         uniform float earthRadius;
         uniform float nearSoftness;
+        uniform float softBoundaryDelta;
+        uniform float perceptualFloor;
+        uniform float scaleHeight;
         
         varying vec3 vWorldNormal;
         varying vec3 vWorldPos;
@@ -230,8 +288,39 @@ export function AtmosphereEffects({
           // 边缘效果
           float edgeEffect = pow(vFresnel, 1.0 / max(0.1, fresnelPower));
 
+          // 光学域软阈值（仅夜侧生效），去掉夜半球的极弱尾巴
+          float epsN = 0.02;
+          float wOptN = smoothstep(epsN, epsN * 3.0, opticalN);
+          float wNightN = mix(wOptN, 1.0, day);
+
+          // 几何外缘软边（默认关闭）
+          float sdN = softBoundaryDelta;
+          float sbN = 1.0;
+          if (sdN > 0.0) {
+            float edge0N = Ro * (1.0 - sdN);
+            float edge1N = Ro;
+            sbN = 1.0 - smoothstep(edge0N, edge1N, b);
+          }
+
           // 最终强度
-          float finalIntensity = intensity * nearStrength * heightEffect * dayNightFactor * edgeEffect;
+          float finalIntensity = intensity * nearStrength * heightEffect * dayNightFactor * edgeEffect * wNightN * sbN;
+
+          // 指数尺度高度（近壳同样使用），确保两层一致收尾
+          if (scaleHeight > 0.0) {
+            float Hrad = max(scaleHeight * earthRadius, 1e-5);
+            float hClose = max(b - earthRadius, 0.0);
+            float wScale = exp(-hClose / Hrad);
+            float edgeSoft = Hrad * 2.0;
+            float wEdge = smoothstep(0.0, edgeSoft, Ro - b);
+            finalIntensity *= (wScale * wEdge);
+          }
+
+          // 感知地板（默认关闭）
+          if (perceptualFloor > 0.0) {
+            float T = perceptualFloor;
+            float pf = smoothstep(T, T * 2.0, finalIntensity);
+            finalIntensity *= pf;
+          }
 
           // 颜色：地表增强
           vec3 finalColor = color * finalIntensity * 2.0;
@@ -256,14 +345,25 @@ export function AtmosphereEffects({
         fresnelPower: { value: fresnelPower },
         nearContrast: { value: nearContrast },
         nearSoftness: { value: nearSoftness },
-        earthRadius: { value: radius }
+        earthRadius: { value: radius },
+        softBoundaryDelta: { value: softBoundaryDelta },
+        perceptualFloor: { value: perceptualFloor },
+        scaleHeight: { value: scaleHeight }
       },
       transparent: true,
       depthWrite: false,
       side: THREE.BackSide,
-      blending: THREE.AdditiveBlending
     });
-  }, [lightDirection, intensity, color, thickness, nearShell, radius, nearThicknessFactor, nearStrength, fresnelPower, nearContrast, nearSoftness]);
+    if (useAlphaWeightedAdditive) {
+      mat.blending = THREE.CustomBlending;
+      mat.blendEquation = THREE.AddEquation;
+      mat.blendSrc = THREE.SrcAlphaFactor;
+      mat.blendDst = THREE.OneFactor;
+    } else {
+      mat.blending = THREE.AdditiveBlending;
+    }
+    return mat;
+  }, [lightDirection, intensity, color, thickness, nearShell, radius, nearThicknessFactor, nearStrength, fresnelPower, nearContrast, nearSoftness, useAlphaWeightedAdditive]);
 
   // 更新uniforms
   useFrame(() => {
@@ -290,6 +390,15 @@ export function AtmosphereEffects({
     }
     if (atmosphereMaterial.uniforms.earthRadius) {
       atmosphereMaterial.uniforms.earthRadius.value = radius;
+    }
+    if (atmosphereMaterial.uniforms.softBoundaryDelta) {
+      atmosphereMaterial.uniforms.softBoundaryDelta.value = softBoundaryDelta ?? 0.0;
+    }
+    if (atmosphereMaterial.uniforms.perceptualFloor) {
+      atmosphereMaterial.uniforms.perceptualFloor.value = perceptualFloor ?? 0.0;
+    }
+    if (atmosphereMaterial.uniforms.scaleHeight) {
+      atmosphereMaterial.uniforms.scaleHeight.value = scaleHeight ?? 0.0;
     }
     
     if (nearShellMaterial?.uniforms.lightDir) {
@@ -321,6 +430,15 @@ export function AtmosphereEffects({
     }
     if (nearShellMaterial?.uniforms.earthRadius) {
       nearShellMaterial.uniforms.earthRadius.value = radius;
+    }
+    if (nearShellMaterial?.uniforms.softBoundaryDelta) {
+      nearShellMaterial.uniforms.softBoundaryDelta.value = softBoundaryDelta ?? 0.0;
+    }
+    if (nearShellMaterial?.uniforms.perceptualFloor) {
+      nearShellMaterial.uniforms.perceptualFloor.value = perceptualFloor ?? 0.0;
+    }
+    if (nearShellMaterial?.uniforms.scaleHeight) {
+      nearShellMaterial.uniforms.scaleHeight.value = scaleHeight ?? 0.0;
     }
   });
 
@@ -357,6 +475,22 @@ export function setupAtmosphereConsoleCommands(
       console.log('[Atmosphere] Intensity set to', intensity); 
     } catch {} 
   };
+
+  // 实验：启用/关闭 Alpha 加权加法混合（默认 false）
+  (window as any).setAtmosphereBlendUseAlpha = (enabled: boolean) => {
+    try {
+      setComposition((prev: any) => ({ ...prev, atmoBlendUseAlpha: enabled }));
+      console.log('[Atmosphere] Blend use alpha =', enabled);
+    } catch {}
+  };
+
+  // 实验：尺度高度（0=关闭，建议 0.02~0.04）
+  (window as any).setAtmosphereScaleHeight = (h: number) => {
+    try {
+      setComposition((prev: any) => ({ ...prev, atmoScaleHeight: h }));
+      console.log('[Atmosphere] Scale height =', h);
+    } catch {}
+  };
   
   (window as any).setAtmosphereThickness = (thickness: number) => { 
     try { 
@@ -383,6 +517,22 @@ export function setupAtmosphereConsoleCommands(
     try {
       setComposition((prev: any) => ({ ...prev, atmoContrast: c }));
       console.log('[Atmosphere] Main contrast =', c);
+    } catch {}
+  };
+
+  // 实验：几何外缘软边（0=关闭，建议 0.005~0.01）
+  (window as any).setAtmosphereSoftBoundary = (delta: number) => {
+    try {
+      setComposition((prev: any) => ({ ...prev, atmoSoftBoundary: delta }));
+      console.log('[Atmosphere] Soft boundary delta =', delta);
+    } catch {}
+  };
+
+  // 实验：感知地板（线性域阈值，0=关闭，建议 0.003~0.006）
+  (window as any).setAtmospherePerceptualFloor = (t: number) => {
+    try {
+      setComposition((prev: any) => ({ ...prev, atmoPerceptualFloor: t }));
+      console.log('[Atmosphere] Perceptual floor =', t);
     } catch {}
   };
   
@@ -428,7 +578,9 @@ export function setupAtmosphereConsoleCommands(
         atmoNearStrength: composition.atmoNearStrength,
         atmoNearThickness: composition.atmoNearThickness,
         atmoNearContrast: composition.atmoNearContrast,
-        atmoNearSoftness: composition.atmoNearSoftness
+        atmoNearSoftness: composition.atmoNearSoftness,
+        atmoSoftBoundary: composition.atmoSoftBoundary,
+        atmoPerceptualFloor: composition.atmoPerceptualFloor
       }; 
     } catch { return null; } 
   };
