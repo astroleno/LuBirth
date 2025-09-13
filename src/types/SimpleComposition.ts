@@ -404,8 +404,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   cloudDisplacementScale: 0.0,     // 置换强度 0.0%
   cloudDisplacementBias: 0.03,     // 置换偏移 3.0%
   // UV滚动速度参数
-  cloudScrollSpeedU: 0.0003,       // U方向滚动速度（= 3.0 标签）
-  cloudScrollSpeedV: 0.00015,      // V方向滚动速度（= 1.5 标签）
+  cloudScrollSpeedU: 0.002,        // U方向滚动速度（= 2.0 标签）
+  cloudScrollSpeedV: 0.002,        // V方向滚动速度（= 2.0 标签）
   
   // 云层厚度参数
   cloudNumLayers: 3,            // 云层层数（默认3）
@@ -427,17 +427,17 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   
   // 厚度映射参数
   cloudUseThicknessMapping: true,   // 启用厚度映射（默认true）
-  cloudThicknessScale: 2.0,         // 厚度缩放（默认2.0，增强）
-  cloudThicknessBias: 0.2,          // 厚度偏移（默认0.2，增强）
-  cloudThicknessPower: 0.6,         // 厚度幂次（默认0.6，让亮的地方更突出）
+  cloudThicknessScale: 4.0,         // 厚度缩放（默认4.0，增强）
+  cloudThicknessBias: 1.0,          // 厚度偏移（默认1.0，增强）
+  cloudThicknessPower: 1.5,         // 厚度幂次（默认1.5，让亮的地方更突出）
   
   // 夜半球地球贴图光照控制
   nightEarthLightInfluence: 0.3,    // 夜半球地球贴图受太阳光影响程度（0-1，默认0.3）
   
   // 云层自身阴影参数
   cloudUseSelfShadow: true,         // 启用云层自身阴影（默认true）
-  cloudSelfShadowStrength: 0.5,     // 自身阴影强度（默认0.5）
-  cloudSelfShadowSteps: 8,          // 自身阴影步数（默认8）
+  cloudSelfShadowStrength: 1.0,     // 自身阴影强度（默认1.0）
+  cloudSelfShadowSteps: 16,         // 自身阴影步数（默认16）
   cloudSelfShadowDistance: 0.02,    // 自身阴影距离（默认0.02）
   
   // 控制参数

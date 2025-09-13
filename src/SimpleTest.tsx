@@ -227,10 +227,9 @@ function SceneContent({
           height: height.toFixed(2),
           numLayers: numLayers,
           layerSpacing: layerSpacing.toFixed(4),
-          // POM已移除
-          // pomEnabled: composition.cloudUsePOM ?? false,
-          // pomScale: (composition.cloudPOMParallaxScale ?? 0.5).toFixed(2),
-          // pomSteps: composition.cloudPOMSteps ?? 16,
+          pomEnabled: composition.cloudUsePOM ?? false,
+          pomScale: (composition.cloudPOMParallaxScale ?? 0.5).toFixed(2),
+          pomSteps: composition.cloudPOMSteps ?? 16,
           aligned: isAlignedAndZoomed
         };
       };
@@ -433,11 +432,6 @@ function SceneContent({
           cloudShadowMap={(composition.enableCloudShadow ?? false) ? earthClouds : undefined}
           cloudShadowStrength={composition.cloudShadowStrength ?? 0.4}
           enableCloudShadow={composition.enableCloudShadow ?? false}
-          // 云层同步参数
-          cloudYawDeg={composition.cloudYawDeg ?? 0}
-          cloudPitchDeg={composition.cloudPitchDeg ?? 0}
-          cloudScrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
-          cloudScrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
           // cloudUvOffset={cloudUvOffset} // 不再使用UV偏移方式
           // DEM地形参数
           demNormalStrength={demParams.demNormalStrength}
@@ -2937,39 +2931,16 @@ export default function SimpleTest() {
                         lookAtDistanceRatio: 1.08,
                         // 第5步：设置16层云层增强厚度效果
                         cloudNumLayers: 16,
-                        cloudLayerSpacing: 0.0015,  // 层间距
-                        // 云层基础参数
-                        cloudStrength: 0.29,        // 云层强度
-                        cloudHeight: 0.003,         // 云层高度
-                        cloudYawDeg: 0,             // 经度旋转
-                        cloudPitchDeg: 0,           // 纬度旋转
-                        cloudDisplacementScale: 0.0, // 置换强度
-                        cloudDisplacementBias: 0.01, // 置换偏移
-                        cloudScrollSpeedU: 3.0,     // U方向滚动
-                        cloudScrollSpeedV: 1.5,     // V方向滚动
-                        cloudGamma: 0.50,           // 云层Gamma
-                        cloudContrast: 1.2,         // 对比度
-                        cloudBlack: 0.00,           // 云层黑点
-                        cloudWhite: 0.90,           // 云层白点
-                        // 体积散射参数
-                        cloudUseVolumeScattering: true,
-                        cloudVolumeDensity: 1.10,
-                        cloudScatteringStrength: 1.50,
-                        cloudScatteringG: -0.50,
-                        cloudRimEffect: 0.10,
-                        cloudDensityEnhancement: 2.00,
-                        cloudNoiseScale: 2.00,
-                        cloudNoiseStrength: 0.70,
-                        // 厚度映射参数
-                        cloudUseThicknessMapping: true,
-                        cloudThicknessScale: 4.00,
-                        cloudThicknessBias: 1.00,
-                        cloudThicknessPower: 1.50,
-                        // 自身阴影参数
-                        cloudUseSelfShadow: true,
-                        cloudSelfShadowStrength: 1.00,
-                        cloudSelfShadowSteps: 16,
-                        cloudSelfShadowDistance: 0.02
+                        cloudLayerSpacing: 0.0008,  // 稍微减小层间距，增加密度
+                        // 增强厚度效果的参数
+                        cloudStrength: 1.2,         // 增加云层强度
+                        cloudContrast: 1.8,         // 增加对比度
+                        cloudDisplacementScale: 0.08, // 增加置换强度
+                        cloudDisplacementBias: 0.03,  // 增加置换偏移
+                        // 启用POM增强深度感（保守参数）
+                        cloudUsePOM: true,          // 启用POM
+                        cloudPOMParallaxScale: 0.3,  // 保守的视差效果
+                        cloudPOMSteps: 8             // 减少步数避免过度计算
                       }));
                       // 设置对齐状态，启用体积渲染
                       setIsAlignedAndZoomed(true);
@@ -2980,14 +2951,25 @@ export default function SimpleTest() {
                         pitch: pitch.toFixed(2), 
                         earthSize: 1.68, 
                         lookAtR: 1.08, 
+                        // 月光参数
+                        moonBrightness: 0.4,
+                        moonEarthMapIntensity: 0.6,
+                        // 云层基础参数
                         cloudLayers: 16, 
                         layerSpacing: 0.0015,
-                        cloudStrength: 0.29,
+                        cloudStrength: 0.25,
                         cloudHeight: 0.003,
-                        cloudContrast: 1.2,
-                        cloudDisplacementScale: 0.0,
-                        cloudDisplacementBias: 0.01,
-                        // 体积散射参数
+                        cloudYawDeg: 0,
+                        cloudPitchDeg: 0,
+                        cloudDisplacementScale: 0.02,
+                        cloudDisplacementBias: 0.03,
+                        cloudScrollSpeedU: 0.001,
+                        cloudScrollSpeedV: 0.002,
+                        cloudGamma: 0.50,
+                        cloudContrast: 0.9,
+                        cloudBlack: 0.00,
+                        cloudWhite: 0.90,
+                        // 启用体积散射
                         cloudUseVolumeScattering: true,
                         cloudVolumeDensity: 1.10,
                         cloudScatteringStrength: 1.50,
@@ -2996,12 +2978,12 @@ export default function SimpleTest() {
                         cloudDensityEnhancement: 2.00,
                         cloudNoiseScale: 2.00,
                         cloudNoiseStrength: 0.70,
-                        // 厚度映射参数
+                        // 启用厚度映射
                         cloudUseThicknessMapping: true,
                         cloudThicknessScale: 4.00,
                         cloudThicknessBias: 1.00,
                         cloudThicknessPower: 1.50,
-                        // 自身阴影参数
+                        // 启用云层自身阴影
                         cloudUseSelfShadow: true,
                         cloudSelfShadowStrength: 1.00,
                         cloudSelfShadowSteps: 16,

@@ -72,11 +72,7 @@ export function Earth({
   cloudShadowMap,
   cloudShadowStrength = 0.4,
   enableCloudShadow = false,
-  // 云层同步参数
-  cloudYawDeg = 0,
-  cloudPitchDeg = 0,
-  cloudScrollSpeedU = 0.0003,
-  cloudScrollSpeedV = 0.00015,
+  cloudUvOffset = new THREE.Vector2(0, 0),
   // DEM地形参数
   demNormalStrength = 3.0,
   demNormalWeight = 0.05,
@@ -155,11 +151,7 @@ export function Earth({
   cloudShadowMap?: THREE.Texture | null | undefined;
   cloudShadowStrength?: number;
   enableCloudShadow?: boolean;
-  // 云层同步参数
-  cloudYawDeg?: number;
-  cloudPitchDeg?: number;
-  cloudScrollSpeedU?: number;
-  cloudScrollSpeedV?: number;
+  cloudUvOffset?: THREE.Vector2;
   // DEM地形参数
   demNormalStrength?: number;
   demNormalWeight?: number;
@@ -257,12 +249,6 @@ export function Earth({
         cloudShadowMap: { value: cloudShadowMap ?? SOLID.white },
         cloudShadowStrength: { value: cloudShadowStrength ?? 0.4 },
         enableCloudShadow: { value: enableCloudShadow ? 1 : 0 },
-        // 云层同步参数
-        cloudYawDeg: { value: cloudYawDeg ?? 0 },
-        cloudPitchDeg: { value: cloudPitchDeg ?? 0 },
-        cloudScrollSpeedU: { value: cloudScrollSpeedU ?? 0.0003 },
-        cloudScrollSpeedV: { value: cloudScrollSpeedV ?? 0.00015 },
-        cloudTime: { value: 0 },
         // cloudUvOffset: { value: cloudUvOffset ?? new THREE.Vector2(0, 0) }, // 不再使用UV偏移方式
         // DEM地形参数 - 只要有高度贴图就启用DEM法线计算
         enableDEMNormal: { value: earthDisplacement ? 1 : 0 },
@@ -486,12 +472,6 @@ export function Earth({
         uniform sampler2D cloudShadowMap;
         uniform float cloudShadowStrength;
         uniform int enableCloudShadow;
-        // 云层同步参数
-        uniform float cloudYawDeg;
-        uniform float cloudPitchDeg;
-        uniform float cloudScrollSpeedU;
-        uniform float cloudScrollSpeedV;
-        uniform float cloudTime;
         // uniform vec2 cloudUvOffset; // 不再使用UV偏移方式
         // DEM地形参数
         uniform int enableDEMNormal;
@@ -703,30 +683,8 @@ export function Earth({
           float terrainShadow = aoShadow * directionalShadow;
           float cloudShadow = 1.0;
           if (enableCloudShadow == 1) {
-            // 使用法线方向计算云层阴影，跟随云层移动
-            vec3 normal = normalize(vNormalW);
-            vec3 worldPos = vWorldPos;
-            
-            // 将世界坐标转换为球面坐标，然后转换为UV
-            float lat = asin(normal.y);
-            float lon = atan(normal.z, normal.x);
-            
-            // 转换为UV坐标，考虑云层的旋转和滚动
-            vec2 cloudUv = vec2(
-              (lon / (2.0 * 3.14159)) + 0.5,
-              (lat / 3.14159) + 0.5
-            );
-            
-            // 应用云层旋转（与云层组件保持同步）
-            float cloudYawRad = cloudYawDeg * 3.14159 / 180.0;
-            float cloudPitchRad = cloudPitchDeg * 3.14159 / 180.0;
-            cloudUv.x += cloudYawRad / (2.0 * 3.14159);
-            cloudUv.y += cloudPitchRad / 3.14159;
-            
-            // 应用云层滚动（与云层组件保持同步）
-            cloudUv.x += cloudTime * cloudScrollSpeedU;
-            cloudUv.y += cloudTime * cloudScrollSpeedV;
-            
+            // 使用UV坐标计算云层阴影，避免复杂的世界坐标转换
+            vec2 cloudUv = vUv;
             float cloudDark = texture2D(cloudShadowMap, cloudUv).r; // 近似云量
             cloudShadow = 1.0 - cloudShadowStrength * cloudDark;
           }
@@ -1003,22 +961,6 @@ export function Earth({
         if ((earthDNMaterial.uniforms as any).enableCloudShadow !== undefined) {
           (earthDNMaterial.uniforms as any).enableCloudShadow.value = enableCloudShadow ? 1 : 0;
         }
-        // 云层同步参数更新
-        if ((earthDNMaterial.uniforms as any).cloudYawDeg !== undefined) {
-          (earthDNMaterial.uniforms as any).cloudYawDeg.value = cloudYawDeg ?? 0;
-        }
-        if ((earthDNMaterial.uniforms as any).cloudPitchDeg !== undefined) {
-          (earthDNMaterial.uniforms as any).cloudPitchDeg.value = cloudPitchDeg ?? 0;
-        }
-        if ((earthDNMaterial.uniforms as any).cloudScrollSpeedU !== undefined) {
-          (earthDNMaterial.uniforms as any).cloudScrollSpeedU.value = cloudScrollSpeedU ?? 0.0003;
-        }
-        if ((earthDNMaterial.uniforms as any).cloudScrollSpeedV !== undefined) {
-          (earthDNMaterial.uniforms as any).cloudScrollSpeedV.value = cloudScrollSpeedV ?? 0.00015;
-        }
-        if ((earthDNMaterial.uniforms as any).cloudTime !== undefined) {
-          (earthDNMaterial.uniforms as any).cloudTime.value = Date.now() * 0.001; // 当前时间（秒）
-        }
         // if ((earthDNMaterial.uniforms as any).cloudUvOffset !== undefined) {
         //   (earthDNMaterial.uniforms as any).cloudUvOffset.value = cloudUvOffset ?? new THREE.Vector2(0, 0);
         // }
@@ -1102,7 +1044,7 @@ export function Earth({
         console.error('[SimpleEarth] Error updating uniforms:', error);
       }
     }
-  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth, useNormalMap, normalMapStrength, normalFlipX, normalFlipY, earthNormal, earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size, receiveShadows, cloudShadowMap, cloudShadowStrength, enableCloudShadow, cloudYawDeg, cloudPitchDeg, cloudScrollSpeedU, cloudScrollSpeedV, demNormalStrength, demNormalWeight, selfShadowSteps, selfShadowStrength, selfShadowDistance, debugMode, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor, enableDirectionalShadow, directionalShadowStrength, directionalShadowSoftness, directionalShadowSharpness, directionalShadowContrast, nightEarthMapIntensity, nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness, nightGlowBlur, nightGlowOpacity]);
+  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth, useNormalMap, normalMapStrength, normalFlipX, normalFlipY, earthNormal, earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size, receiveShadows, cloudShadowMap, cloudShadowStrength, enableCloudShadow, demNormalStrength, demNormalWeight, selfShadowSteps, selfShadowStrength, selfShadowDistance, debugMode, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor, enableDirectionalShadow, directionalShadowStrength, directionalShadowSoftness, directionalShadowSharpness, directionalShadowContrast, nightEarthMapIntensity, nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness, nightGlowBlur, nightGlowOpacity]);
 
   // 调试信息
   useEffect(() => {

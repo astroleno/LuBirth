@@ -25,11 +25,11 @@ class PerformanceMonitor {
         if (this.memoryUsage.length > 60) this.memoryUsage.shift(); // 保留最近60秒
       }
       
-      // 每10秒输出一次性能报告 - 已关闭
-      // if (this.frameCount === 0 && this.memoryUsage.length > 0) {
-      //   const avgMemory = this.memoryUsage.reduce((a, b) => a + b, 0) / this.memoryUsage.length;
-      //   console.log(`[Clouds Performance] FPS: ${this.fps}, Memory: ${avgMemory.toFixed(1)}MB`);
-      // }
+      // 每10秒输出一次性能报告
+      if (this.frameCount === 0 && this.memoryUsage.length > 0) {
+        const avgMemory = this.memoryUsage.reduce((a, b) => a + b, 0) / this.memoryUsage.length;
+        // console.log(`[Clouds Performance] FPS: ${this.fps}, Memory: ${avgMemory.toFixed(1)}MB`); // 已关闭性能监控
+      }
     }
   }
   
@@ -237,7 +237,9 @@ export function Clouds({
   blendMode = "alpha",
   opacity = 1.0,
   // UV更新回调
-  onUvUpdate
+  onUvUpdate,
+  // 共享的UV偏移（用于多层同步）
+  sharedUvOffset
 }: {
   radius: number;
   texture: THREE.Texture | null;
@@ -289,8 +291,11 @@ export function Clouds({
   opacity?: number;
   // UV更新回调
   onUvUpdate?: (offset: THREE.Vector2) => void;
+  // 共享的UV偏移（用于多层同步）
+  sharedUvOffset?: { u: number; v: number };
 }) {
   const ref = useRef<THREE.Mesh>(null!);
+  // 使用全局共享的UV滚动值，确保所有层同步
   const tAccum = useRef({ u: 0, v: 0 });
   
   // 云层材质
@@ -745,18 +750,26 @@ export function Clouds({
     if (!ref.current || !cloudMaterial) return;
     
     try {
-      // 简单的UV滚动（使用参数控制速度）
-      tAccum.current.u += (scrollSpeedU ?? 0.0001) * delta; // U方向滚动
-      tAccum.current.v += (scrollSpeedV ?? 0.00005) * delta; // V方向滚动
-      
-      // 更新材质uniforms
-      if (cloudMaterial.uniforms.uvOffset) {
-        (cloudMaterial.uniforms.uvOffset.value as THREE.Vector2).set(tAccum.current.u, tAccum.current.v);
-      }
-      
-      // 调用UV更新回调
-      if (onUvUpdate) {
-        onUvUpdate(new THREE.Vector2(tAccum.current.u, tAccum.current.v));
+      // 使用共享的UV偏移值，如果没有则使用自己的计算
+      if (sharedUvOffset) {
+        // 使用共享的UV偏移值
+        if (cloudMaterial.uniforms.uvOffset) {
+          (cloudMaterial.uniforms.uvOffset.value as THREE.Vector2).set(sharedUvOffset.u, sharedUvOffset.v);
+        }
+      } else {
+        // 简单的UV滚动（使用参数控制速度）
+        tAccum.current.u += (scrollSpeedU ?? 0.0001) * delta; // U方向滚动
+        tAccum.current.v += (scrollSpeedV ?? 0.00005) * delta; // V方向滚动
+        
+        // 更新材质uniforms
+        if (cloudMaterial.uniforms.uvOffset) {
+          (cloudMaterial.uniforms.uvOffset.value as THREE.Vector2).set(tAccum.current.u, tAccum.current.v);
+        }
+        
+        // 调用UV更新回调
+        if (onUvUpdate) {
+          onUvUpdate(new THREE.Vector2(tAccum.current.u, tAccum.current.v));
+        }
       }
     } catch (error) {
       console.error('[Clouds] UV滚动更新失败:', error);
@@ -791,8 +804,8 @@ export function CloudsWithLayers({
   displacementScale = 0.05,
   displacementBias = 0.02,
   // UV滚动速度参数
-  scrollSpeedU = 0.0003,
-  scrollSpeedV = 0.00015,
+  scrollSpeedU = 0.002, // 固定为2
+  scrollSpeedV = 0.002, // 固定为2
   // 多层参数
   numLayers = 3,
   layerSpacing = 0.002,
@@ -882,15 +895,27 @@ export function CloudsWithLayers({
   // UV更新回调
   onUvUpdate?: (offset: THREE.Vector2) => void;
 }) {
+  // 共享的UV滚动值，确保所有层同步
+  const sharedUvOffset = useRef({ u: 0, v: 0 });
+  
   // 相机距离检测（用于近距离优化）
   const cameraRef = useRef<THREE.Camera>();
   const [cameraDistance, setCameraDistance] = React.useState(15);
   
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (state.camera) {
       cameraRef.current = state.camera;
       const distance = state.camera.position.length();
       setCameraDistance(distance);
+    }
+    
+    // 更新共享的UV滚动值
+    sharedUvOffset.current.u += (scrollSpeedU ?? 0.002) * delta;
+    sharedUvOffset.current.v += (scrollSpeedV ?? 0.002) * delta;
+    
+    // 调用UV更新回调
+    if (onUvUpdate) {
+      onUvUpdate(new THREE.Vector2(sharedUvOffset.current.u, sharedUvOffset.current.v));
     }
   });
 
@@ -929,13 +954,13 @@ export function CloudsWithLayers({
   useEffect(() => {
     console.log(`[CloudsWithLayers] 初始化 ${numLayers} 层云系统，层间距: ${layerSpacing}`);
     
-    // 5秒后输出性能报告 - 已关闭
-    // const timer = setTimeout(() => {
-    //   const stats = perfMonitor.getStats();
-    //   console.log(`[CloudsWithLayers] 性能报告 - FPS: ${stats.fps}, 内存: ${stats.avgMemory.toFixed(1)}MB`);
-    // }, 5000);
+    // 5秒后输出性能报告
+    const timer = setTimeout(() => {
+      const stats = perfMonitor.getStats();
+      console.log(`[CloudsWithLayers] 性能报告 - FPS: ${stats.fps}, 内存: ${stats.avgMemory.toFixed(1)}MB`);
+    }, 5000);
     
-    // return () => clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, [numLayers, layerSpacing]);
 
   return (
@@ -994,6 +1019,8 @@ export function CloudsWithLayers({
             opacity={opacity}
             // 只有第一层报告UV偏移，避免重复回调
             onUvUpdate={i === 0 ? onUvUpdate : undefined}
+            // 共享的UV偏移值
+            sharedUvOffset={sharedUvOffset.current}
           />
         );
       })}
