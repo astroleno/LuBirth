@@ -89,6 +89,42 @@ import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
 import { calculateMoonPhase } from './scenes/simple/utils/moonPhaseCalculator';
 
+// 带UV offset输出的云层包装组件
+function CloudsWithOffset({ 
+  onOffsetUpdate,
+  ...props 
+}: Parameters<typeof CloudsWithLayers>[0] & { 
+  onOffsetUpdate: (offset: THREE.Vector2) => void 
+}) {
+  const cloudRef = useRef<THREE.Mesh>(null);
+  const offsetRef = useRef(new THREE.Vector2(0, 0));
+  
+  useFrame((_, delta) => {
+    if (!cloudRef.current) return;
+    
+    try {
+      // 模拟云层UV滚动计算
+      const scrollSpeedU = props.scrollSpeedU ?? 0.0003;
+      const scrollSpeedV = props.scrollSpeedV ?? 0.00015;
+      
+      // 计算累积的UV偏移
+      offsetRef.current.x += scrollSpeedU * delta;
+      offsetRef.current.y += scrollSpeedV * delta;
+      
+      onOffsetUpdate(offsetRef.current.clone());
+    } catch (error) {
+      console.error('[CloudsWithOffset] UV偏移更新失败:', error);
+    }
+  });
+  
+  return (
+    <CloudsWithLayers 
+      {...props}
+      ref={cloudRef}
+    />
+  );
+}
+
 // 场景内容组件
 function SceneContent({ 
   composition, 
@@ -319,17 +355,21 @@ function SceneContent({
           selfShadowDistance={demParams.selfShadowDistance}
           // Debug参数
           debugMode={debugMode}
-          // 新增地形阴影参数
-          shadowHeightThreshold={demParams.shadowHeightThreshold}
-          shadowDistanceAttenuation={demParams.shadowDistanceAttenuation}
-          shadowMaxOcclusion={demParams.shadowMaxOcclusion}
-          shadowSmoothFactor={demParams.shadowSmoothFactor}
+          // 地形阴影(AO)参数
+          aoHeightThreshold={demParams.shadowHeightThreshold}
+          aoDistanceAttenuation={demParams.shadowDistanceAttenuation}
+          aoMaxOcclusion={demParams.shadowMaxOcclusion}
+          aoSmoothFactor={demParams.shadowSmoothFactor}
+          // 地形投影(方向性)参数
+          enableDirectionalShadow={true}
+          directionalShadowStrength={demParams.directionalShadowStrength}
+          directionalShadowSoftness={demParams.directionalShadowSoftness}
         />
         
         
-        {/* 云层 - 回退到简单系统 */}
+        {/* 云层 - 使用包装组件以支持UV offset同步 */}
         {composition.useClouds && earthClouds && (
-          <CloudsWithLayers
+          <CloudsWithOffset
             radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
             texture={earthClouds}
             position={[0, 0, 0]}
@@ -356,6 +396,7 @@ function SceneContent({
             useTriplanar={false}
             blendMode="alpha"
             opacity={1.0}
+            onOffsetUpdate={setCloudUvOffset}
           />
         )}
 
@@ -566,11 +607,20 @@ export default function SimpleTest() {
     selfShadowStrength: 2.0,
     selfShadowDistance: 0.1,
     // 地形阴影参数 - 更新为用户指定的默认值
-    shadowHeightThreshold: 0.010,  // 高度差阈值
-    shadowDistanceAttenuation: 2.0,  // 距离衰减指数
+    shadowHeightThreshold: 0.011,  // 高度差阈值
+    shadowDistanceAttenuation: 5.0,  // 距离衰减指数
     shadowMaxOcclusion: 0.10,  // 最大遮挡强度
-    shadowSmoothFactor: 0.85   // 平滑因子
+    shadowSmoothFactor: 1.00,   // 平滑因子
+    // 地形投影(方向性)参数
+    directionalShadowStrength: 0.8,  // 投影强度
+    directionalShadowSoftness: 1.1,  // 投影柔和度
+    // 新增投影锐利度参数
+    directionalShadowSharpness: 5.0,  // 投影锐利度
+    directionalShadowContrast: 1.5,  // 投影对比度
   });
+  
+  // 云层UV偏移状态 - 用于同步云层阴影
+  const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
   
   // Debug模式控制
   const [debugMode, setDebugMode] = useState(0);
@@ -934,6 +984,16 @@ export default function SimpleTest() {
   const handleManualUpdate = () => {
     if (logger.isEnabled()) logger.log('manual/update');
     updateSunlight();
+    
+    // 🔧 同时更新地球自转角度
+    try {
+      const bLon = composition.birthPointLongitudeDeg || lonDeg;
+      const newEarthRotation = calculateEarthRotationFromDateISO(dateISO, bLon);
+      updateValue('earthYawDeg', newEarthRotation);
+      console.log(`[EarthRotation] 手动更新光照: 时间=${dateISO}, 经度=${bLon}°, 自转=${newEarthRotation.toFixed(1)}°`);
+    } catch (error) {
+      console.warn('[EarthRotation] 手动更新光照时自转失败:', error);
+    }
   };
 
   
@@ -1151,10 +1211,21 @@ export default function SimpleTest() {
             <div className="col">
               <label className="label">日期时间(本地)</label>
               <input className="input" type="datetime-local" value={dateISO} onChange={(e)=>{
-                setDateISO(e.target.value);
+                const newDateISO = e.target.value;
+                setDateISO(newDateISO);
                 setUserModifiedTime(true); // 🔧 关键修复：标记用户已手动修改时间
                 userModifiedTimeRef.current = true; // 🔧 关键修复：立即设置ref，确保立即生效
                 console.log('[EarthRotation] 用户手动修改时间，停止自动更新');
+                
+                // 🔧 立即更新地球自转角度
+                try {
+                  const bLon = composition.birthPointLongitudeDeg || lonDeg;
+                  const newEarthRotation = calculateEarthRotationFromDateISO(newDateISO, bLon);
+                  updateValue('earthYawDeg', newEarthRotation);
+                  console.log(`[EarthRotation] 手动更新: 时间=${newDateISO}, 经度=${bLon}°, 自转=${newEarthRotation.toFixed(1)}°`);
+                } catch (error) {
+                  console.warn('[EarthRotation] 手动更新自转失败:', error);
+                }
               }} />
             </div>
             <div className="col">
@@ -2117,13 +2188,13 @@ export default function SimpleTest() {
               <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：需要提供地球高度贴图（height/displacement）；无贴图时该控制无效。</div>
               
               {/* Debug模式控制 */}
-              <label className="label" style={{ marginTop: 8 }}>Debug模式: {debugMode === 0 ? '关闭' : debugMode === 1 ? '原始高度' : debugMode === 2 ? '调整后高度' : '地形投影(AO)'}</label>
+              <label className="label" style={{ marginTop: 8 }}>Debug模式: {debugMode === 0 ? '关闭' : debugMode === 1 ? '原始高度' : debugMode === 2 ? '调整后高度' : debugMode === 3 ? '地形阴影(AO)' : '地形投影(方向性)'}</label>
               <div className="row">
-                <input className="input" type="range" min={0} max={3} step={1}
+                <input className="input" type="range" min={0} max={4} step={1}
                        value={debugMode}
                        onChange={(e) => setDebugMode(parseInt(e.target.value))} />
               </div>
-              <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：0=关闭，1=显示原始高度，2=显示调整后高度，3=显示地形投影强度</div>
+              <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：0=关闭，1=原始高度，2=调整后高度，3=AO阴影强度，4=方向性投影强度</div>
             </div>
           </div>
 
@@ -2166,7 +2237,7 @@ export default function SimpleTest() {
                 <div className="row" style={{ gap: 8, marginBottom: 8 }}>
                   <div className="col" style={{ flex: 1 }}>
                     <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>法线强度</div>
-                    <input type="range" min={0} max={3} step={0.1}
+                    <input type="range" min={0} max={10} step={0.1}
                            value={demParams.demNormalStrength}
                            onChange={(e) => setDemParams(prev => ({ ...prev, demNormalStrength: parseFloat(e.target.value) }))} />
                     <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.demNormalStrength.toFixed(1)}</span>
@@ -2238,7 +2309,43 @@ export default function SimpleTest() {
                     <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.shadowSmoothFactor.toFixed(2)}</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：新参数可精细调节地形投影(AO)效果，避免"池塘"现象。</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：新参数可精细调节地形阴影(AO)效果，避免"池塘"现象。</div>
+                
+                {/* 地形投影(方向性)控制 */}
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 12, marginBottom: 8 }}>地形投影（方向性）</div>
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>投影强度</div>
+                    <input type="range" min={0} max={2} step={0.1}
+                           value={demParams.directionalShadowStrength}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, directionalShadowStrength: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.directionalShadowStrength.toFixed(1)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>投影柔和度</div>
+                    <input type="range" min={0.1} max={2} step={0.1}
+                           value={demParams.directionalShadowSoftness}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, directionalShadowSoftness: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.directionalShadowSoftness.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>投影锐利度</div>
+                    <input type="range" min={0.5} max={5.0} step={0.1}
+                           value={demParams.directionalShadowSharpness}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, directionalShadowSharpness: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.directionalShadowSharpness.toFixed(1)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>投影对比度</div>
+                    <input type="range" min={0.5} max={3.0} step={0.1}
+                           value={demParams.directionalShadowContrast}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, directionalShadowContrast: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.directionalShadowContrast.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：基于光照方向的地形投影，与AO阴影独立工作产生真实阴影效果。锐利度控制边缘清晰度，对比度调节阴影强度差异。</div>
               </div>
             </div>
           )}
@@ -2249,7 +2356,7 @@ export default function SimpleTest() {
               <div className="row" style={{ gap: 12, marginBottom: 8 }}>
                 <label>
                   <input type="checkbox" checked={composition.enableTerrainShadow ?? false}
-                         onChange={(e) => updateValue('enableTerrainShadow', e.target.checked)} /> 地形投影（AO）
+                         onChange={(e) => updateValue('enableTerrainShadow', e.target.checked)} /> 地形阴影（AO）
                 </label>
                 <label>
                   <input type="checkbox" checked={composition.enableCloudShadow ?? false}

@@ -193,6 +193,10 @@ export interface SimpleComposition {
   earthSegmentsBase?: number;    // 基础段数（默认144）
   earthSegmentsHigh?: number;    // 放大/近景段数（默认288）
   segLODTriggerSize?: number;    // 当地球半径size>=此值或对齐放大时使用高段数
+  
+  // 地形投影参数扩展
+  directionalShadowSharpness?: number;  // 投影锐利度（控制边缘清晰度）
+  directionalShadowContrast?: number;   // 投影对比度（调节阴影强度差异）
 
 }
 
@@ -229,10 +233,10 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightFalloff: 1.0,           // 夜景衰减系数（0.5-3.0，默认1.0）
   terminatorLift: 0.006,       // 终止线提亮（0.0-0.05，默认0.006）
   terminatorTint: [1.0, 0.9, 0.8, 0.01], // 终止线暖色调 [r,g,b,a]
-  nightEarthMapIntensity: 0.20, // 月光下地球贴图强度（0.0-0.8，默认0.20）
+  nightEarthMapIntensity: 0.80, // 月光下地球贴图强度（0.0-0.8，默认0.80）
   nightEarthMapHue: 200,       // 月光地球贴图色调（0-360，默认200）
   nightEarthMapSaturation: 0.30, // 月光地球贴图饱和度（0-2，默认0.30）
-  nightEarthMapLightness: 0.60,  // 月光地球贴图亮度（0-2，默认0.60）
+  nightEarthMapLightness: 0.30,  // 月光地球贴图亮度（0-2，默认0.30）
   nightGlowBlur: 0.004,           // 夜景灯光高斯模糊值（0-0.1，默认0.004）
   nightGlowOpacity: 0.25,         // 夜景灯光发光层不透明度（0-1，默认0.25）
   
@@ -271,18 +275,22 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   earthNormalFlipY: true,
   earthNormalFlipX: false,
   // 地球置换默认（关闭）
-  earthDisplacementScale: 0.0010,
+  earthDisplacementScale: 0.0035,
   earthDisplacementMid: 0.30,
   earthDisplacementContrast: 4.0,
 
   // 阴影与细分控制默认
-  enableTerrainShadow: false,
+  enableTerrainShadow: true,
   enableCloudShadow: false,
   cloudShadowStrength: 0.4,
   useSegLOD: true,
   earthSegmentsBase: 144,
   earthSegmentsHigh: 2048,
   segLODTriggerSize: 1.0,
+  
+  // 地形投影参数扩展默认
+  directionalShadowSharpness: 2.0,  // 投影锐利度默认值
+  directionalShadowContrast: 1.5,   // 投影对比度默认值
   
   // 月球材质控制
   moonLightIntensity: 1.0,     // 月球材质亮度
@@ -568,5 +576,9 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     earthSegmentsBase: original.earthSegmentsBase ?? DEFAULT_SIMPLE_COMPOSITION.earthSegmentsBase,
     earthSegmentsHigh: original.earthSegmentsHigh ?? DEFAULT_SIMPLE_COMPOSITION.earthSegmentsHigh,
     segLODTriggerSize: original.segLODTriggerSize ?? DEFAULT_SIMPLE_COMPOSITION.segLODTriggerSize,
+    
+    // 地形投影参数扩展
+    directionalShadowSharpness: original.directionalShadowSharpness ?? DEFAULT_SIMPLE_COMPOSITION.directionalShadowSharpness,
+    directionalShadowContrast: original.directionalShadowContrast ?? DEFAULT_SIMPLE_COMPOSITION.directionalShadowContrast,
   };
 }

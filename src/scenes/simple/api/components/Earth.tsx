@@ -69,6 +69,7 @@ export function Earth({
   cloudShadowMap,
   cloudShadowStrength = 0.4,
   enableCloudShadow = false,
+  cloudUvOffset = new THREE.Vector2(0, 0),
   // DEM地形参数
   demNormalStrength = 3.0,
   demNormalWeight = 0.05,
@@ -77,15 +78,17 @@ export function Earth({
   selfShadowDistance = 0.1,
   // Debug参数
   debugMode = 0,
-  // 地形投影(AO)参数
+  // 地形阴影(AO)参数
   aoHeightThreshold = 0.02,
   aoDistanceAttenuation = 2.0,
   aoMaxOcclusion = 0.3,
   aoSmoothFactor = 0.5,
-  // 新增地形阴影参数（方向性遮蔽）
+  // 地形投影(方向性)参数
   enableDirectionalShadow = true,
   directionalShadowStrength = 1.0,
   directionalShadowSoftness = 0.5,
+  directionalShadowSharpness = 2.0,
+  directionalShadowContrast = 1.5,
 }: {
   position: [number, number, number];
   size: number;
@@ -135,6 +138,7 @@ export function Earth({
   cloudShadowMap?: THREE.Texture | null | undefined;
   cloudShadowStrength?: number;
   enableCloudShadow?: boolean;
+  cloudUvOffset?: THREE.Vector2;
   // DEM地形参数
   demNormalStrength?: number;
   demNormalWeight?: number;
@@ -148,10 +152,12 @@ export function Earth({
   aoDistanceAttenuation?: number;
   aoMaxOcclusion?: number;
   aoSmoothFactor?: number;
-  // 新增地形阴影参数（方向性遮蔽）
+  // 地形投影(方向性)参数
   enableDirectionalShadow?: boolean;
   directionalShadowStrength?: number;
   directionalShadowSoftness?: number;
+  directionalShadowSharpness?: number;
+  directionalShadowContrast?: number;
 }) {
   // 加载纹理
   const {
@@ -230,6 +236,7 @@ export function Earth({
         cloudShadowMap: { value: cloudShadowMap ?? SOLID.white },
         cloudShadowStrength: { value: cloudShadowStrength ?? 0.4 },
         enableCloudShadow: { value: enableCloudShadow ? 1 : 0 },
+        cloudUvOffset: { value: cloudUvOffset ?? new THREE.Vector2(0, 0) },
         // DEM地形参数 - 只要有高度贴图就启用DEM法线计算
         enableDEMNormal: { value: earthDisplacement ? 1 : 0 },
         demNormalStrength: { value: demNormalStrength },
@@ -240,11 +247,17 @@ export function Earth({
         selfShadowDistance: { value: selfShadowDistance },
         // Debug参数
         debugMode: { value: debugMode },
-        // 新增地形阴影参数
-        shadowHeightThreshold: { value: shadowHeightThreshold },
-        shadowDistanceAttenuation: { value: shadowDistanceAttenuation },
-        shadowMaxOcclusion: { value: shadowMaxOcclusion },
-        shadowSmoothFactor: { value: shadowSmoothFactor },
+        // 地形阴影(AO)参数
+        aoHeightThreshold: { value: aoHeightThreshold },
+        aoDistanceAttenuation: { value: aoDistanceAttenuation },
+        aoMaxOcclusion: { value: aoMaxOcclusion },
+        aoSmoothFactor: { value: aoSmoothFactor },
+        // 地形投影(方向性)参数
+        enableDirectionalShadow: { value: enableDirectionalShadow ? 1 : 0 },
+        directionalShadowStrength: { value: directionalShadowStrength },
+        directionalShadowSoftness: { value: directionalShadowSoftness },
+        directionalShadowSharpness: { value: directionalShadowSharpness },
+        directionalShadowContrast: { value: directionalShadowContrast },
         }
       ]),
       vertexShader: `
@@ -323,44 +336,114 @@ export function Earth({
           return normal;
         }
         
-        // 地形自阴影计算 - 改进版，避免池塘效果
-        float calculateSelfShadow(vec2 uv, vec3 lightDir, sampler2D heightMap, int steps, float stepDistance, float heightThreshold, float distanceAttenuation, float maxOcclusion, float smoothFactor) {
+        // 地形阴影(AO)计算 - 环境光遮蔽，基于高度差
+        float calculateAO(vec2 uv, sampler2D heightMap, int steps, float stepDistance, float heightThreshold, float distanceAttenuation, float maxOcclusion, float smoothFactor) {
           if (steps <= 0) return 1.0;
           
-          vec2 lightDirUV = normalize(lightDir.xz) * stepDistance;
+          // 使用8个方向进行采样，计算平均高度差
+          vec2 directions[8];
+          directions[0] = vec2(1.0, 0.0);
+          directions[1] = vec2(0.7071, 0.7071);
+          directions[2] = vec2(0.0, 1.0);
+          directions[3] = vec2(-0.7071, 0.7071);
+          directions[4] = vec2(-1.0, 0.0);
+          directions[5] = vec2(-0.7071, -0.7071);
+          directions[6] = vec2(0.0, -1.0);
+          directions[7] = vec2(0.7071, -0.7071);
+          
+          float currentHeight = texture2D(heightMap, uv).r;
+          float totalOcclusion = 0.0;
+          float validSamples = 0.0;
+          
+          // 对每个方向计算AO
+          for (int dir = 0; dir < 8; dir++) {
+            float dirOcclusion = 0.0;
+            float maxHeightDiff = 0.0;
+            
+            for (int i = 1; i <= steps; i++) {
+              if (i > steps) break;
+              
+              vec2 sampleUV = uv + directions[dir] * stepDistance * float(i);
+              float sampleHeight = texture2D(heightMap, sampleUV).r;
+              
+              // 计算高度差
+              float heightDiff = sampleHeight - currentHeight;
+              maxHeightDiff = max(maxHeightDiff, heightDiff);
+              
+              if (heightDiff > heightThreshold) {
+                // 距离衰减 - 使用更强的衰减
+                float distanceFactor = pow(1.0 - (float(i) / float(steps)), distanceAttenuation);
+                // 遮挡强度 - 增强效果
+                float occlusion = clamp(heightDiff * distanceFactor * maxOcclusion * 8.0, 0.0, maxOcclusion);
+                
+                // 平滑处理 - 更锐利的过渡
+                occlusion *= smoothstep(heightThreshold, heightThreshold * 1.5, heightDiff);
+                
+                dirOcclusion += occlusion;
+              }
+            }
+            
+            // 如果该方向有明显的地势升高，增加额外的遮挡
+            if (maxHeightDiff > heightThreshold * 2.0) {
+              dirOcclusion += maxHeightDiff * maxOcclusion * 2.0;
+            }
+            
+            totalOcclusion += dirOcclusion;
+            validSamples += 1.0;
+          }
+          
+          // 计算平均AO并应用平滑因子
+          float avgOcclusion = totalOcclusion / max(validSamples, 1.0);
+          float ao = 1.0 - smoothstep(0.0, smoothFactor, avgOcclusion);
+          return max(ao, 0.15); // 确保最小亮度
+        }
+        
+        // 地形投影(方向性)计算 - 基于光照方向
+        float calculateDirectionalShadow(vec2 uv, vec3 lightDir, vec3 normal, sampler2D heightMap, int steps, float stepDistance, float softness, float sharpness, float contrast) {
+          if (steps <= 0) return 1.0;
+          
           float currentHeight = texture2D(heightMap, uv).r;
           float shadow = 1.0;
-          float totalOcclusion = 0.0;
+          float maxBlockage = 0.0;
           
-          // 添加随机性避免过于规则的阴影模式
-          float noise = fract(sin(dot(uv * 100.0, vec2(12.9898, 78.233))) * 43758.5453);
+          // 计算光照在UV空间的投影方向
+          // 考虑光照的仰角，投影会更长
+          float lightElevation = asin(lightDir.y); // 光照仰角
+          float projectionLength = 1.0 / max(abs(cos(lightElevation)), 0.1); // 投影长度修正
+          vec2 lightDirUV = normalize(lightDir.xz) * stepDistance * projectionLength;
           
-          for (int i = 1; i <= 16; i++) {
+          // 沿光照方向采样，检查是否有遮挡
+          for (int i = 1; i <= steps; i++) {
             if (i > steps) break;
             
-            // 添加轻微的随机偏移
-            vec2 randomOffset = vec2(noise * 0.1, noise * 0.1) * stepDistance * 0.1;
-            vec2 sampleUV = uv + lightDirUV * float(i) + randomOffset;
+            vec2 sampleUV = uv + lightDirUV * float(i);
             float sampleHeight = texture2D(heightMap, sampleUV).r;
             
-            // 计算高度差，使用可配置阈值
-            float heightDiff = sampleHeight - currentHeight;
-            if (heightDiff > heightThreshold) {
-              // 使用可配置的距离衰减
-              float distanceFactor = pow(1.0 - (float(i) / float(steps)), distanceAttenuation);
-              // 使用可配置的遮挡强度和平滑因子
-              float occlusion = clamp(heightDiff * distanceFactor * maxOcclusion * 10.0, 0.0, maxOcclusion);
+            // 计算光线在采样点应该达到的高度（考虑光照角度）
+            float rayHeight = currentHeight + float(i) * stepDistance * tan(lightElevation) * 2.0;
+            
+            // 如果地形高于光线高度，产生阴影
+            if (sampleHeight > rayHeight) {
+              float heightDiff = sampleHeight - rayHeight;
+              float distanceFactor = 1.0 - (float(i) / float(steps)); // 距离衰减
               
-              // 添加额外的平滑处理
-              occlusion *= smoothstep(heightThreshold, heightThreshold * 2.0, heightDiff);
+              // 使用锐利度参数增强边缘对比
+              float edgeSharpness = pow(heightDiff, sharpness);
+              float blockage = edgeSharpness * distanceFactor * softness * 15.0; // 增强阴影强度
               
-              totalOcclusion += occlusion;
+              maxBlockage = max(maxBlockage, blockage);
             }
           }
           
-          // 使用可配置的平滑因子应用阴影
-          shadow = 1.0 - smoothstep(0.0, smoothFactor, totalOcclusion);
-          return max(shadow, 0.1); // 确保最小亮度，避免完全黑暗
+          // 应用法线方向权重 - 背光面阴影更强
+          float normalFactor = max(0.0, dot(normal, lightDir));
+          float shadowFactor = 1.0 - smoothstep(0.0, 1.0, normalFactor); // 背光面更暗
+          
+          // 应用对比度参数
+          shadow = 1.0 - clamp(maxBlockage * shadowFactor, 0.0, 0.8); // 限制最大阴影强度
+          shadow = pow(shadow, 1.0 / contrast); // 应用对比度：值越小对比度越强
+          
+          return max(shadow, 0.15); // 确保最小亮度
         }
         
         uniform sampler2D dayMap; 
@@ -376,6 +459,7 @@ export function Earth({
         uniform sampler2D cloudShadowMap;
         uniform float cloudShadowStrength;
         uniform int enableCloudShadow;
+        uniform vec2 cloudUvOffset;
         // DEM地形参数
         uniform int enableDEMNormal;
         uniform float demNormalStrength;
@@ -385,11 +469,17 @@ export function Earth({
         uniform float selfShadowStrength;
         uniform float selfShadowDistance;
         uniform int debugMode;
-        // 新增地形阴影参数
-        uniform float shadowHeightThreshold;
-        uniform float shadowDistanceAttenuation;
-        uniform float shadowMaxOcclusion;
-        uniform float shadowSmoothFactor;
+        // 地形阴影(AO)参数
+        uniform float aoHeightThreshold;
+        uniform float aoDistanceAttenuation;
+        uniform float aoMaxOcclusion;
+        uniform float aoSmoothFactor;
+        // 地形投影(方向性)参数
+        uniform int enableDirectionalShadow;
+        uniform float directionalShadowStrength;
+        uniform float directionalShadowSoftness;
+        uniform float directionalShadowSharpness;
+        uniform float directionalShadowContrast;
         uniform vec3 lightDir; 
         uniform vec3 lightColor; 
         uniform float sunI;
@@ -527,15 +617,29 @@ export function Earth({
           //   shadowMask = 0.8; // 简单的全局阴影减弱
           // }
           
-          // 地形自阴影计算
-          float terrainShadow = 1.0;
+          // 地形阴影系统：AO + 方向性投影（独立工作）
+          float aoShadow = 1.0;
+          float directionalShadow = 1.0;
+          
+          // 地形阴影(AO) - 环境遮蔽，独立计算
           if (enableSelfShadow == 1) {
-            terrainShadow = calculateSelfShadow(vUv, lightDir, displacementMap, selfShadowSteps, selfShadowDistance, shadowHeightThreshold, shadowDistanceAttenuation, shadowMaxOcclusion, shadowSmoothFactor);
-            terrainShadow = mix(1.0, terrainShadow, selfShadowStrength);
+            aoShadow = calculateAO(vUv, displacementMap, selfShadowSteps, selfShadowDistance, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor);
+            aoShadow = mix(1.0, aoShadow, selfShadowStrength);
           }
+          
+          // 地形投影(方向性) - 基于光照方向，独立计算
+          if (enableDirectionalShadow == 1) {
+            directionalShadow = calculateDirectionalShadow(vUv, lightDir, n, displacementMap, selfShadowSteps, selfShadowDistance, directionalShadowSoftness, directionalShadowSharpness, directionalShadowContrast);
+            directionalShadow = mix(1.0, directionalShadow, directionalShadowStrength);
+          }
+          
+          // 组合阴影效果：相乘模式，两种阴影可以同时存在
+          float terrainShadow = aoShadow * directionalShadow;
           float cloudShadow = 1.0;
           if (enableCloudShadow == 1) {
-            float cloudDark = texture2D(cloudShadowMap, vUv).r; // 近似云量
+            // 应用与云层相同的UV偏移，确保阴影同步移动
+            vec2 cloudUv = vUv + cloudUvOffset;
+            float cloudDark = texture2D(cloudShadowMap, cloudUv).r; // 近似云量
             cloudShadow = 1.0 - cloudShadowStrength * cloudDark;
           }
           float lightFactor = dayLight * sunI * shadowMask * cloudShadow * terrainShadow;
@@ -642,12 +746,21 @@ export function Earth({
             }
             gl_FragColor = vec4(vec3(adjustedHeight), 1.0);
           } else if (debugMode == 3) {
-            // 显示地形阴影强度
+            // 显示地形阴影(AO)强度
             float shadowStrength = 1.0;
             if (enableSelfShadow == 1) {
-              shadowStrength = calculateSelfShadow(vUv, lightDir, displacementMap, selfShadowSteps, selfShadowDistance, shadowHeightThreshold, shadowDistanceAttenuation, shadowMaxOcclusion, shadowSmoothFactor);
+              float ao = calculateAO(vUv, displacementMap, selfShadowSteps, selfShadowDistance, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor);
+              shadowStrength = ao;
             }
-            gl_FragColor = vec4(vec3(1.0 - shadowStrength), 1.0); // 阴影强度（黑色表示强阴影）
+            gl_FragColor = vec4(vec3(1.0 - shadowStrength), 1.0); // AO阴影强度（黑色表示强阴影）
+          } else if (debugMode == 4) {
+            // 显示地形投影(方向性)强度
+            float shadowStrength = 1.0;
+            if (enableDirectionalShadow == 1) {
+              float directionalShadow = calculateDirectionalShadow(vUv, lightDir, n, displacementMap, selfShadowSteps, selfShadowDistance, directionalShadowSoftness, directionalShadowSharpness, directionalShadowContrast);
+              shadowStrength = directionalShadow;
+            }
+            gl_FragColor = vec4(vec3(1.0 - shadowStrength), 1.0); // 方向性投影强度（黑色表示强投影）
           } else {
             gl_FragColor = vec4(finalColor, 1.0);
           }
@@ -796,6 +909,9 @@ export function Earth({
         if ((earthDNMaterial.uniforms as any).enableCloudShadow !== undefined) {
           (earthDNMaterial.uniforms as any).enableCloudShadow.value = enableCloudShadow ? 1 : 0;
         }
+        if ((earthDNMaterial.uniforms as any).cloudUvOffset !== undefined) {
+          (earthDNMaterial.uniforms as any).cloudUvOffset.value = cloudUvOffset ?? new THREE.Vector2(0, 0);
+        }
         // DEM地形参数更新
         if ((earthDNMaterial.uniforms as any).enableDEMNormal !== undefined) {
           (earthDNMaterial.uniforms as any).enableDEMNormal.value = earthDisplacement ? 1 : 0;
@@ -821,18 +937,34 @@ export function Earth({
         if ((earthDNMaterial.uniforms as any).debugMode !== undefined) {
           (earthDNMaterial.uniforms as any).debugMode.value = debugMode ?? 0;
         }
-        // 更新新增的地形阴影参数
-        if ((earthDNMaterial.uniforms as any).shadowHeightThreshold !== undefined) {
-          (earthDNMaterial.uniforms as any).shadowHeightThreshold.value = shadowHeightThreshold ?? 0.02;
+        // 更新地形阴影(AO)参数
+        if ((earthDNMaterial.uniforms as any).aoHeightThreshold !== undefined) {
+          (earthDNMaterial.uniforms as any).aoHeightThreshold.value = aoHeightThreshold ?? 0.02;
         }
-        if ((earthDNMaterial.uniforms as any).shadowDistanceAttenuation !== undefined) {
-          (earthDNMaterial.uniforms as any).shadowDistanceAttenuation.value = shadowDistanceAttenuation ?? 2.0;
+        if ((earthDNMaterial.uniforms as any).aoDistanceAttenuation !== undefined) {
+          (earthDNMaterial.uniforms as any).aoDistanceAttenuation.value = aoDistanceAttenuation ?? 2.0;
         }
-        if ((earthDNMaterial.uniforms as any).shadowMaxOcclusion !== undefined) {
-          (earthDNMaterial.uniforms as any).shadowMaxOcclusion.value = shadowMaxOcclusion ?? 0.3;
+        if ((earthDNMaterial.uniforms as any).aoMaxOcclusion !== undefined) {
+          (earthDNMaterial.uniforms as any).aoMaxOcclusion.value = aoMaxOcclusion ?? 0.3;
         }
-        if ((earthDNMaterial.uniforms as any).shadowSmoothFactor !== undefined) {
-          (earthDNMaterial.uniforms as any).shadowSmoothFactor.value = shadowSmoothFactor ?? 0.5;
+        if ((earthDNMaterial.uniforms as any).aoSmoothFactor !== undefined) {
+          (earthDNMaterial.uniforms as any).aoSmoothFactor.value = aoSmoothFactor ?? 0.5;
+        }
+        // 更新地形投影(方向性)参数
+        if ((earthDNMaterial.uniforms as any).enableDirectionalShadow !== undefined) {
+          (earthDNMaterial.uniforms as any).enableDirectionalShadow.value = enableDirectionalShadow ? 1 : 0;
+        }
+        if ((earthDNMaterial.uniforms as any).directionalShadowStrength !== undefined) {
+          (earthDNMaterial.uniforms as any).directionalShadowStrength.value = directionalShadowStrength ?? 1.0;
+        }
+        if ((earthDNMaterial.uniforms as any).directionalShadowSoftness !== undefined) {
+          (earthDNMaterial.uniforms as any).directionalShadowSoftness.value = directionalShadowSoftness ?? 0.5;
+        }
+        if ((earthDNMaterial.uniforms as any).directionalShadowSharpness !== undefined) {
+          (earthDNMaterial.uniforms as any).directionalShadowSharpness.value = directionalShadowSharpness ?? 2.0;
+        }
+        if ((earthDNMaterial.uniforms as any).directionalShadowContrast !== undefined) {
+          (earthDNMaterial.uniforms as any).directionalShadowContrast.value = directionalShadowContrast ?? 1.5;
         }
         // 月光地球贴图参数更新
         if (earthDNMaterial.uniforms.nightEarthMapIntensity) {
@@ -857,7 +989,7 @@ export function Earth({
         console.error('[SimpleEarth] Error updating uniforms:', error);
       }
     }
-  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth, useNormalMap, normalMapStrength, normalFlipX, normalFlipY, earthNormal, earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size, receiveShadows, cloudShadowMap, cloudShadowStrength, enableCloudShadow, demNormalStrength, demNormalWeight, selfShadowSteps, selfShadowStrength, selfShadowDistance, debugMode, shadowHeightThreshold, shadowDistanceAttenuation, shadowMaxOcclusion, shadowSmoothFactor, nightEarthMapIntensity, nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness, nightGlowBlur, nightGlowOpacity]);
+  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth, useNormalMap, normalMapStrength, normalFlipX, normalFlipY, earthNormal, earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size, receiveShadows, cloudShadowMap, cloudShadowStrength, enableCloudShadow, cloudUvOffset, demNormalStrength, demNormalWeight, selfShadowSteps, selfShadowStrength, selfShadowDistance, debugMode, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor, enableDirectionalShadow, directionalShadowStrength, directionalShadowSoftness, directionalShadowSharpness, directionalShadowContrast, nightEarthMapIntensity, nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness, nightGlowBlur, nightGlowOpacity]);
 
   // 调试信息
   useEffect(() => {
