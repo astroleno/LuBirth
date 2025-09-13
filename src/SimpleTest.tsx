@@ -1,7 +1,48 @@
-import React, { useMemo, useState } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import React, { useMemo, useState, useRef } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+
+// 统一的黄昏点计算函数
+function calculateDuskLongitude(sunWorld: {x: number, y: number, z: number}, dateISO: string, latDeg: number, lonDeg: number): number {
+  // 直接使用已经验证正确的 calculateTerminatorLongitude 函数
+  // 使用用户设置的时间而不是当前系统时间
+  const currentTime = toUTCFromLocal(dateISO, lonDeg || 121.4737);
+  const observerLat = latDeg || 31.2304; // 上海纬度作为默认
+  const observerLon = lonDeg || 121.4737; // 上海经度作为默认
+  
+  return calculateTerminatorLongitude(currentTime, observerLat, observerLon);
+}
+
+// 统一的时间更新处理函数
+function handleTimeUpdate(
+  newTime: string, 
+  setDateISO: (time: string) => void,
+  updateValue: (key: string, value: any) => void,
+  composition: any,
+  lonDeg: number,
+  updateSunlight: () => void
+) {
+  try {
+    console.log('[TimeUpdate] 统一时间更新:', newTime);
+    
+    // 1. 更新时间状态
+    setDateISO(newTime);
+    
+    // 2. 立即计算并更新自转角度
+    const bLon = composition.birthPointLongitudeDeg || lonDeg;
+    const newEarthRotation = calculateEarthRotationFromDateISO(newTime, bLon);
+    updateValue('earthYawDeg', newEarthRotation);
+    
+    console.log(`[TimeUpdate] 自转更新: 时间=${newTime}, 经度=${bLon}°, 自转=${newEarthRotation.toFixed(1)}°`);
+    
+    // 3. 触发光照更新
+    updateSunlight();
+    
+  } catch (error) {
+    console.error('[TimeUpdate] 时间更新失败:', error);
+  }
+}
 
 // 银河贴图网格组件
 function MilkyWayMesh({ 
@@ -96,31 +137,10 @@ function CloudsWithOffset({
 }: Parameters<typeof CloudsWithLayers>[0] & { 
   onOffsetUpdate: (offset: THREE.Vector2) => void 
 }) {
-  const cloudRef = useRef<THREE.Mesh>(null);
-  const offsetRef = useRef(new THREE.Vector2(0, 0));
-  
-  useFrame((_, delta) => {
-    if (!cloudRef.current) return;
-    
-    try {
-      // 模拟云层UV滚动计算
-      const scrollSpeedU = props.scrollSpeedU ?? 0.0003;
-      const scrollSpeedV = props.scrollSpeedV ?? 0.00015;
-      
-      // 计算累积的UV偏移
-      offsetRef.current.x += scrollSpeedU * delta;
-      offsetRef.current.y += scrollSpeedV * delta;
-      
-      onOffsetUpdate(offsetRef.current.clone());
-    } catch (error) {
-      console.error('[CloudsWithOffset] UV偏移更新失败:', error);
-    }
-  });
-  
   return (
     <CloudsWithLayers 
       {...props}
-      ref={cloudRef}
+      onUvUpdate={onOffsetUpdate}
     />
   );
 }
@@ -158,10 +178,17 @@ function SceneContent({
     shadowDistanceAttenuation: number;
     shadowMaxOcclusion: number;
     shadowSmoothFactor: number;
+    directionalShadowStrength: number;
+    directionalShadowSoftness: number;
+    directionalShadowSharpness: number;
+    directionalShadowContrast: number;
   };
   debugMode: number;
 }) {
   const { camera, scene } = useThree();
+  
+  // 云层UV偏移状态 - 用于同步云层阴影
+  const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
     // 暴露当前相机用于验证
   React.useEffect(() => {
     try { (window as any).__R3F_Camera = camera; } catch {}
@@ -188,11 +215,25 @@ function SceneContent({
   const earthInfo = useEarthPosition(composition, composition.cameraDistance);
   const moonInfo = useMoonPosition(composition, camera);
   
-  // 纹理加载
+  // 纹理加载 - 统一在顶层获取，传递给子组件
+  const textureConfig = {
+    useTextures: composition.useTextures,
+    useClouds: composition.useClouds,
+    useMilkyWay: composition.useMilkyWay
+  };
+  
   const {
+    earthMap,
+    earthNight, 
+    earthNormal,
+    earthSpecular,
+    earthDisplacement,
     earthClouds,
+    moonMap,
+    moonNormalMap,
+    moonDisplacementMap,
     starsMilky
-  } = useTextureLoader(composition);
+  } = useTextureLoader(textureConfig);
   
   // 调试信息（统一经 logger 输出）
   React.useEffect(() => {
@@ -347,6 +388,7 @@ function SceneContent({
           cloudShadowMap={(composition.enableCloudShadow ?? false) ? earthClouds : undefined}
           cloudShadowStrength={composition.cloudShadowStrength ?? 0.4}
           enableCloudShadow={composition.enableCloudShadow ?? false}
+          cloudUvOffset={cloudUvOffset}
           // DEM地形参数
           demNormalStrength={demParams.demNormalStrength}
           demNormalWeight={demParams.demNormalWeight}
@@ -355,6 +397,12 @@ function SceneContent({
           selfShadowDistance={demParams.selfShadowDistance}
           // Debug参数
           debugMode={debugMode}
+          // 纹理参数
+          earthMap={earthMap}
+          earthNight={earthNight}
+          earthNormal={earthNormal}
+          earthSpecular={earthSpecular}
+          earthDisplacement={earthDisplacement}
           // 地形阴影(AO)参数
           aoHeightThreshold={demParams.shadowHeightThreshold}
           aoDistanceAttenuation={demParams.shadowDistanceAttenuation}
@@ -364,6 +412,8 @@ function SceneContent({
           enableDirectionalShadow={true}
           directionalShadowStrength={demParams.directionalShadowStrength}
           directionalShadowSoftness={demParams.directionalShadowSoftness}
+          directionalShadowSharpness={demParams.directionalShadowSharpness}
+          directionalShadowContrast={demParams.directionalShadowContrast}
         />
         
         
@@ -396,7 +446,7 @@ function SceneContent({
             useTriplanar={false}
             blendMode="alpha"
             opacity={1.0}
-            onOffsetUpdate={setCloudUvOffset}
+            onOffsetUpdate={(offset) => setCloudUvOffset(offset)}
           />
         )}
 
@@ -474,6 +524,10 @@ function SceneContent({
         phaseCoupleStrength={composition.phaseCoupleStrength ?? 0}
         displacementMid={composition.displacementMid ?? 0.5}
         nightLift={composition.nightLift ?? 0.02}
+        // 传入纹理参数
+        moonMap={moonMap}
+        moonNormalMap={moonNormalMap}
+        moonDisplacementMap={moonDisplacementMap}
       />
       
       {/* 星空背景 */}
@@ -619,9 +673,6 @@ export default function SimpleTest() {
     directionalShadowContrast: 1.5,  // 投影对比度
   });
   
-  // 云层UV偏移状态 - 用于同步云层阴影
-  const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
-  
   // Debug模式控制
   const [debugMode, setDebugMode] = useState(0);
   
@@ -731,13 +782,15 @@ export default function SimpleTest() {
   // 月相信息
   const [moonPhaseInfo, setMoonPhaseInfo] = useState<string>('计算中...');
   const [mode, setMode] = useState<'debug' | 'celestial'>('celestial');
+  // 统一的黄昏点经度状态
+  const [duskLongitude, setDuskLongitude] = useState<number>(0);
   const [alignTick, setAlignTick] = useState(0);
   
   // 新增：实时更新控制
-  const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
+  const [autoUpdate, setAutoUpdate] = useState<boolean>(false); // 🔧 默认禁用自动更新
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
-  const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(true); // 🔧 关键修复：默认启用实时时间更新，确保地球自动自转
+  const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(false); // 🔧 默认禁用实时时间更新
   const [realTimeInterval, setRealTimeInterval] = useState<number | null>(null);
   // 季相/仰角更新节流：分钟级即可，无需每帧
   const seasonalUpdateInfoRef = React.useRef<{ lastUpdateMs: number }>({ lastUpdateMs: 0 });
@@ -864,6 +917,16 @@ export default function SimpleTest() {
           setMoonPhaseInfo('计算失败');
         }
         
+        // 统一计算黄昏点经度
+        try {
+          const lonDusk = calculateDuskLongitude(normalizedSunWorld, dateISO, bLat, bLon);
+          setDuskLongitude(lonDusk);
+          console.log('[Unified Dusk Longitude] Calculated:', { lonDusk: lonDusk.toFixed(1) });
+        } catch (err) {
+          console.error('[Unified Dusk Longitude] Calculation failed:', err);
+          setDuskLongitude(0);
+        }
+        
         if (logger.isEnabled()) logger.log('sunlight/normalized', normalizedSunWorld);
         if (logger.isEnabled()) logger.log('sunlight/angles', { az: +state.azDeg.toFixed(1), alt: +state.altDeg.toFixed(1) });
       }
@@ -896,6 +959,12 @@ export default function SimpleTest() {
       updateSunlight();
     }
   }, [dateISO, latDeg, lonDeg, autoUpdate, updateSunlight]);
+
+  // 首次加载时强制调用一次 updateSunlight 确保面板显示正常
+  React.useEffect(() => {
+    if (logger.isEnabled()) logger.log('effect/initial-load', { dateISO, latDeg, lonDeg });
+    updateSunlight();
+  }, []); // 空依赖数组，只在首次加载时执行
 
   // 实时时间更新逻辑 - 优化依赖项管理
   React.useEffect(() => {
@@ -1000,33 +1069,33 @@ export default function SimpleTest() {
   // 重置为当前时间
   const handleResetToCurrentTime = () => {
     if (logger.isEnabled()) logger.log('manual/reset-to-now');
-    setDateISO(getCurrentLocalTime());
     setUserModifiedTime(false); // 🔧 关键修复：重置用户修改标志，恢复自动更新
     userModifiedTimeRef.current = false; // 🔧 关键修复：立即重置ref，确保立即生效
     console.log('[EarthRotation] 重置为当前时间，恢复自动更新');
+    
+    // 使用统一的时间更新处理函数
+    handleTimeUpdate(getCurrentLocalTime(), setDateISO, updateValue, composition, lonDeg, updateSunlight);
   };
 
   // 旧的测试入口已移除，改为独立自动化测试套件（见 src/astro/autoTests.ts）
 
-  // 计算光照方向的角度信息 - 使用真实的天文角度数据
+  // 计算光照方向的角度信息 - 使用真实的天文角度数据和统一的黄昏点计算
   const lightInfo = React.useMemo(() => {
     const { x, y, z } = sunWorld;
     const { azDeg, altDeg } = sunAngles;
     
     console.log('[LightInfo] Raw sunWorld:', { x, y, z });
     console.log('[LightInfo] Real sun angles from ephemeris:', { azimuth: azDeg.toFixed(1), altitude: altDeg.toFixed(1) });
-    
-    // 计算黄昏点经度：直接使用太阳世界坐标
-    const lightDir = new THREE.Vector3(-x, -y, -z).normalize(); // Sun→Earth
-    let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
+    console.log('[LightInfo] Earth rotation:', composition.earthYawDeg);
+    console.log('[LightInfo] Using unified duskLongitude:', duskLongitude.toFixed(1));
     
     return {
       azimuth: azDeg.toFixed(1),
       elevation: altDeg.toFixed(1),
       intensity: Math.sqrt(x*x + y*y + z*z).toFixed(3),
-      duskLongitude: lonDusk.toFixed(1)
+      duskLongitude: duskLongitude.toFixed(1)  // 使用统一的黄昏点计算结果
     };
-  }, [sunWorld, sunAngles]);
+  }, [sunWorld, sunAngles, duskLongitude, composition.earthYawDeg]);
 
   
 
@@ -1134,10 +1203,8 @@ export default function SimpleTest() {
                   const B = (composition.birthPointLatitudeDeg ?? latDeg) || 0;
                   const alpha = composition.birthPointAlphaDeg ?? 12;
                   const seam = composition.seamOffsetDeg ?? 0;
-                  // 计算黄昏点经度：直接使用太阳世界坐标
-                  const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize(); // Sun→Earth
-                  let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
-                  while (lonDusk > 180) lonDusk -= 360; while (lonDusk < -180) lonDusk += 360;
+                  // 使用统一的黄昏点计算函数
+                  const lonDusk = calculateDuskLongitude(sunWorld);
                   // 方位角：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
                   let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
                   const pitch = -B - alpha;
@@ -1217,15 +1284,8 @@ export default function SimpleTest() {
                 userModifiedTimeRef.current = true; // 🔧 关键修复：立即设置ref，确保立即生效
                 console.log('[EarthRotation] 用户手动修改时间，停止自动更新');
                 
-                // 🔧 立即更新地球自转角度
-                try {
-                  const bLon = composition.birthPointLongitudeDeg || lonDeg;
-                  const newEarthRotation = calculateEarthRotationFromDateISO(newDateISO, bLon);
-                  updateValue('earthYawDeg', newEarthRotation);
-                  console.log(`[EarthRotation] 手动更新: 时间=${newDateISO}, 经度=${bLon}°, 自转=${newEarthRotation.toFixed(1)}°`);
-                } catch (error) {
-                  console.warn('[EarthRotation] 手动更新自转失败:', error);
-                }
+                // 使用统一的时间更新处理函数
+                handleTimeUpdate(newDateISO, setDateISO, updateValue, composition, lonDeg, updateSunlight);
               }} />
             </div>
             <div className="col">
@@ -1304,19 +1364,19 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
-                      onClick={() => setDateISO('2024-03-21T07:00')}>春分日出</button>
+                      onClick={() => handleTimeUpdate('2024-03-21T07:00', setDateISO, updateValue, composition, lonDeg, updateSunlight)}>春分日出</button>
             </div>
             <div className="col">  
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => setDateISO('2024-06-21T12:00')}>夏至正午</button>
+                      onClick={() => handleTimeUpdate('2024-06-21T12:00', setDateISO, updateValue, composition, lonDeg, updateSunlight)}>夏至正午</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => setDateISO('2024-09-23T18:00')}>秋分日落</button>
+                      onClick={() => handleTimeUpdate('2024-09-23T18:00', setDateISO, updateValue, composition, lonDeg, updateSunlight)}>秋分日落</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => setDateISO('2024-12-21T12:00')}>冬至正午</button>
+                      onClick={() => handleTimeUpdate('2024-12-21T12:00', setDateISO, updateValue, composition, lonDeg, updateSunlight)}>冬至正午</button>
             </div>
           </div>
 
@@ -1327,19 +1387,19 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
-                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T06:00');}}>夏至06:00</button>
+                      onClick={() => {setLatDeg(66); setLonDeg(0); handleTimeUpdate('2024-06-21T06:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>夏至06:00</button>
             </div>
             <div className="col">  
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T12:00');}}>夏至正午</button>
+                      onClick={() => {setLatDeg(66); setLonDeg(0); handleTimeUpdate('2024-06-21T12:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>夏至正午</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T18:00');}}>夏至18:00</button>
+                      onClick={() => {setLatDeg(66); setLonDeg(0); handleTimeUpdate('2024-06-21T18:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>夏至18:00</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(66); setLonDeg(0); setDateISO('2024-06-21T00:00');}}>夏至午夜</button>
+                      onClick={() => {setLatDeg(66); setLonDeg(0); handleTimeUpdate('2024-06-21T00:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>夏至午夜</button>
             </div>
           </div>
 
@@ -1350,19 +1410,19 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
-                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T06:00');}}>春分06:00</button>
+                      onClick={() => {setLatDeg(0); setLonDeg(0); handleTimeUpdate('2024-03-21T06:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>春分06:00</button>
             </div>
             <div className="col">  
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T12:00');}}>春分正午</button>
+                      onClick={() => {setLatDeg(0); setLonDeg(0); handleTimeUpdate('2024-03-21T12:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>春分正午</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T18:00');}}>春分18:00</button>
+                      onClick={() => {setLatDeg(0); setLonDeg(0); handleTimeUpdate('2024-03-21T18:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>春分18:00</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(0); setLonDeg(0); setDateISO('2024-03-21T00:00');}}>春分午夜</button>
+                      onClick={() => {setLatDeg(0); setLonDeg(0); handleTimeUpdate('2024-03-21T00:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>春分午夜</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px', backgroundColor: '#8B4513'}}
@@ -1389,19 +1449,19 @@ export default function SimpleTest() {
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}} 
-                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T06:00');}}>冬至日出</button>
+                      onClick={() => {setLatDeg(40); setLonDeg(116); handleTimeUpdate('2024-12-21T06:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>冬至日出</button>
             </div>
             <div className="col">  
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T12:00');}}>冬至正午</button>
+                      onClick={() => {setLatDeg(40); setLonDeg(116); handleTimeUpdate('2024-12-21T12:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>冬至正午</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T18:00');}}>冬至日落</button>
+                      onClick={() => {setLatDeg(40); setLonDeg(116); handleTimeUpdate('2024-12-21T18:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>冬至日落</button>
             </div>
             <div className="col">
               <button className="btn" style={{padding: '4px 8px', fontSize: '12px'}}
-                      onClick={() => {setLatDeg(40); setLonDeg(116); setDateISO('2024-12-21T00:00');}}>冬至午夜</button>
+                      onClick={() => {setLatDeg(40); setLonDeg(116); handleTimeUpdate('2024-12-21T00:00', setDateISO, updateValue, composition, lonDeg, updateSunlight);}}>冬至午夜</button>
             </div>
           </div>
 
@@ -2773,10 +2833,8 @@ export default function SimpleTest() {
                     let L = L0; while (L > 180) L -= 360; while (L < -180) L += 360;
                     const seam = composition.seamOffsetDeg ?? 0;
 
-                    // 计算黄昏点经度：直接使用太阳世界坐标
-                    const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize(); // Sun→Earth
-                    let lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
-                    while (lonDusk > 180) lonDusk -= 360; while (lonDusk < -180) lonDusk += 360;
+                    // 使用统一的黄昏点计算函数
+                    const lonDusk = calculateDuskLongitude(sunWorld);
                     // 绝对方位角（按用户约定）：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
                     let yaw = (L + seam) - lonDusk;
                     while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;

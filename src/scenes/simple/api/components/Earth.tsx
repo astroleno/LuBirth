@@ -1,6 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import { useTextureLoader } from '../../utils/textureLoader';
 
 // 共享的 1x1 纹理占位，避免 WebGL 报错（无图像数据）
 const SOLID = (() => {
@@ -56,8 +55,11 @@ export function Earth({
   nightEarthMapHue = 200,
   nightEarthMapSaturation = 1.0,
   nightEarthMapLightness = 1.0,
-  nightGlowBlur = 0.02,
-  nightGlowOpacity = 0.3,
+  dayEarthMapHue = 200,
+  dayEarthMapSaturation = 0.30,
+  dayEarthMapLightness = 0.30,
+  nightGlowBlur = 0.004,
+  nightGlowOpacity = 0.25,
   // 大气弧光参数
   rimStrength = 1.46,
   rimWidth = 0.50,
@@ -89,6 +91,12 @@ export function Earth({
   directionalShadowSoftness = 0.5,
   directionalShadowSharpness = 2.0,
   directionalShadowContrast = 1.5,
+  // 纹理参数 - 从父组件传入
+  earthMap,
+  earthNight,
+  earthNormal,
+  earthSpecular,
+  earthDisplacement,
 }: {
   position: [number, number, number];
   size: number;
@@ -125,6 +133,9 @@ export function Earth({
   nightEarthMapHue?: number;
   nightEarthMapSaturation?: number;
   nightEarthMapLightness?: number;
+  dayEarthMapHue?: number;
+  dayEarthMapSaturation?: number;
+  dayEarthMapLightness?: number;
   nightGlowBlur?: number;
   nightGlowOpacity?: number;
   // 大气弧光参数
@@ -158,15 +169,14 @@ export function Earth({
   directionalShadowSoftness?: number;
   directionalShadowSharpness?: number;
   directionalShadowContrast?: number;
+  // 纹理参数
+  earthMap?: THREE.Texture;
+  earthNight?: THREE.Texture;
+  earthNormal?: THREE.Texture;
+  earthSpecular?: THREE.Texture;
+  earthDisplacement?: THREE.Texture;
 }) {
-  // 加载纹理
-  const {
-    earthMap,
-    earthNight,
-    earthNormal,
-    earthSpecular,
-    earthDisplacement
-  } = useTextureLoader({ useTextures });
+  // 纹理从父组件传入，不再在这里加载
 
   // Earth Day/Night 混合着色器 - 完整移植自原Scene.tsx
   const earthDNMaterial = useMemo(() => {
@@ -513,34 +523,66 @@ export function Earth({
           return rgb + m;
         }
         
-        // 简化的高斯模糊采样 - 使用固定采样点
+        // 高质量高斯模糊采样 - 自适应核大小
         vec3 sampleNightGlow(sampler2D nightMap, vec2 uv, float blur) {
           if (blur <= 0.0) return texture2D(nightMap, uv).rgb;
           
           vec3 color = vec3(0.0);
           float totalWeight = 0.0;
           
-          // 使用固定的采样点，避免动态循环
-          vec2 offsets[9];
-          offsets[0] = vec2(-1.0, -1.0) * blur * 0.1;
-          offsets[1] = vec2( 0.0, -1.0) * blur * 0.1;
-          offsets[2] = vec2( 1.0, -1.0) * blur * 0.1;
-          offsets[3] = vec2(-1.0,  0.0) * blur * 0.1;
-          offsets[4] = vec2( 0.0,  0.0) * blur * 0.1;
-          offsets[5] = vec2( 1.0,  0.0) * blur * 0.1;
-          offsets[6] = vec2(-1.0,  1.0) * blur * 0.1;
-          offsets[7] = vec2( 0.0,  1.0) * blur * 0.1;
-          offsets[8] = vec2( 1.0,  1.0) * blur * 0.1;
-          
-          float weights[9];
-          weights[0] = 1.0; weights[1] = 2.0; weights[2] = 1.0;
-          weights[3] = 2.0; weights[4] = 4.0; weights[5] = 2.0;
-          weights[6] = 1.0; weights[7] = 2.0; weights[8] = 1.0;
-          
-          for (int i = 0; i < 9; i++) {
-            vec2 sampleUV = uv + offsets[i];
-            color += texture2D(nightMap, sampleUV).rgb * weights[i];
-            totalWeight += weights[i];
+          // 根据模糊强度动态选择核大小
+          if (blur < 0.003) {
+            // 小模糊：3x3核
+            float weights3x3[9];
+            weights3x3[0] = 0.0625; weights3x3[1] = 0.125; weights3x3[2] = 0.0625;
+            weights3x3[3] = 0.125;  weights3x3[4] = 0.25;  weights3x3[5] = 0.125;
+            weights3x3[6] = 0.0625; weights3x3[7] = 0.125; weights3x3[8] = 0.0625;
+            
+            float scale3 = blur * 0.1;
+            for (int i = 0; i < 9; i++) {
+              int x = i / 3 - 1;
+              int y = i % 3 - 1;
+              vec2 offset = vec2(float(x), float(y)) * scale3;
+              color += texture2D(nightMap, uv + offset).rgb * weights3x3[i];
+              totalWeight += weights3x3[i];
+            }
+          } else if (blur < 0.008) {
+            // 中等模糊：5x5核
+            float weights5x5[25];
+            weights5x5[0] = 0.003765; weights5x5[1] = 0.015019; weights5x5[2] = 0.023792; weights5x5[3] = 0.015019; weights5x5[4] = 0.003765;
+            weights5x5[5] = 0.015019; weights5x5[6] = 0.059912; weights5x5[7] = 0.094907; weights5x5[8] = 0.059912; weights5x5[9] = 0.015019;
+            weights5x5[10] = 0.023792; weights5x5[11] = 0.094907; weights5x5[12] = 0.150342; weights5x5[13] = 0.094907; weights5x5[14] = 0.023792;
+            weights5x5[15] = 0.015019; weights5x5[16] = 0.059912; weights5x5[17] = 0.094907; weights5x5[18] = 0.059912; weights5x5[19] = 0.015019;
+            weights5x5[20] = 0.003765; weights5x5[21] = 0.015019; weights5x5[22] = 0.023792; weights5x5[23] = 0.015019; weights5x5[24] = 0.003765;
+            
+            float scale5 = blur * 0.05;
+            for (int i = 0; i < 25; i++) {
+              int x = i / 5 - 2;
+              int y = i % 5 - 2;
+              vec2 offset = vec2(float(x), float(y)) * scale5;
+              color += texture2D(nightMap, uv + offset).rgb * weights5x5[i];
+              totalWeight += weights5x5[i];
+            }
+          } else {
+            // 大模糊：7x7核 (σ = 1.5)
+            float weights7x7[49];
+            // 7x7高斯权重 (σ = 1.5)
+            weights7x7[0] = 0.000843; weights7x7[1] = 0.003898; weights7x7[2] = 0.009949; weights7x7[3] = 0.013690; weights7x7[4] = 0.009949; weights7x7[5] = 0.003898; weights7x7[6] = 0.000843;
+            weights7x7[7] = 0.003898; weights7x7[8] = 0.018016; weights7x7[9] = 0.045991; weights7x7[10] = 0.063242; weights7x7[11] = 0.045991; weights7x7[12] = 0.018016; weights7x7[13] = 0.003898;
+            weights7x7[14] = 0.009949; weights7x7[15] = 0.045991; weights7x7[16] = 0.117380; weights7x7[17] = 0.161509; weights7x7[18] = 0.117380; weights7x7[19] = 0.045991; weights7x7[20] = 0.009949;
+            weights7x7[21] = 0.013690; weights7x7[22] = 0.063242; weights7x7[23] = 0.161509; weights7x7[24] = 0.222242; weights7x7[25] = 0.161509; weights7x7[26] = 0.063242; weights7x7[27] = 0.013690;
+            weights7x7[28] = 0.009949; weights7x7[29] = 0.045991; weights7x7[30] = 0.117380; weights7x7[31] = 0.161509; weights7x7[32] = 0.117380; weights7x7[33] = 0.045991; weights7x7[34] = 0.009949;
+            weights7x7[35] = 0.003898; weights7x7[36] = 0.018016; weights7x7[37] = 0.045991; weights7x7[38] = 0.063242; weights7x7[39] = 0.045991; weights7x7[40] = 0.018016; weights7x7[41] = 0.003898;
+            weights7x7[42] = 0.000843; weights7x7[43] = 0.003898; weights7x7[44] = 0.009949; weights7x7[45] = 0.013690; weights7x7[46] = 0.009949; weights7x7[47] = 0.003898; weights7x7[48] = 0.000843;
+            
+            float scale7 = blur * 0.03;
+            for (int i = 0; i < 49; i++) {
+              int x = i / 7 - 3;
+              int y = i % 7 - 3;
+              vec2 offset = vec2(float(x), float(y)) * scale7;
+              color += texture2D(nightMap, uv + offset).rgb * weights7x7[i];
+              totalWeight += weights7x7[i];
+            }
           }
           
           return color / totalWeight;

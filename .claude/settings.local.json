@@ -36,7 +36,11 @@
       "WebFetch(domain:github.com)",
       "Bash(git clone:*)",
       "WebFetch(domain:discourse.threejs.org)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(timeout:*)",
+      "Bash(pkill:*)",
+      "Bash(sed:*)",
+      "Bash(\"/Users/zuobowen/Documents/GitHub/LuBirth/log_console.md\")"
     ],
     "deny": [],
     "ask": []

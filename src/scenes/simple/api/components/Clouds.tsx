@@ -212,7 +212,9 @@ export function Clouds({
   triplanarScale = 0.1,
   // 混合参数
   blendMode = "alpha",
-  opacity = 1.0
+  opacity = 1.0,
+  // UV更新回调
+  onUvUpdate
 }: {
   radius: number;
   texture: THREE.Texture | null;
@@ -239,6 +241,8 @@ export function Clouds({
   // 混合参数
   blendMode?: "additive" | "alpha" | "multiply";
   opacity?: number;
+  // UV更新回调
+  onUvUpdate?: (offset: THREE.Vector2) => void;
 }) {
   const ref = useRef<THREE.Mesh>(null!);
   const tAccum = useRef({ u: 0, v: 0 });
@@ -466,6 +470,11 @@ export function Clouds({
       if (cloudMaterial.uniforms.uvOffset) {
         (cloudMaterial.uniforms.uvOffset.value as THREE.Vector2).set(tAccum.current.u, tAccum.current.v);
       }
+      
+      // 调用UV更新回调
+      if (onUvUpdate) {
+        onUvUpdate(new THREE.Vector2(tAccum.current.u, tAccum.current.v));
+      }
     } catch (error) {
       console.error('[Clouds] UV滚动更新失败:', error);
     }
@@ -509,7 +518,9 @@ export function CloudsWithLayers({
   triplanarScale = 0.1,
   // 混合参数
   blendMode = "alpha",
-  opacity = 1.0
+  opacity = 1.0,
+  // UV更新回调
+  onUvUpdate
 }: {
   radius: number;
   texture: THREE.Texture | null;
@@ -539,6 +550,8 @@ export function CloudsWithLayers({
   // 混合参数
   blendMode?: "additive" | "alpha" | "multiply";
   opacity?: number;
+  // UV更新回调
+  onUvUpdate?: (offset: THREE.Vector2) => void;
 }) {
   // 相机距离检测（用于近距离优化）
   const cameraRef = useRef<THREE.Camera>();
@@ -628,6 +641,8 @@ export function CloudsWithLayers({
             triplanarScale={triplanarScale}
             blendMode={blendMode}
             opacity={opacity}
+            // 只有第一层报告UV偏移，避免重复回调
+            onUvUpdate={i === 0 ? onUvUpdate : undefined}
           />
         );
       })}

@@ -460,16 +460,23 @@ export function toUTCFromLocal(localISO: string, lon: number): Date {
  */
 export function calculateTerminatorLongitude(dateUtc: Date, latDeg: number, lonDeg: number): number {
   try {
+    // 启用临时日志来调试
+    console.log('[TerminatorDebug] Starting calculation:', { dateUtc: dateUtc.toISOString(), latDeg, lonDeg });
+    
     // 黄昏点定义为太阳高度角为0°（刚好在地平线）的点
     // 我们需要找到当前时刻地球上哪些位置的太阳高度角为0°
     
     const observer = new (Observer as unknown as { new(lat:number, lon:number, height:number): Observer })(latDeg, lonDeg, 0);
     const time = new AstroTime(dateUtc);
     
+    console.log('[TerminatorDebug] Astronomy objects created:', { observer: typeof observer, time: typeof time });
+    
     // 首先获取太阳在观测者位置的高度角
     const sunEquator = (EquatorFn as unknown as (body: Body, time: AstroTime, observer?: Observer, ofdate?: boolean, aberration?: boolean) => any)(Body.Sun, time, observer, true, true);
     const sunRa = sunEquator.ra as number;
     const sunDec = sunEquator.dec as number;
+    
+    console.log('[TerminatorDebug] Sun equatorial coordinates:', { sunRa: sunRa * 180 / Math.PI, sunDec: sunDec * 180 / Math.PI });
     
     // 黄昏点经度是太阳位置经度减去90°（黄昏线在太阳子午线西侧90°）
     // 但这是近似值，准确的计算需要考虑地球曲率和大气折射
@@ -484,6 +491,13 @@ export function calculateTerminatorLongitude(dateUtc: Date, latDeg: number, lonD
     if (terminatorLon > 180) terminatorLon -= 360;
     if (terminatorLon < -180) terminatorLon += 360;
     
+    console.log('[TerminatorDebug] Calculation result:', {
+      sunRa: +(sunRa * 180 / Math.PI).toFixed(2),
+      sunGst: +sunGst.toFixed(2),
+      sunLongitude: +sunLongitude.toFixed(2),
+      terminatorLon: +terminatorLon.toFixed(2)
+    });
+    
     logger.log('terminator/calculation', {
       sunRa: +(sunRa * 180 / Math.PI).toFixed(2),
       sunGst: +sunGst.toFixed(2),
@@ -493,8 +507,20 @@ export function calculateTerminatorLongitude(dateUtc: Date, latDeg: number, lonD
     
     return terminatorLon;
   } catch (error) {
+    console.error('[TerminatorDebug] Error in calculation:', error);
     logger.warn('terminator/calculation-error', String(error));
-    // 回退到简单计算
-    return 0;
+    
+    // 回退到基于太阳方向的简单计算
+    console.log('[TerminatorDebug] Falling back to simple calculation');
+    try {
+      // 使用太阳方向向量计算黄昏点（简化版本）
+      // 太阳的方位角 + 90° = 黄昏点经度（近似）
+      const earthRotation = (dateUtc.getUTCHours() + dateUtc.getUTCMinutes() / 60) * 15; // 地球旋转角度
+      const terminatorLon = (earthRotation + 90) % 360;
+      return terminatorLon > 180 ? terminatorLon - 360 : terminatorLon;
+    } catch (fallbackError) {
+      console.error('[TerminatorDebug] Fallback calculation also failed:', fallbackError);
+      return 0;
+    }
   }
 }

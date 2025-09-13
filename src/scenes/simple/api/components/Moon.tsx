@@ -1,7 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
-import { useTextureLoader } from '../../utils/textureLoader';
 import { calculateMoonPhase } from '../../utils/moonPhaseCalculator';
 import { getMoonPhase } from '../moonPhase';
 import { computeEphemeris } from '../../../../astro/ephemeris';
@@ -118,7 +117,11 @@ export function Moon({
   enableScreenAnchor = false,
   screenX = 0.5,
   screenY = 0.75,
-  anchorDistance = 14
+  anchorDistance = 14,
+  // 纹理参数 - 从父组件传入
+  moonMap = undefined,
+  moonNormalMap = undefined,
+  moonDisplacementMap = undefined,
 }: {
   position: [number, number, number];
   radius: number;
@@ -164,13 +167,16 @@ export function Moon({
   screenX?: number;              // 屏幕X位置 (0-1)
   screenY?: number;              // 屏幕Y位置 (0-1)
   anchorDistance?: number;       // 锚定距离
+  // 纹理参数
+  moonMap?: THREE.Texture;
+  moonNormalMap?: THREE.Texture;
+  moonDisplacementMap?: THREE.Texture;
 }) {
   const meshRef = React.useRef<THREE.Mesh>(null!);
   const { camera } = useThree();
   const tideCam = customCameraForTideLock || camera;
   const phaseCam = customCameraForPhase || camera;
-  // 加载月球纹理
-  const { moonMap, moonDisplacementMap, moonNormalMap } = useTextureLoader({ useTextures });
+  // 纹理从父组件传入，不再在这里加载
   
   // [🔧 彻底修复] 使用真实太阳和月球向量，不再依赖 Elongation 拼接
   const sunDirectionInfo = useMemo(() => {

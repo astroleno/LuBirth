@@ -58,6 +58,8 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
     const loader = new THREE.TextureLoader();
     let idx = 0;
     const allPaths: string[] = [];
+    let retryCount = 0;
+    const MAX_RETRIES = 3; // 最多重试3次
     
     // 同时尝试相对路径和绝对路径
     for (const p of paths) {
@@ -85,14 +87,14 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
       
       console.log(`[TextureLoader] 尝试加载纹理: ${p}`);
       
-      // 添加时间戳防止缓存
-      const timestamp = new Date().getTime();
-      const urlWithCache = `${p}?t=${timestamp}`;
+      // 不添加时间戳，利用缓存
+      const urlWithCache = p;
       
       loader.load(
         urlWithCache,
         (t) => {
           if (canceled) return;
+          retryCount = 0; // 成功加载时重置重试计数器
           const img: any = t.image as any;
           const w = img?.width ?? 0;
           const h = img?.height ?? 0;
@@ -152,7 +154,15 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
         (error) => {
           console.error(`[TextureLoader] ❌ 纹理加载失败: ${p}`, error);
           if (!canceled) {
-            setTimeout(() => tryNext(), 100); // 延迟重试
+            retryCount++;
+            if (retryCount <= MAX_RETRIES) {
+              setTimeout(() => tryNext(), 200); // 延迟重试
+            } else {
+              console.error(`[TextureLoader] ❌ 已达到最大重试次数 ${MAX_RETRIES}，停止重试`);
+              setError('纹理加载失败');
+              setTex(null); 
+              setLoading(false);
+            }
           }
         }
       );
@@ -163,7 +173,7 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
     return () => { 
       canceled = true; 
     };
-  }, [enabled, JSON.stringify(paths)]);
+  }, [enabled, paths]); // 移除JSON.stringify，使用数组引用比较
   
   // 调试信息
   React.useEffect(() => {
@@ -260,30 +270,43 @@ export const TEXTURE_PATHS = {
 };
 
 // 纹理加载状态管理
-export function useTextureLoader(composition: any) {
-  const useTex = !!composition?.useTextures;
+export function useTextureLoader(config: { useTextures: boolean; useClouds?: boolean; useMilkyWay?: boolean }) {
+  const useTex = !!config?.useTextures;
   
-  console.log('[TextureLoader] 开始加载纹理，配置:', {
-    useTextures: useTex,
-    useClouds: !!composition?.useClouds,
-    useMilkyWay: !!composition?.useMilkyWay
-  });
+  // 调试信息：暂时注释掉以减少日志噪音
+  // console.log('[TextureLoader] 开始加载纹理，配置:', {
+  //   useTextures: useTex,
+  //   useClouds: !!config?.useClouds,
+  //   useMilkyWay: !!config?.useMilkyWay
+  // });
+  
+  // 使用useMemo缓存路径数组，确保引用稳定
+  const earthDayPaths = React.useMemo(() => TEXTURE_PATHS.earthDay, []);
+  const earthNightPaths = React.useMemo(() => TEXTURE_PATHS.earthNight, []);
+  const earthNormalPaths = React.useMemo(() => TEXTURE_PATHS.earthNormal, []);
+  const earthSpecularPaths = React.useMemo(() => TEXTURE_PATHS.earthSpecular, []);
+  const earthDisplacementPaths = React.useMemo(() => TEXTURE_PATHS.earthDisplacement, []);
+  const earthCloudsPaths = React.useMemo(() => TEXTURE_PATHS.earthClouds, []);
+  const moonPaths = React.useMemo(() => TEXTURE_PATHS.moon, []);
+  const moonNormalPaths = React.useMemo(() => TEXTURE_PATHS.moonNormal, []);
+  const moonDisplacementPaths = React.useMemo(() => TEXTURE_PATHS.moonDisplacement, []);
+  const starsMilkyPaths = React.useMemo(() => TEXTURE_PATHS.starsMilky, []);
   
   // 地球贴图
-  const earthMap = useFirstAvailableTexture(TEXTURE_PATHS.earthDay, useTex);
-  const earthNight = useFirstAvailableTexture(TEXTURE_PATHS.earthNight, useTex);
-  const earthNormal = useFirstAvailableTexture(TEXTURE_PATHS.earthNormal, useTex);
-  const earthSpecular = useFirstAvailableTexture(TEXTURE_PATHS.earthSpecular, useTex);
-  const earthDisplacement = useFirstAvailableTexture(TEXTURE_PATHS.earthDisplacement, useTex);
-  const earthClouds = useFirstAvailableTexture(TEXTURE_PATHS.earthClouds, useTex && !!composition?.useClouds);
+  const earthMap = useFirstAvailableTexture(earthDayPaths, useTex);
+  const earthNight = useFirstAvailableTexture(earthNightPaths, useTex);
+  const earthNormal = useFirstAvailableTexture(earthNormalPaths, useTex);
+  const earthSpecular = useFirstAvailableTexture(earthSpecularPaths, useTex);
+  const earthDisplacement = useFirstAvailableTexture(earthDisplacementPaths, useTex);
+  const earthClouds = useFirstAvailableTexture(earthCloudsPaths, useTex && !!config?.useClouds);
   
   // 月球贴图
-  const moonMap = useFirstAvailableTexture(TEXTURE_PATHS.moon, useTex);
-  const moonNormalMap = useFirstAvailableTexture(TEXTURE_PATHS.moonNormal, useTex);
-  const moonDisplacementMap = useFirstAvailableTexture(TEXTURE_PATHS.moonDisplacement, useTex);
+  const moonMap = useFirstAvailableTexture(moonPaths, useTex);
+  const moonNormalMap = useFirstAvailableTexture(moonNormalPaths, useTex);
+  const moonDisplacementMap = useFirstAvailableTexture(moonDisplacementPaths, useTex);
   
   // 星空贴图
-  const starsMilky = useFirstAvailableTexture(TEXTURE_PATHS.starsMilky, useTex && !!composition?.useMilkyWay);
+  const starsMilky = useFirstAvailableTexture(starsMilkyPaths, useTex && !!config?.useMilkyWay);
   
   // 监控纹理加载状态
   React.useEffect(() => {

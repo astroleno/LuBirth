@@ -35,6 +35,9 @@ export interface SimpleComposition {
   nightEarthMapHue: number;       // 月光地球贴图色调（0-360，默认200）
   nightEarthMapSaturation: number; // 月光地球贴图饱和度（0-2，默认1.0）
   nightEarthMapLightness: number;  // 月光地球贴图亮度（0-2，默认1.0）
+  dayEarthMapHue: number;         // 日半球地球贴图色调（0-360，默认200）
+  dayEarthMapSaturation: number;   // 日半球地球贴图饱和度（0-2，默认0.30）
+  dayEarthMapLightness: number;    // 日半球地球贴图亮度（0-2，默认0.30）
   nightGlowBlur: number;           // 夜景灯光高斯模糊值（0-0.1，默认0.02）
   nightGlowOpacity: number;        // 夜景灯光发光层不透明度（0-1，默认0.3）
   
@@ -210,7 +213,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   
   // 月球参数
   moonDistance: 14,            // 月球距离
-  moonRadius: 0.44,            // 月球半径
+  moonRadius: 0.68,            // 月球半径
   moonLatDeg: 90,              // 月球纬度调整（潮汐锁定面）
   moonLonDeg: -90,             // 月球经度调整（潮汐锁定面）
   moonYawDeg: -90,             // 月球水平转角调整（潮汐锁定面）
@@ -218,10 +221,10 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   moonScreenY: 0.75,           // 月球屏幕Y位置 (屏幕上方)
   
   // 光照参数
-  sunIntensity: 1.2,           // 阳光强度
+  sunIntensity: 1.8,           // 阳光强度
   lightAzimuth: 180,           // 光照方位角
   lightElevation: 0,           // 光照仰角
-  lightTempK: 5600,            // 标准日光色温
+  lightTempK: 5000,            // 标准日光色温
   
   // 视觉效果参数
   specStrength: 0.8,           // 镜面高光强度
@@ -229,7 +232,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   broadStrength: 0.4,          // 高光铺展强度
   specFresnelK: 1.8,           // 海面高光菲涅尔系数（0关闭，默认1.8）
   terminatorSoftness: 0.160,   // 晨昏线柔和度
-  nightIntensity: 1.0,         // 夜景强度
+  nightIntensity: 3.0,         // 夜景强度
   nightFalloff: 1.0,           // 夜景衰减系数（0.5-3.0，默认1.0）
   terminatorLift: 0.006,       // 终止线提亮（0.0-0.05，默认0.006）
   terminatorTint: [1.0, 0.9, 0.8, 0.01], // 终止线暖色调 [r,g,b,a]
@@ -237,6 +240,9 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightEarthMapHue: 200,       // 月光地球贴图色调（0-360，默认200）
   nightEarthMapSaturation: 0.30, // 月光地球贴图饱和度（0-2，默认0.30）
   nightEarthMapLightness: 0.30,  // 月光地球贴图亮度（0-2，默认0.30）
+  dayEarthMapHue: 200,         // 日半球地球贴图色调（0-360，默认200）
+  dayEarthMapSaturation: 0.30,   // 日半球地球贴图饱和度（0-2，默认0.30）
+  dayEarthMapLightness: 0.30,    // 日半球地球贴图亮度（0-2，默认0.30）
   nightGlowBlur: 0.004,           // 夜景灯光高斯模糊值（0-0.1，默认0.004）
   nightGlowOpacity: 0.25,         // 夜景灯光发光层不透明度（0-1，默认0.25）
   
@@ -304,7 +310,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   moonSurgeStrength: 0.15,
   moonSurgeSigmaDeg: 18,
   moonDisplacementScale: 0.015,
-  moonNormalScale: 0.1,
+  moonNormalScale: 0.15,
   normalFlipY: true,
   normalFlipX: false,
   terminatorRadius: 0.02,
@@ -444,6 +450,9 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     nightEarthMapHue: original.nightEarthMapHue ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapHue,
     nightEarthMapSaturation: original.nightEarthMapSaturation ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapSaturation,
     nightEarthMapLightness: original.nightEarthMapLightness ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapLightness,
+    dayEarthMapHue: original.dayEarthMapHue ?? DEFAULT_SIMPLE_COMPOSITION.dayEarthMapHue,
+    dayEarthMapSaturation: original.dayEarthMapSaturation ?? DEFAULT_SIMPLE_COMPOSITION.dayEarthMapSaturation,
+    dayEarthMapLightness: original.dayEarthMapLightness ?? DEFAULT_SIMPLE_COMPOSITION.dayEarthMapLightness,
     nightGlowBlur: original.nightGlowBlur ?? DEFAULT_SIMPLE_COMPOSITION.nightGlowBlur,
     nightGlowOpacity: original.nightGlowOpacity ?? DEFAULT_SIMPLE_COMPOSITION.nightGlowOpacity,
     
