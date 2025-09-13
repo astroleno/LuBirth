@@ -193,6 +193,27 @@ function SceneContent({
   React.useEffect(() => {
     try { (window as any).__R3F_Camera = camera; } catch {}
   }, [camera]);
+  
+  // 暴露云层系统测试命令
+  React.useEffect(() => {
+    try {
+      (window as any).testCloudSystem = () => {
+        const distance = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+        const height = camera.position.y;
+        const earthSize = composition.earthSize;
+        const numLayers = earthSize > 1 ? Math.min(16, composition.cloudNumLayers ?? 16) : Math.min(3, composition.cloudNumLayers ?? 3);
+        console.log(`[Cloud Test] 地球大小: ${earthSize.toFixed(2)}, 相机距离: ${distance.toFixed(2)}km`);
+        console.log(`[Cloud Test] 云层层数: ${numLayers} (${earthSize > 1 ? '近景模式' : '全景模式'})`);
+        return {
+          earthSize: earthSize.toFixed(2),
+          distance: distance.toFixed(2),
+          height: height.toFixed(2),
+          numLayers: numLayers,
+          mode: earthSize > 1 ? 'closeup' : 'panorama'
+        };
+      };
+    } catch {}
+  }, [camera, composition]);
   // 🔧 已移除：不再暴露__EARTH_QUAT全局变量，统一通过scene.getObjectByName('earthRoot')读取
   React.useEffect(() => {
     try { 
@@ -367,6 +388,7 @@ function SceneContent({
           nightEarthMapHue={composition.nightEarthMapHue}
           nightEarthMapSaturation={composition.nightEarthMapSaturation}
           nightEarthMapLightness={composition.nightEarthMapLightness}
+          nightHemisphereBrightness={composition.nightHemisphereBrightness}
           nightGlowBlur={composition.nightGlowBlur}
           nightGlowOpacity={composition.nightGlowOpacity}
           shininess={composition.shininess}
@@ -417,7 +439,7 @@ function SceneContent({
         />
         
         
-        {/* 云层 - 使用包装组件以支持UV offset同步 */}
+        {/* 云层 - 根据earthSize自动调整层数 */}
         {composition.useClouds && earthClouds && (
           <CloudsWithOffset
             radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
@@ -439,9 +461,9 @@ function SceneContent({
             // UV滚动速度参数
             scrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
             scrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
-            // 多层参数 - 减少层数避免性能问题
-            numLayers={Math.min(3, composition.cloudNumLayers ?? 3)}
-            layerSpacing={composition.cloudLayerSpacing ?? 0.002}
+            // 多层参数 - 根据earthSize自动调整层数
+            numLayers={earthInfo.size > 1 ? Math.min(16, composition.cloudNumLayers ?? 16) : Math.min(3, composition.cloudNumLayers ?? 3)}
+            layerSpacing={composition.cloudLayerSpacing ?? 0.0010}
             // 禁用Triplanar避免性能问题
             useTriplanar={false}
             blendMode="alpha"
@@ -2039,6 +2061,15 @@ export default function SimpleTest() {
           
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">
+              <label className="label">夜半球明度: {composition.nightHemisphereBrightness.toFixed(2)}</label>
+              <input className="input" type="range" min={0.2} max={2} step={0.1}
+                     value={composition.nightHemisphereBrightness}
+                     onChange={(e) => updateValue('nightHemisphereBrightness', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
               <label className="label">夜景发光模糊: {composition.nightGlowBlur.toFixed(3)}</label>
               <input className="input" type="range" min={0} max={0.1} step={0.001}
                      value={composition.nightGlowBlur}
@@ -2573,6 +2604,25 @@ export default function SimpleTest() {
                        value={composition.cloudWhite}
                        onChange={(e) => updateValue('cloudWhite', parseFloat(e.target.value))} />
               </div>
+            </div>
+          </div>
+          
+          {/* 云层厚度控制 */}
+          <div className="section">
+            <h3>云层厚度控制</h3>
+            
+            <div className="row">
+              <label className="label">云层层数: {composition.cloudNumLayers ?? 3} (地球大小&gt;1时自动增加到16层)</label>
+              <input className="input" type="range" min={1} max={20} step={1}
+                     value={composition.cloudNumLayers ?? 3}
+                     onChange={(e) => updateValue('cloudNumLayers', parseInt(e.target.value))} />
+            </div>
+            
+            <div className="row">
+              <label className="label">层间距: {(composition.cloudLayerSpacing ?? 0.0010).toFixed(4)}</label>
+              <input className="input" type="range" min={0.0005} max={0.005} step={0.0005}
+                     value={composition.cloudLayerSpacing ?? 0.0010}
+                     onChange={(e) => updateValue('cloudLayerSpacing', parseFloat(e.target.value))} />
             </div>
           </div>
           

@@ -55,6 +55,7 @@ export function Earth({
   nightEarthMapHue = 200,
   nightEarthMapSaturation = 1.0,
   nightEarthMapLightness = 1.0,
+  nightHemisphereBrightness = 1.0,
   dayEarthMapHue = 200,
   dayEarthMapSaturation = 0.30,
   dayEarthMapLightness = 0.30,
@@ -133,6 +134,7 @@ export function Earth({
   nightEarthMapHue?: number;
   nightEarthMapSaturation?: number;
   nightEarthMapLightness?: number;
+  nightHemisphereBrightness?: number;
   dayEarthMapHue?: number;
   dayEarthMapSaturation?: number;
   dayEarthMapLightness?: number;
@@ -216,6 +218,7 @@ export function Earth({
         nightEarthMapHue: { value: nightEarthMapHue },
         nightEarthMapSaturation: { value: nightEarthMapSaturation },
         nightEarthMapLightness: { value: nightEarthMapLightness },
+        nightHemisphereBrightness: { value: nightHemisphereBrightness },
         nightGlowBlur: { value: nightGlowBlur },
         nightGlowOpacity: { value: nightGlowOpacity },
         hasNight: { value: hasNight ? 1 : 0 },
@@ -502,6 +505,7 @@ export function Earth({
         uniform float nightEarthMapHue;
         uniform float nightEarthMapSaturation;
         uniform float nightEarthMapLightness;
+        uniform float nightHemisphereBrightness;
         uniform float nightGlowBlur;
         uniform float nightGlowOpacity;
         uniform float nightFalloff; 
@@ -707,6 +711,10 @@ export function Earth({
               float nightGlowW = pow(1.0 - f, max(nightFalloff * 0.3, 0.2));
               nightGlowCol = nightGlowTex * nightGlowW * nightBoost * nightGlowOpacity;
             }
+            
+            // 应用夜半球整体明度控制
+            nightCol *= nightHemisphereBrightness;
+            nightGlowCol *= nightHemisphereBrightness;
           }
           
           // 月光下地球贴图叠加：在夜半球叠加正常地球贴图，降低亮度
@@ -718,6 +726,8 @@ export function Earth({
             // 使用更宽的夜半球权重，确保月光效果可见
             float nightEarthW = pow(1.0 - f, max(nightFalloff * 0.5, 0.3));
             nightEarthCol = dayTex * nightEarthMapIntensity * moonTint * nightEarthW;
+            // 应用夜半球整体明度控制
+            nightEarthCol *= nightHemisphereBrightness;
           }
           
           // 日侧高光（仅日面，受specMap影响）
@@ -1020,6 +1030,9 @@ export function Earth({
         }
         if (earthDNMaterial.uniforms.nightEarthMapLightness) {
           earthDNMaterial.uniforms.nightEarthMapLightness.value = nightEarthMapLightness;
+        }
+        if (earthDNMaterial.uniforms.nightHemisphereBrightness) {
+          earthDNMaterial.uniforms.nightHemisphereBrightness.value = nightHemisphereBrightness;
         }
         if (earthDNMaterial.uniforms.nightGlowBlur) {
           earthDNMaterial.uniforms.nightGlowBlur.value = nightGlowBlur;

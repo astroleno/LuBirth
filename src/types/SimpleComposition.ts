@@ -35,6 +35,7 @@ export interface SimpleComposition {
   nightEarthMapHue: number;       // 月光地球贴图色调（0-360，默认200）
   nightEarthMapSaturation: number; // 月光地球贴图饱和度（0-2，默认1.0）
   nightEarthMapLightness: number;  // 月光地球贴图亮度（0-2，默认1.0）
+  nightHemisphereBrightness: number; // 夜半球整体明度（0.2-2.0，默认1.0）
   dayEarthMapHue: number;         // 日半球地球贴图色调（0-360，默认200）
   dayEarthMapSaturation: number;   // 日半球地球贴图饱和度（0-2，默认0.30）
   dayEarthMapLightness: number;    // 日半球地球贴图亮度（0-2，默认0.30）
@@ -201,6 +202,28 @@ export interface SimpleComposition {
   directionalShadowSharpness?: number;  // 投影锐利度（控制边缘清晰度）
   directionalShadowContrast?: number;   // 投影对比度（调节阴影强度差异）
 
+  // 云层场景感知控制
+  cloudSceneAware?: boolean;          // 启用场景感知，默认true
+  cloudPanoramaLayers?: number;       // 全景场景层数，默认3
+  cloudCloseupLayers?: number;        // 近景场景层数，默认12
+  cloudSceneTransitionDistance?: number; // 场景切换距离，默认8
+  
+  // 全景场景参数
+  cloudPanoramaThickness?: number;    // 全景厚度倍数，默认1.0
+  cloudPanoramaThicknessLayers?: number; // 全景厚度模拟层数，默认8
+  cloudPanoramaThicknessVariation?: number; // 全景厚度变化，默认0.3
+  
+  // 近景场景参数
+  cloudCloseupUsePOM?: boolean;       // 近景启用POM，默认true
+  cloudCloseupPOMSteps?: number;      // POM步数，默认16
+  cloudCloseupUseVolumeScattering?: boolean; // 近景启用体积散射，默认true
+  cloudCloseupVolumeDensity?: number; // 体积密度，默认0.3
+  cloudCloseupScatteringStrength?: number; // 散射强度，默认0.5
+  
+  // 性能控制
+  cloudLODEnabled?: boolean;        // 启用LOD，默认true
+  cloudPerformanceMode?: 'low' | 'medium' | 'high' | 'auto'; // 性能模式
+
 }
 
 // 默认值
@@ -236,15 +259,16 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightFalloff: 1.0,           // 夜景衰减系数（0.5-3.0，默认1.0）
   terminatorLift: 0.006,       // 终止线提亮（0.0-0.05，默认0.006）
   terminatorTint: [1.0, 0.9, 0.8, 0.01], // 终止线暖色调 [r,g,b,a]
-  nightEarthMapIntensity: 0.80, // 月光下地球贴图强度（0.0-0.8，默认0.80）
+  nightEarthMapIntensity: 0.50, // 月光下地球贴图强度（0.0-0.8，默认0.50）
   nightEarthMapHue: 200,       // 月光地球贴图色调（0-360，默认200）
   nightEarthMapSaturation: 0.30, // 月光地球贴图饱和度（0-2，默认0.30）
-  nightEarthMapLightness: 0.30,  // 月光地球贴图亮度（0-2，默认0.30）
+  nightEarthMapLightness: 0.25,  // 月光地球贴图亮度（0-2，默认0.25）
+  nightHemisphereBrightness: 0.80, // 夜半球整体明度（0.2-2.0，默认0.80）
   dayEarthMapHue: 200,         // 日半球地球贴图色调（0-360，默认200）
   dayEarthMapSaturation: 0.30,   // 日半球地球贴图饱和度（0-2，默认0.30）
   dayEarthMapLightness: 0.30,    // 日半球地球贴图亮度（0-2，默认0.30）
-  nightGlowBlur: 0.015,           // 夜景灯光高斯模糊值（0-0.1，默认0.015）
-  nightGlowOpacity: 0.60,         // 夜景灯光发光层不透明度（0-1，默认0.60）
+  nightGlowBlur: 0.010,           // 夜景灯光高斯模糊值（0-0.1，默认0.010）
+  nightGlowOpacity: 1.00,         // 夜景灯光发光层不透明度（0-1，默认1.00）
   
   // 大气效果参数
   rimStrength: 2.00,           // 大气弧光强度
@@ -298,6 +322,28 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   directionalShadowSharpness: 2.0,  // 投影锐利度默认值
   directionalShadowContrast: 1.5,   // 投影对比度默认值
   
+  // 云层场景感知控制默认
+  cloudSceneAware: true,            // 启用场景感知
+  cloudPanoramaLayers: 3,           // 全景场景层数
+  cloudCloseupLayers: 12,           // 近景场景层数
+  cloudSceneTransitionDistance: 8,  // 场景切换距离
+  
+  // 全景场景参数默认
+  cloudPanoramaThickness: 1.0,      // 全景厚度倍数
+  cloudPanoramaThicknessLayers: 8,  // 全景厚度模拟层数
+  cloudPanoramaThicknessVariation: 0.3, // 全景厚度变化
+  
+  // 近景场景参数默认
+  cloudCloseupUsePOM: true,         // 近景启用POM
+  cloudCloseupPOMSteps: 16,         // POM步数
+  cloudCloseupUseVolumeScattering: true, // 近景启用体积散射
+  cloudCloseupVolumeDensity: 0.3,   // 体积密度
+  cloudCloseupScatteringStrength: 0.5, // 散射强度
+  
+  // 性能控制默认
+  cloudLODEnabled: true,            // 启用LOD
+  cloudPerformanceMode: 'auto',     // 性能模式
+  
   // 月球材质控制
   moonLightIntensity: 1.0,     // 月球材质亮度
   moonLightTempK: 5600,        // 月球材质色温
@@ -319,14 +365,14 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightLift: 0.02,
   
   // 云层参数
-  cloudStrength: 0.60,          // 云层强度（按需求）
+  cloudStrength: 0.90,          // 云层强度（按需求）
   cloudHeight: 0.001,          // 云层高度
   cloudYawDeg: 0,              // 云层经度旋转
   cloudPitchDeg: 0,            // 云层纬度旋转
-  cloudGamma: 0.75,            // 云层Gamma值
+  cloudGamma: 0.81,            // 云层Gamma值
   cloudBlack: 0.00,            // 云层黑点
-  cloudWhite: 0.95,            // 云层白点
-  cloudContrast: 1.2,          // 云层对比度
+  cloudWhite: 0.81,            // 云层白点
+  cloudContrast: 1.0,          // 云层对比度
   
   // 置换贴图参数
   cloudDisplacementScale: 0.0,  // 置换强度（按需求）
@@ -450,6 +496,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     nightEarthMapHue: original.nightEarthMapHue ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapHue,
     nightEarthMapSaturation: original.nightEarthMapSaturation ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapSaturation,
     nightEarthMapLightness: original.nightEarthMapLightness ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapLightness,
+    nightHemisphereBrightness: original.nightHemisphereBrightness ?? DEFAULT_SIMPLE_COMPOSITION.nightHemisphereBrightness,
     dayEarthMapHue: original.dayEarthMapHue ?? DEFAULT_SIMPLE_COMPOSITION.dayEarthMapHue,
     dayEarthMapSaturation: original.dayEarthMapSaturation ?? DEFAULT_SIMPLE_COMPOSITION.dayEarthMapSaturation,
     dayEarthMapLightness: original.dayEarthMapLightness ?? DEFAULT_SIMPLE_COMPOSITION.dayEarthMapLightness,
@@ -589,5 +636,27 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     // 地形投影参数扩展
     directionalShadowSharpness: original.directionalShadowSharpness ?? DEFAULT_SIMPLE_COMPOSITION.directionalShadowSharpness,
     directionalShadowContrast: original.directionalShadowContrast ?? DEFAULT_SIMPLE_COMPOSITION.directionalShadowContrast,
+    
+    // 云层场景感知控制
+    cloudSceneAware: original.cloudSceneAware ?? DEFAULT_SIMPLE_COMPOSITION.cloudSceneAware,
+    cloudPanoramaLayers: original.cloudPanoramaLayers ?? DEFAULT_SIMPLE_COMPOSITION.cloudPanoramaLayers,
+    cloudCloseupLayers: original.cloudCloseupLayers ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupLayers,
+    cloudSceneTransitionDistance: original.cloudSceneTransitionDistance ?? DEFAULT_SIMPLE_COMPOSITION.cloudSceneTransitionDistance,
+    
+    // 全景场景参数
+    cloudPanoramaThickness: original.cloudPanoramaThickness ?? DEFAULT_SIMPLE_COMPOSITION.cloudPanoramaThickness,
+    cloudPanoramaThicknessLayers: original.cloudPanoramaThicknessLayers ?? DEFAULT_SIMPLE_COMPOSITION.cloudPanoramaThicknessLayers,
+    cloudPanoramaThicknessVariation: original.cloudPanoramaThicknessVariation ?? DEFAULT_SIMPLE_COMPOSITION.cloudPanoramaThicknessVariation,
+    
+    // 近景场景参数
+    cloudCloseupUsePOM: original.cloudCloseupUsePOM ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupUsePOM,
+    cloudCloseupPOMSteps: original.cloudCloseupPOMSteps ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupPOMSteps,
+    cloudCloseupUseVolumeScattering: original.cloudCloseupUseVolumeScattering ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupUseVolumeScattering,
+    cloudCloseupVolumeDensity: original.cloudCloseupVolumeDensity ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupVolumeDensity,
+    cloudCloseupScatteringStrength: original.cloudCloseupScatteringStrength ?? DEFAULT_SIMPLE_COMPOSITION.cloudCloseupScatteringStrength,
+    
+    // 性能控制
+    cloudLODEnabled: original.cloudLODEnabled ?? DEFAULT_SIMPLE_COMPOSITION.cloudLODEnabled,
+    cloudPerformanceMode: original.cloudPerformanceMode ?? DEFAULT_SIMPLE_COMPOSITION.cloudPerformanceMode,
   };
 }
