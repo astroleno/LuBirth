@@ -201,15 +201,19 @@ function SceneContent({
         const distance = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
         const height = camera.position.y;
         const earthSize = composition.earthSize;
-        const numLayers = earthSize > 1 ? Math.min(16, composition.cloudNumLayers ?? 16) : Math.min(3, composition.cloudNumLayers ?? 3);
+        const numLayers = composition.cloudNumLayers ?? 3;
+        const layerSpacing = composition.cloudLayerSpacing ?? 0.002;
         console.log(`[Cloud Test] 地球大小: ${earthSize.toFixed(2)}, 相机距离: ${distance.toFixed(2)}km`);
-        console.log(`[Cloud Test] 云层层数: ${numLayers} (${earthSize > 1 ? '近景模式' : '全景模式'})`);
+        console.log(`[Cloud Test] 云层层数: ${numLayers} (直接使用配置值)`);
+        console.log(`[Cloud Test] 层间距: ${layerSpacing.toFixed(4)}`);
+        console.log(`[Cloud Test] 对齐放大状态: ${isAlignedAndZoomed ? '已对齐放大' : '未对齐'}`);
         return {
           earthSize: earthSize.toFixed(2),
           distance: distance.toFixed(2),
           height: height.toFixed(2),
           numLayers: numLayers,
-          mode: earthSize > 1 ? 'closeup' : 'panorama'
+          layerSpacing: layerSpacing.toFixed(4),
+          aligned: isAlignedAndZoomed
         };
       };
     } catch {}
@@ -461,9 +465,9 @@ function SceneContent({
             // UV滚动速度参数
             scrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
             scrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
-            // 多层参数 - 根据earthSize自动调整层数
-            numLayers={earthInfo.size > 1 ? Math.min(16, composition.cloudNumLayers ?? 16) : Math.min(3, composition.cloudNumLayers ?? 3)}
-            layerSpacing={composition.cloudLayerSpacing ?? 0.0010}
+            // 多层参数 - 直接使用配置的层数
+            numLayers={composition.cloudNumLayers ?? 3}
+            layerSpacing={composition.cloudLayerSpacing ?? 0.002}
             // 禁用Triplanar避免性能问题
             useTriplanar={false}
             blendMode="alpha"
@@ -2612,16 +2616,16 @@ export default function SimpleTest() {
             <h3>云层厚度控制</h3>
             
             <div className="row">
-              <label className="label">云层层数: {composition.cloudNumLayers ?? 3} (地球大小&gt;1时自动增加到16层)</label>
-              <input className="input" type="range" min={1} max={20} step={1}
+              <label className="label">云层层数: {composition.cloudNumLayers ?? 3} (点击"对齐放大"自动设为16层)</label>
+              <input className="input" type="range" min={1} max={16} step={1}
                      value={composition.cloudNumLayers ?? 3}
                      onChange={(e) => updateValue('cloudNumLayers', parseInt(e.target.value))} />
             </div>
             
             <div className="row">
-              <label className="label">层间距: {(composition.cloudLayerSpacing ?? 0.0010).toFixed(4)}</label>
+              <label className="label">层间距: {(composition.cloudLayerSpacing ?? 0.002).toFixed(4)}</label>
               <input className="input" type="range" min={0.0005} max={0.005} step={0.0005}
-                     value={composition.cloudLayerSpacing ?? 0.0010}
+                     value={composition.cloudLayerSpacing ?? 0.002}
                      onChange={(e) => updateValue('cloudLayerSpacing', parseFloat(e.target.value))} />
             </div>
           </div>
@@ -2761,13 +2765,33 @@ export default function SimpleTest() {
                         cameraAzimuthDeg: yaw,
                         cameraElevationDeg: pitch,
                         earthSize: 1.68,
-                        lookAtDistanceRatio: 1.08
+                        lookAtDistanceRatio: 1.08,
+                        // 第5步：设置16层云层增强厚度效果
+                        cloudNumLayers: 16,
+                        cloudLayerSpacing: 0.0008,  // 稍微减小层间距，增加密度
+                        // 增强厚度效果的参数
+                        cloudStrength: 1.2,         // 增加云层强度
+                        cloudContrast: 1.8,         // 增加对比度
+                        cloudDisplacementScale: 0.08, // 增加置换强度
+                        cloudDisplacementBias: 0.03   // 增加置换偏移
                       }));
                       // 设置对齐状态，启用体积渲染
                       setIsAlignedAndZoomed(true);
                       // 对齐后关闭实时与自动更新，避免后续tick带来抖动
                       try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
-                      console.log('[AlignZoom] 对齐完成，启用体积渲染', { yaw: yaw.toFixed(2), pitch: pitch.toFixed(2), earthSize: 1.68, lookAtR: 1.08, lonDusk: +lonDusk.toFixed(2), L, seam, targetLat, obsLat });
+                      console.log('[AlignZoom] 对齐完成，启用16层云层体积渲染', { 
+                        yaw: yaw.toFixed(2), 
+                        pitch: pitch.toFixed(2), 
+                        earthSize: 1.68, 
+                        lookAtR: 1.08, 
+                        cloudLayers: 16, 
+                        layerSpacing: 0.0008,
+                        cloudStrength: 1.2,
+                        cloudContrast: 1.8,
+                        displacementScale: 0.08,
+                        lonDusk: +lonDusk.toFixed(2), 
+                        L, seam, targetLat, obsLat 
+                      });
                     } catch (e) {
                       console.error('[AlignZoom] failed:', e);
                     }

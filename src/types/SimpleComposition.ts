@@ -365,25 +365,25 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightLift: 0.02,
   
   // 云层参数
-  cloudStrength: 0.90,          // 云层强度（按需求）
-  cloudHeight: 0.001,          // 云层高度
+  cloudStrength: 0.81,          // 云层强度
+  cloudHeight: 0.002,          // 云层高度
   cloudYawDeg: 0,              // 云层经度旋转
   cloudPitchDeg: 0,            // 云层纬度旋转
-  cloudGamma: 0.81,            // 云层Gamma值
+  cloudGamma: 0.50,            // 云层Gamma值
   cloudBlack: 0.00,            // 云层黑点
   cloudWhite: 0.81,            // 云层白点
   cloudContrast: 1.0,          // 云层对比度
   
   // 置换贴图参数
-  cloudDisplacementScale: 0.0,  // 置换强度（按需求）
-  cloudDisplacementBias: 0.01,  // 置换偏移 1%
+  cloudDisplacementScale: 0.064,  // 置换强度 6.4%
+  cloudDisplacementBias: 0.01,  // 置换偏移 1.0%
   // UV滚动速度参数
   cloudScrollSpeedU: 0.0003,    // U方向滚动速度（= 3.0 标签）
   cloudScrollSpeedV: 0.00015,   // V方向滚动速度（= 1.5 标签）
   
   // 云层厚度参数
   cloudNumLayers: 3,            // 云层层数（默认3）
-  cloudLayerSpacing: 0.0005,    // 层间距（默认0.0005，减少近距离观察的层间分离）
+  cloudLayerSpacing: 0.0020,    // 层间距（默认0.0020）
   cloudEnablePatch: false,      // 启用动态patch（默认false）
   cloudPatchSize: 0.15,         // patch大小（默认0.15）
   cloudPatchDistance: 10,       // patch显示距离（默认10）
