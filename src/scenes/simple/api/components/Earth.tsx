@@ -2,6 +2,23 @@ import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useTextureLoader } from '../../utils/textureLoader';
 
+// 共享的 1x1 纹理占位，避免 WebGL 报错（无图像数据）
+const SOLID = (() => {
+  const make = (r: number, g: number, b: number, linear = false) => {
+    const data = new Uint8Array([r, g, b, 255]);
+    const tex = new THREE.DataTexture(data, 1, 1);
+    tex.colorSpace = linear ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  };
+  return {
+    white: make(255, 255, 255),
+    black: make(0, 0, 0),
+    neutralNormal: make(128, 128, 255, true), // 线性空间
+    zeroLinear: make(0, 0, 0, true),
+  } as const;
+})();
+
 // 地球组件 - 完整移植earthDNMaterial着色器，移除分层渲染
 export function Earth({ 
   position, 
@@ -9,6 +26,7 @@ export function Earth({
   lightDirection, 
   tiltDeg, 
   yawDeg,
+  segments = 144,
   useTextures,
   lightColor,
   sunIntensity,
@@ -17,24 +35,64 @@ export function Earth({
   shininess,
   specStrength,
   broadStrength,
+  specFresnelK = 1.8,
+  // 法线贴图控制
+  useNormalMap = true,
+  normalMapStrength = 0.8,
+  normalFlipY = true,
+  normalFlipX = false,
+  // 高度置换控制（相对地球半径比例）
+  displacementScaleRel = 0.0,
+  displacementMid = 0.5,
+  displacementContrast = 1.0,
   // 新增：地球材质色温和亮度控制
   earthLightTempK = 5600,
   earthLightIntensity = 1.0,
   nightFalloff = 1.6,
   dayAmbient = 0.02,
   terminatorLift = 0.01,
+  terminatorTint = [1.0, 0.85, 0.75, 0.1],
+  nightEarthMapIntensity = 0.3,
+  nightEarthMapHue = 200,
+  nightEarthMapSaturation = 1.0,
+  nightEarthMapLightness = 1.0,
+  nightGlowBlur = 0.02,
+  nightGlowOpacity = 0.3,
   // 大气弧光参数
   rimStrength = 1.46,
   rimWidth = 0.50,
   rimHeight = 0.01,
   rimRadius = 0.005,
   haloWidth = 0.01,
+  // 阴影与云影
+  receiveShadows = false,
+  cloudShadowMap,
+  cloudShadowStrength = 0.4,
+  enableCloudShadow = false,
+  // DEM地形参数
+  demNormalStrength = 3.0,
+  demNormalWeight = 0.05,
+  selfShadowSteps = 16,
+  selfShadowStrength = 2.0,
+  selfShadowDistance = 0.1,
+  // Debug参数
+  debugMode = 0,
+  // 地形投影(AO)参数
+  aoHeightThreshold = 0.02,
+  aoDistanceAttenuation = 2.0,
+  aoMaxOcclusion = 0.3,
+  aoSmoothFactor = 0.5,
+  // 新增地形阴影参数（方向性遮蔽）
+  enableDirectionalShadow = true,
+  directionalShadowStrength = 1.0,
+  directionalShadowSoftness = 0.5,
 }: {
   position: [number, number, number];
   size: number;
   lightDirection: THREE.Vector3;
   tiltDeg: number;
   yawDeg: number;
+  segments?: number;
   useTextures: boolean;
   lightColor: THREE.Color;
   sunIntensity: number;
@@ -43,25 +101,65 @@ export function Earth({
   shininess: number;
   specStrength: number;
   broadStrength: number;
+  specFresnelK?: number;
+  // 法线贴图控制
+  useNormalMap?: boolean;
+  normalMapStrength?: number;
+  normalFlipY?: boolean;
+  normalFlipX?: boolean;
+  // 高度置换控制
+  displacementScaleRel?: number;
+  displacementMid?: number;
+  displacementContrast?: number;
   // 新增：地球材质色温和亮度控制
   earthLightTempK?: number;
   earthLightIntensity?: number;
   nightFalloff?: number;
   dayAmbient?: number;
   terminatorLift?: number;
+  terminatorTint?: [number, number, number, number];
+  nightEarthMapIntensity?: number;
+  nightEarthMapHue?: number;
+  nightEarthMapSaturation?: number;
+  nightEarthMapLightness?: number;
+  nightGlowBlur?: number;
+  nightGlowOpacity?: number;
   // 大气弧光参数
   rimStrength?: number;
   rimWidth?: number;
   rimHeight?: number;
   rimRadius?: number;
   haloWidth?: number;
+  // 阴影与云影
+  receiveShadows?: boolean;
+  cloudShadowMap?: THREE.Texture | null | undefined;
+  cloudShadowStrength?: number;
+  enableCloudShadow?: boolean;
+  // DEM地形参数
+  demNormalStrength?: number;
+  demNormalWeight?: number;
+  selfShadowSteps?: number;
+  selfShadowStrength?: number;
+  selfShadowDistance?: number;
+  // Debug参数
+  debugMode?: number;
+  // 地形投影(AO)参数
+  aoHeightThreshold?: number;
+  aoDistanceAttenuation?: number;
+  aoMaxOcclusion?: number;
+  aoSmoothFactor?: number;
+  // 新增地形阴影参数（方向性遮蔽）
+  enableDirectionalShadow?: boolean;
+  directionalShadowStrength?: number;
+  directionalShadowSoftness?: number;
 }) {
   // 加载纹理
   const {
     earthMap,
     earthNight,
     earthNormal,
-    earthSpecular
+    earthSpecular,
+    earthDisplacement
   } = useTextureLoader({ useTextures });
 
   // Earth Day/Night 混合着色器 - 完整移植自原Scene.tsx
@@ -70,12 +168,26 @@ export function Earth({
     
     const hasNight = !!earthNight;
     const hasSpec = !!earthSpecular;
+    // 法线贴图需在线性空间
+    if (earthNormal) {
+      try { (earthNormal as any).colorSpace = THREE.NoColorSpace; (earthNormal as any).needsUpdate = true; } catch {}
+    }
+    const hasNormal = false; // 禁用传统法线贴图，只使用DEM
+    const hasDisp = !!earthDisplacement && (displacementScaleRel ?? 0) !== 0;
+    if (earthDisplacement) {
+      try { (earthDisplacement as any).colorSpace = THREE.NoColorSpace; (earthDisplacement as any).needsUpdate = true; } catch {}
+    }
     
     const material = new THREE.ShaderMaterial({
-      uniforms: {
-        dayMap: { value: earthMap },
-        nightMap: { value: earthNight ?? new THREE.Texture() },
-        specMap: { value: earthSpecular ?? new THREE.Texture() },
+      lights: true,
+      uniforms: THREE.UniformsUtils.merge([
+        THREE.UniformsLib[ 'lights' ],
+        {
+        dayMap: { value: earthMap ?? SOLID.white },
+        nightMap: { value: earthNight ?? SOLID.black },
+        specMap: { value: earthSpecular ?? SOLID.black },
+        normalMap: { value: hasNormal ? earthNormal : SOLID.neutralNormal },
+        displacementMap: { value: hasDisp ? earthDisplacement : SOLID.zeroLinear },
         lightDir: { value: lightDirection.clone() },
         lightColor: { value: lightColor.clone() },
         sunI: { value: sunIntensity },
@@ -83,38 +195,201 @@ export function Earth({
         nightBoost: { value: nightIntensity },
         edge: { value: terminatorSoftness },
         lift: { value: terminatorLift },
+        terminatorTint: { value: new THREE.Vector4(...terminatorTint) },
+        nightEarthMapIntensity: { value: nightEarthMapIntensity },
+        nightEarthMapHue: { value: nightEarthMapHue },
+        nightEarthMapSaturation: { value: nightEarthMapSaturation },
+        nightEarthMapLightness: { value: nightEarthMapLightness },
+        nightGlowBlur: { value: nightGlowBlur },
+        nightGlowOpacity: { value: nightGlowOpacity },
         hasNight: { value: hasNight ? 1 : 0 },
         hasSpec: { value: hasSpec ? 1 : 0 },
+        hasNormal: { value: hasNormal ? 1 : 0 },
+        hasDisp: { value: hasDisp ? 1 : 0 },
         specStrength: { value: specStrength },
         shininess: { value: shininess },
         broadStrength: { value: broadStrength },
         broadShiny: { value: 24.0 }, // 固定值
+        specFresnelK: { value: specFresnelK },
         nightGamma: { value: 1.1 }, // 固定值
         nightFalloff: { value: nightFalloff },
+        normalStrength: { value: normalMapStrength ?? 0.8 },
+        normalFlip: { value: new THREE.Vector2(normalFlipX ? -1 : 1, normalFlipY ? -1 : 1) },
+        dispScale: { value: (displacementScaleRel ?? 0) * size },
+        dispMid: { value: displacementMid ?? 0.5 },
+        dispContrast: { value: displacementContrast ?? 1.0 },
+        earthRadius: { value: size },
         // 大气弧光参数
         rimStrength: { value: rimStrength },
         rimWidth: { value: rimWidth },
         rimHeight: { value: rimHeight },
         rimRadius: { value: rimRadius },
         haloWidth: { value: haloWidth },
-      },
+        // 阴影与云影
+        enableShadow: { value: receiveShadows ? 1 : 0 },
+        cloudShadowMap: { value: cloudShadowMap ?? SOLID.white },
+        cloudShadowStrength: { value: cloudShadowStrength ?? 0.4 },
+        enableCloudShadow: { value: enableCloudShadow ? 1 : 0 },
+        // DEM地形参数 - 只要有高度贴图就启用DEM法线计算
+        enableDEMNormal: { value: earthDisplacement ? 1 : 0 },
+        demNormalStrength: { value: demNormalStrength },
+        demNormalWeight: { value: demNormalWeight },
+        enableSelfShadow: { value: (earthDisplacement && receiveShadows) ? 1 : 0 },
+        selfShadowSteps: { value: selfShadowSteps },
+        selfShadowStrength: { value: selfShadowStrength },
+        selfShadowDistance: { value: selfShadowDistance },
+        // Debug参数
+        debugMode: { value: debugMode },
+        // 新增地形阴影参数
+        shadowHeightThreshold: { value: shadowHeightThreshold },
+        shadowDistanceAttenuation: { value: shadowDistanceAttenuation },
+        shadowMaxOcclusion: { value: shadowMaxOcclusion },
+        shadowSmoothFactor: { value: shadowSmoothFactor },
+        }
+      ]),
       vertexShader: `
+        #include <common>
         varying vec2 vUv; 
         varying vec3 vNormalW; 
         varying vec3 vViewW;
+        varying vec3 vWorldPos;
+        varying vec3 vViewPosition; // required by lights system
+        uniform sampler2D displacementMap;
+        uniform int hasDisp;
+        uniform float dispScale;
+        uniform float dispMid;
+        uniform float dispContrast;
         
         void main(){
           vUv = uv;
-          vNormalW = normalize(mat3(modelMatrix) * normal);
-          vec3 worldPos = (modelMatrix * vec4(position,1.0)).xyz;
-          vViewW = normalize(cameraPosition - worldPos);
-          gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);
+          vec3 pos = position;
+          vec3 nObj = normal;
+          float h = 0.5; // 默认高度值
+          if (hasDisp == 1 && dispScale != 0.0) {
+            h = texture2D(displacementMap, vUv).r;
+            // 更保守的高度调整：减少对比度的影响
+            float adjustedH = h;
+            if (dispContrast != 1.0) {
+              // 使用更平滑的曲线，避免极值
+              float contrastFactor = min(dispContrast, 3.0); // 限制最大对比度
+              adjustedH = clamp((h - dispMid) * contrastFactor + dispMid, 0.0, 1.0);
+              // 添加平滑过渡，避免硬边界
+              adjustedH = smoothstep(0.0, 1.0, adjustedH);
+            }
+            // 使用调整后的高度计算位移，但减去中点避免整体偏移
+            float d = (adjustedH - 0.5) * dispScale;
+            pos += nObj * d;
+          }
+          vNormalW = normalize(mat3(modelMatrix) * nObj);
+          // 手动展开 worldpos/shadowmap 链路，避免 include 带来的重定义问题
+          vec3 transformed = pos;
+          vec3 transformedNormal = normalize( normalMatrix * nObj );
+          vec4 worldPosition = modelMatrix * vec4( transformed, 1.0 );
+          vWorldPos = worldPosition.xyz;
+          vViewW = normalize(cameraPosition - vWorldPos);
+          vec4 mvPosition = viewMatrix * worldPosition;
+          vViewPosition = -mvPosition.xyz;
+          gl_Position = projectionMatrix * mvPosition;
         }
       `,
       fragmentShader: `
+        #include <common>
+        #include <lights_pars_begin>
+        
+        // DEM法线计算 - Sobel边缘检测
+        vec3 calculateDEMNormal(vec2 uv, sampler2D heightMap, float strength) {
+          vec2 texelSize = vec2(1.0 / 8192.0, 1.0 / 4096.0); // 假设8K贴图
+          
+          // Sobel算子
+          float h00 = texture2D(heightMap, uv + texelSize * vec2(-1.0, -1.0)).r;
+          float h10 = texture2D(heightMap, uv + texelSize * vec2( 0.0, -1.0)).r;
+          float h20 = texture2D(heightMap, uv + texelSize * vec2( 1.0, -1.0)).r;
+          float h01 = texture2D(heightMap, uv + texelSize * vec2(-1.0,  0.0)).r;
+          float h21 = texture2D(heightMap, uv + texelSize * vec2( 1.0,  0.0)).r;
+          float h02 = texture2D(heightMap, uv + texelSize * vec2(-1.0,  1.0)).r;
+          float h12 = texture2D(heightMap, uv + texelSize * vec2( 0.0,  1.0)).r;
+          float h22 = texture2D(heightMap, uv + texelSize * vec2( 1.0,  1.0)).r;
+          
+          // 计算梯度
+          float dx = (h20 - h00) + 2.0 * (h21 - h01) + (h22 - h02);
+          float dy = (h02 - h00) + 2.0 * (h12 - h10) + (h22 - h20);
+          
+          // 降低梯度对比度，避免过度敏感
+          dx = sign(dx) * pow(abs(dx), 1.2); // 降低幂次，减少对比度
+          dy = sign(dy) * pow(abs(dy), 1.2);
+          
+          // 转换为法线 (Y-up坐标系)，降低强度
+          vec3 normal = normalize(vec3(-dx * strength * 0.5, 1.0, -dy * strength * 0.5)); // 降低强度系数
+          return normal;
+        }
+        
+        // 地形自阴影计算 - 改进版，避免池塘效果
+        float calculateSelfShadow(vec2 uv, vec3 lightDir, sampler2D heightMap, int steps, float stepDistance, float heightThreshold, float distanceAttenuation, float maxOcclusion, float smoothFactor) {
+          if (steps <= 0) return 1.0;
+          
+          vec2 lightDirUV = normalize(lightDir.xz) * stepDistance;
+          float currentHeight = texture2D(heightMap, uv).r;
+          float shadow = 1.0;
+          float totalOcclusion = 0.0;
+          
+          // 添加随机性避免过于规则的阴影模式
+          float noise = fract(sin(dot(uv * 100.0, vec2(12.9898, 78.233))) * 43758.5453);
+          
+          for (int i = 1; i <= 16; i++) {
+            if (i > steps) break;
+            
+            // 添加轻微的随机偏移
+            vec2 randomOffset = vec2(noise * 0.1, noise * 0.1) * stepDistance * 0.1;
+            vec2 sampleUV = uv + lightDirUV * float(i) + randomOffset;
+            float sampleHeight = texture2D(heightMap, sampleUV).r;
+            
+            // 计算高度差，使用可配置阈值
+            float heightDiff = sampleHeight - currentHeight;
+            if (heightDiff > heightThreshold) {
+              // 使用可配置的距离衰减
+              float distanceFactor = pow(1.0 - (float(i) / float(steps)), distanceAttenuation);
+              // 使用可配置的遮挡强度和平滑因子
+              float occlusion = clamp(heightDiff * distanceFactor * maxOcclusion * 10.0, 0.0, maxOcclusion);
+              
+              // 添加额外的平滑处理
+              occlusion *= smoothstep(heightThreshold, heightThreshold * 2.0, heightDiff);
+              
+              totalOcclusion += occlusion;
+            }
+          }
+          
+          // 使用可配置的平滑因子应用阴影
+          shadow = 1.0 - smoothstep(0.0, smoothFactor, totalOcclusion);
+          return max(shadow, 0.1); // 确保最小亮度，避免完全黑暗
+        }
+        
         uniform sampler2D dayMap; 
         uniform sampler2D nightMap; 
         uniform sampler2D specMap; 
+        uniform sampler2D normalMap;
+        uniform sampler2D displacementMap;
+        uniform int hasDisp;
+        uniform float dispScale;
+        uniform float dispMid;
+        uniform float dispContrast;
+        uniform int enableShadow;
+        uniform sampler2D cloudShadowMap;
+        uniform float cloudShadowStrength;
+        uniform int enableCloudShadow;
+        // DEM地形参数
+        uniform int enableDEMNormal;
+        uniform float demNormalStrength;
+        uniform float demNormalWeight;
+        uniform int enableSelfShadow;
+        uniform int selfShadowSteps;
+        uniform float selfShadowStrength;
+        uniform float selfShadowDistance;
+        uniform int debugMode;
+        // 新增地形阴影参数
+        uniform float shadowHeightThreshold;
+        uniform float shadowDistanceAttenuation;
+        uniform float shadowMaxOcclusion;
+        uniform float shadowSmoothFactor;
         uniform vec3 lightDir; 
         uniform vec3 lightColor; 
         uniform float sunI;
@@ -122,14 +397,74 @@ export function Earth({
         uniform float nightBoost; 
         uniform float edge; 
         uniform float lift; 
+        uniform vec4 terminatorTint;
+        uniform float nightEarthMapIntensity;
+        uniform float nightEarthMapHue;
+        uniform float nightEarthMapSaturation;
+        uniform float nightEarthMapLightness;
+        uniform float nightGlowBlur;
+        uniform float nightGlowOpacity;
         uniform float nightFalloff; 
-        uniform int hasNight; 
+        uniform int hasNight;
+        
+        // HSL to RGB conversion
+        vec3 hslToRgb(float h, float s, float l) {
+          h = h / 360.0;
+          float c = (1.0 - abs(2.0 * l - 1.0)) * s;
+          float x = c * (1.0 - abs(mod(h * 6.0, 2.0) - 1.0));
+          float m = l - c / 2.0;
+          vec3 rgb;
+          if (h < 1.0/6.0) rgb = vec3(c, x, 0.0);
+          else if (h < 2.0/6.0) rgb = vec3(x, c, 0.0);
+          else if (h < 3.0/6.0) rgb = vec3(0.0, c, x);
+          else if (h < 4.0/6.0) rgb = vec3(0.0, x, c);
+          else if (h < 5.0/6.0) rgb = vec3(x, 0.0, c);
+          else rgb = vec3(c, 0.0, x);
+          return rgb + m;
+        }
+        
+        // 简化的高斯模糊采样 - 使用固定采样点
+        vec3 sampleNightGlow(sampler2D nightMap, vec2 uv, float blur) {
+          if (blur <= 0.0) return texture2D(nightMap, uv).rgb;
+          
+          vec3 color = vec3(0.0);
+          float totalWeight = 0.0;
+          
+          // 使用固定的采样点，避免动态循环
+          vec2 offsets[9];
+          offsets[0] = vec2(-1.0, -1.0) * blur * 0.1;
+          offsets[1] = vec2( 0.0, -1.0) * blur * 0.1;
+          offsets[2] = vec2( 1.0, -1.0) * blur * 0.1;
+          offsets[3] = vec2(-1.0,  0.0) * blur * 0.1;
+          offsets[4] = vec2( 0.0,  0.0) * blur * 0.1;
+          offsets[5] = vec2( 1.0,  0.0) * blur * 0.1;
+          offsets[6] = vec2(-1.0,  1.0) * blur * 0.1;
+          offsets[7] = vec2( 0.0,  1.0) * blur * 0.1;
+          offsets[8] = vec2( 1.0,  1.0) * blur * 0.1;
+          
+          float weights[9];
+          weights[0] = 1.0; weights[1] = 2.0; weights[2] = 1.0;
+          weights[3] = 2.0; weights[4] = 4.0; weights[5] = 2.0;
+          weights[6] = 1.0; weights[7] = 2.0; weights[8] = 1.0;
+          
+          for (int i = 0; i < 9; i++) {
+            vec2 sampleUV = uv + offsets[i];
+            color += texture2D(nightMap, sampleUV).rgb * weights[i];
+            totalWeight += weights[i];
+          }
+          
+          return color / totalWeight;
+        } 
         uniform int hasSpec; 
+        uniform int hasNormal;
         uniform float specStrength; 
         uniform float shininess; 
         uniform float broadStrength; 
-        uniform float broadShiny; 
+        uniform float broadShiny;
+        uniform float specFresnelK; 
         uniform float nightGamma;
+        uniform float normalStrength;
+        uniform vec2 normalFlip; // xy = (-1 or 1)
         // 大气弧光参数
         uniform float rimStrength;
         uniform float rimWidth;
@@ -140,9 +475,43 @@ export function Earth({
         varying vec2 vUv; 
         varying vec3 vNormalW; 
         varying vec3 vViewW;
+        varying vec3 vWorldPos;
         
         void main(){
+          // 基础法线
           vec3 n = normalize(vNormalW);
+          // 传统法线贴图已禁用，只使用DEM法线
+          if (false) { // 永远不执行传统法线贴图逻辑
+            // 使用世界空间位置导数构建切线
+            vec3 dp1 = dFdx(vWorldPos);
+            vec3 dp2 = dFdy(vWorldPos);
+            vec2 duv1 = dFdx(vUv);
+            vec2 duv2 = dFdy(vUv);
+            vec3 t = normalize(dp1 * duv2.y - dp2 * duv1.y);
+            vec3 b = normalize(cross(n, t));
+            mat3 tbn = mat3(t, b, n);
+            vec3 nm = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;
+            nm.xy *= normalFlip; // 处理贴图坐标系差异
+            vec3 nMapped = normalize(tbn * nm);
+            n = normalize(mix(n, nMapped, clamp(normalStrength, 0.0, 2.0)));
+          }
+          
+          // DEM法线计算 - 基于高度贴图的地形法线
+          if (enableDEMNormal == 1) {
+            vec3 demNormal = calculateDEMNormal(vUv, displacementMap, demNormalStrength);
+            // 将DEM法线从切线空间转换到世界空间
+            vec3 dp1 = dFdx(vWorldPos);
+            vec3 dp2 = dFdy(vWorldPos);
+            vec2 duv1 = dFdx(vUv);
+            vec2 duv2 = dFdy(vUv);
+            vec3 t = normalize(dp1 * duv2.y - dp2 * duv1.y);
+            vec3 b = normalize(cross(n, t));
+            mat3 tbn = mat3(t, b, n);
+            vec3 demNormalWorld = normalize(tbn * demNormal);
+            
+            // 混合DEM法线与现有法线
+            n = normalize(mix(n, demNormalWorld, demNormalWeight));
+          }
           float ndl = dot(n, normalize(lightDir));
           float noise = fract(sin(dot(vUv, vec2(12.9898,78.233))) * 43758.5453);
           float ndl_d = ndl + (noise - 0.5) * edge * 0.25;
@@ -152,18 +521,57 @@ export function Earth({
           vec3 dayTex = texture2D(dayMap, vUv).rgb;
           // 修复：当太阳在背后时（ndl < 0），日面应该完全黑暗
           float dayLight = max(ndl, 0.0); // 只有面向太阳的面才有光照
-          vec3 dayCol = dayTex * (dayLight * sunI + ambient) * lightColor * dayW;
+          float shadowMask = 1.0;
+          // 暂时禁用WebGL阴影系统，使用DEM自阴影替代
+          // if (enableShadow == 1) {
+          //   shadowMask = 0.8; // 简单的全局阴影减弱
+          // }
+          
+          // 地形自阴影计算
+          float terrainShadow = 1.0;
+          if (enableSelfShadow == 1) {
+            terrainShadow = calculateSelfShadow(vUv, lightDir, displacementMap, selfShadowSteps, selfShadowDistance, shadowHeightThreshold, shadowDistanceAttenuation, shadowMaxOcclusion, shadowSmoothFactor);
+            terrainShadow = mix(1.0, terrainShadow, selfShadowStrength);
+          }
+          float cloudShadow = 1.0;
+          if (enableCloudShadow == 1) {
+            float cloudDark = texture2D(cloudShadowMap, vUv).r; // 近似云量
+            cloudShadow = 1.0 - cloudShadowStrength * cloudDark;
+          }
+          float lightFactor = dayLight * sunI * shadowMask * cloudShadow * terrainShadow;
+          vec3 dayCol = dayTex * (lightFactor + ambient) * lightColor * dayW;
           
           // 终止线软化 + 夜景随距离衰减
           float nightW = pow(1.0 - f, nightFalloff);
           float rim = 1.0 - smoothstep(0.0, edge*1.5, abs(ndl));
           
           vec3 nightCol = vec3(0.0);
+          vec3 nightGlowCol = vec3(0.0);
           if (hasNight == 1) {
             vec3 nightTex = texture2D(nightMap, vUv).rgb;
             nightTex = pow(nightTex, vec3(nightGamma));
             // 夜景只在夜面显示
             nightCol = nightTex * nightW * nightBoost;
+            
+            // 夜景发光层：高斯模糊的夜景贴图
+            if (nightGlowBlur > 0.0 && nightGlowOpacity > 0.0) {
+              vec3 nightGlowTex = sampleNightGlow(nightMap, vUv, nightGlowBlur);
+              nightGlowTex = pow(nightGlowTex, vec3(nightGamma));
+              // 发光层使用更宽的权重，创造柔光效果
+              float nightGlowW = pow(1.0 - f, max(nightFalloff * 0.3, 0.2));
+              nightGlowCol = nightGlowTex * nightGlowW * nightBoost * nightGlowOpacity;
+            }
+          }
+          
+          // 月光下地球贴图叠加：在夜半球叠加正常地球贴图，降低亮度
+          vec3 nightEarthCol = vec3(0.0);
+          if (nightEarthMapIntensity > 0.0) {
+            vec3 dayTex = texture2D(dayMap, vUv).rgb;
+            // 使用HSL调整，模拟月光效果
+            vec3 moonTint = hslToRgb(nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness);
+            // 使用更宽的夜半球权重，确保月光效果可见
+            float nightEarthW = pow(1.0 - f, max(nightFalloff * 0.5, 0.3));
+            nightEarthCol = dayTex * nightEarthMapIntensity * moonTint * nightEarthW;
           }
           
           // 日侧高光（仅日面，受specMap影响）
@@ -175,11 +583,28 @@ export function Earth({
             float s1 = pow(max(dot(R, V), 0.0), shininess);
             float s2 = pow(max(dot(R, V), 0.0), broadShiny);
             float mask = texture2D(specMap, vUv).r; // 取红通道当mask
-            specCol = lightColor * (s1 * specStrength + s2 * broadStrength) * mask * sunI;
+            float specLight = sunI * shadowMask * cloudShadow;
+            
+            // 菲涅尔效果：高光随观察角增强
+            float fresnel = 1.0;
+            if (specFresnelK > 0.0) {
+              float NdotV = max(dot(n, V), 0.0);
+              fresnel = pow(1.0 - NdotV, specFresnelK);
+            }
+            
+            specCol = lightColor * (s1 * specStrength + s2 * broadStrength) * mask * specLight * fresnel;
           }
           
           // 在终止线附近做少量亮度提拉，便于手动调节"太暗"情况
           vec3 liftCol = vec3(lift) * rim;
+          
+          // 终止线暖色调效果
+          vec3 tintCol = vec3(0.0);
+          if (terminatorTint.a > 0.0) {
+            float tintZone = 1.0 - smoothstep(0.0, edge * 2.0, abs(ndl));
+            vec3 warmTint = terminatorTint.rgb * terminatorTint.a;
+            tintCol = warmTint * tintZone;
+          }
           
           // 大气弧光效果 - 优化渐变
           float fresnel = 1.0 - max(dot(n, normalize(vViewW)), 0.0);
@@ -200,21 +625,55 @@ export function Earth({
           vec3 outerColor = vec3(0.1, 0.3, 0.6);  // 深蓝色
           vec3 rimColor = mix(outerColor, innerColor, innerRim) * rimEffect;
           
-          gl_FragColor = vec4(dayCol + nightCol + liftCol + specCol + rimColor, 1.0);
+          vec3 finalColor = dayCol + nightCol + nightGlowCol + nightEarthCol + liftCol + specCol + rimColor + tintCol;
+          
+          // Debug模式：显示高度信息
+          if (debugMode == 1) {
+            float currentHeight = texture2D(displacementMap, vUv).r;
+            gl_FragColor = vec4(vec3(currentHeight), 1.0); // 纯高度信息
+          } else if (debugMode == 2) {
+            float currentHeight = texture2D(displacementMap, vUv).r;
+            // 显示调整后的高度（使用与vertex shader相同的逻辑）
+            float adjustedHeight = currentHeight;
+            if (dispContrast != 1.0) {
+              float contrastFactor = min(dispContrast, 3.0);
+              adjustedHeight = clamp((currentHeight - dispMid) * contrastFactor + dispMid, 0.0, 1.0);
+              adjustedHeight = smoothstep(0.0, 1.0, adjustedHeight);
+            }
+            gl_FragColor = vec4(vec3(adjustedHeight), 1.0);
+          } else if (debugMode == 3) {
+            // 显示地形阴影强度
+            float shadowStrength = 1.0;
+            if (enableSelfShadow == 1) {
+              shadowStrength = calculateSelfShadow(vUv, lightDir, displacementMap, selfShadowSteps, selfShadowDistance, shadowHeightThreshold, shadowDistanceAttenuation, shadowMaxOcclusion, shadowSmoothFactor);
+            }
+            gl_FragColor = vec4(vec3(1.0 - shadowStrength), 1.0); // 阴影强度（黑色表示强阴影）
+          } else {
+            gl_FragColor = vec4(finalColor, 1.0);
+          }
         }
       `,
+      // 在 WebGL1 下启用导数扩展；WebGL2 不需要
+      extensions: { derivatives: true },
+      transparent: false,
+      depthWrite: true,
+      depthTest: true,
+      blending: THREE.NoBlending,
     });
     
     // 移除分层渲染逻辑
     // if (material && material.layers) {
     //   material.layers.set(1);
     // }
+    material.needsUpdate = true;
     
     return material;
   }, [
     earthMap, 
     earthNight, 
     earthSpecular, 
+    earthNormal,
+    earthDisplacement,
     lightDirection, 
     lightColor, 
     sunIntensity, 
@@ -225,8 +684,44 @@ export function Earth({
     specStrength, 
     shininess, 
     broadStrength, 
-    nightFalloff
+    nightFalloff,
+    useNormalMap,
+    normalMapStrength,
+    normalFlipX,
+    normalFlipY,
+    displacementScaleRel,
+    displacementMid,
+    displacementContrast,
+    size
   ]);
+
+  // 修复：始终使用自定义着色器以保留弧光效果，即使接收阴影时
+  // 移除了 standardShadowMaterial 回退逻辑
+  const useCustomShaderForShadows = true; // 强制使用自定义着色器支持弧光
+
+  // 自定义阴影深度材质：在阴影深度通道复用置换顶点逻辑
+  const depthMaterial = useMemo(() => {
+    const mat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    (mat as any).defines = (mat as any).defines || {};
+    (mat as any).defines.USE_UV = '';
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.displacementMap = { value: earthDisplacement ?? SOLID.zeroLinear };
+      shader.uniforms.dispScale = { value: (displacementScaleRel ?? 0) * size };
+      shader.uniforms.dispMid = { value: displacementMid ?? 0.5 };
+      shader.uniforms.dispContrast = { value: displacementContrast ?? 1.0 };
+      shader.uniforms.hasDisp = { value: (earthDisplacement && (displacementScaleRel ?? 0) !== 0) ? 1 : 0 };
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <uv_pars_vertex>',
+          '#include <uv_pars_vertex>\nuniform sampler2D displacementMap;\nuniform float dispScale;\nuniform float dispMid;\nuniform float dispContrast;\nuniform int hasDisp;'
+        )
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>\n#ifdef USE_UV\n  if (hasDisp == 1 && dispScale != 0.0) {\n    float h = texture2D(displacementMap, vUv).r;\n    float adjustedH = h;\n    if (dispContrast != 1.0) {\n      float contrastFactor = min(dispContrast, 3.0);\n      adjustedH = clamp((h - dispMid) * contrastFactor + dispMid, 0.0, 1.0);\n      adjustedH = smoothstep(0.0, 1.0, adjustedH);\n    }\n    float d = (adjustedH - 0.5) * dispScale;\n    transformed += normal * d;\n  }\n#endif`
+        );
+    };
+    return mat;
+  }, [earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size]);
 
   // 更新着色器uniforms
   useEffect(() => {
@@ -257,11 +752,112 @@ export function Earth({
         if (earthDNMaterial.uniforms.haloWidth) {
           earthDNMaterial.uniforms.haloWidth.value = haloWidth;
         }
+        // 法线贴图相关
+        if (earthDNMaterial.uniforms.normalStrength) {
+          earthDNMaterial.uniforms.normalStrength.value = normalMapStrength ?? 0.8;
+        }
+        if (earthDNMaterial.uniforms.hasNormal) {
+          earthDNMaterial.uniforms.hasNormal.value = 0; // 禁用传统法线贴图
+        }
+        if (earthDNMaterial.uniforms.normalMap && earthNormal) {
+          earthDNMaterial.uniforms.normalMap.value = earthNormal;
+        }
+        if (earthDNMaterial.uniforms.normalFlip) {
+          earthDNMaterial.uniforms.normalFlip.value.set(normalFlipX ? -1 : 1, normalFlipY ? -1 : 1);
+        }
+        // 置换相关
+        if (earthDNMaterial.uniforms.displacementMap && earthDisplacement) {
+          earthDNMaterial.uniforms.displacementMap.value = earthDisplacement;
+        }
+        if (earthDNMaterial.uniforms.dispScale) {
+          earthDNMaterial.uniforms.dispScale.value = (displacementScaleRel ?? 0) * size;
+        }
+        if (earthDNMaterial.uniforms.dispMid) {
+          earthDNMaterial.uniforms.dispMid.value = displacementMid ?? 0.5;
+        }
+        if (earthDNMaterial.uniforms.dispContrast) {
+          earthDNMaterial.uniforms.dispContrast.value = displacementContrast ?? 1.0;
+        }
+        if (earthDNMaterial.uniforms.hasDisp) {
+          earthDNMaterial.uniforms.hasDisp.value = (earthDisplacement && (displacementScaleRel ?? 0) !== 0) ? 1 : 0;
+        }
+        if ((earthDNMaterial.uniforms as any).enableShadow !== undefined) {
+          (earthDNMaterial.uniforms as any).enableShadow.value = receiveShadows ? 1 : 0;
+        }
+        if ((earthDNMaterial.uniforms as any).enableShadow !== undefined) {
+          (earthDNMaterial.uniforms as any).enableShadow.value = receiveShadows ? 1 : 0;
+        }
+        if ((earthDNMaterial.uniforms as any).cloudShadowMap && cloudShadowMap) {
+          (earthDNMaterial.uniforms as any).cloudShadowMap.value = cloudShadowMap;
+        }
+        if ((earthDNMaterial.uniforms as any).cloudShadowStrength) {
+          (earthDNMaterial.uniforms as any).cloudShadowStrength.value = cloudShadowStrength ?? 0.4;
+        }
+        if ((earthDNMaterial.uniforms as any).enableCloudShadow !== undefined) {
+          (earthDNMaterial.uniforms as any).enableCloudShadow.value = enableCloudShadow ? 1 : 0;
+        }
+        // DEM地形参数更新
+        if ((earthDNMaterial.uniforms as any).enableDEMNormal !== undefined) {
+          (earthDNMaterial.uniforms as any).enableDEMNormal.value = earthDisplacement ? 1 : 0;
+        }
+        if ((earthDNMaterial.uniforms as any).demNormalStrength !== undefined) {
+          (earthDNMaterial.uniforms as any).demNormalStrength.value = demNormalStrength ?? 3.0;
+        }
+        if ((earthDNMaterial.uniforms as any).demNormalWeight !== undefined) {
+          (earthDNMaterial.uniforms as any).demNormalWeight.value = demNormalWeight ?? 0.05;
+        }
+        if ((earthDNMaterial.uniforms as any).enableSelfShadow !== undefined) {
+          (earthDNMaterial.uniforms as any).enableSelfShadow.value = ((earthDisplacement && (displacementScaleRel ?? 0) !== 0) && receiveShadows) ? 1 : 0;
+        }
+        if ((earthDNMaterial.uniforms as any).selfShadowSteps !== undefined) {
+          (earthDNMaterial.uniforms as any).selfShadowSteps.value = selfShadowSteps ?? 16;
+        }
+        if ((earthDNMaterial.uniforms as any).selfShadowStrength !== undefined) {
+          (earthDNMaterial.uniforms as any).selfShadowStrength.value = selfShadowStrength ?? 2.0;
+        }
+        if ((earthDNMaterial.uniforms as any).selfShadowDistance !== undefined) {
+          (earthDNMaterial.uniforms as any).selfShadowDistance.value = selfShadowDistance ?? 0.1;
+        }
+        if ((earthDNMaterial.uniforms as any).debugMode !== undefined) {
+          (earthDNMaterial.uniforms as any).debugMode.value = debugMode ?? 0;
+        }
+        // 更新新增的地形阴影参数
+        if ((earthDNMaterial.uniforms as any).shadowHeightThreshold !== undefined) {
+          (earthDNMaterial.uniforms as any).shadowHeightThreshold.value = shadowHeightThreshold ?? 0.02;
+        }
+        if ((earthDNMaterial.uniforms as any).shadowDistanceAttenuation !== undefined) {
+          (earthDNMaterial.uniforms as any).shadowDistanceAttenuation.value = shadowDistanceAttenuation ?? 2.0;
+        }
+        if ((earthDNMaterial.uniforms as any).shadowMaxOcclusion !== undefined) {
+          (earthDNMaterial.uniforms as any).shadowMaxOcclusion.value = shadowMaxOcclusion ?? 0.3;
+        }
+        if ((earthDNMaterial.uniforms as any).shadowSmoothFactor !== undefined) {
+          (earthDNMaterial.uniforms as any).shadowSmoothFactor.value = shadowSmoothFactor ?? 0.5;
+        }
+        // 月光地球贴图参数更新
+        if (earthDNMaterial.uniforms.nightEarthMapIntensity) {
+          earthDNMaterial.uniforms.nightEarthMapIntensity.value = nightEarthMapIntensity;
+        }
+        if (earthDNMaterial.uniforms.nightEarthMapHue) {
+          earthDNMaterial.uniforms.nightEarthMapHue.value = nightEarthMapHue;
+        }
+        if (earthDNMaterial.uniforms.nightEarthMapSaturation) {
+          earthDNMaterial.uniforms.nightEarthMapSaturation.value = nightEarthMapSaturation;
+        }
+        if (earthDNMaterial.uniforms.nightEarthMapLightness) {
+          earthDNMaterial.uniforms.nightEarthMapLightness.value = nightEarthMapLightness;
+        }
+        if (earthDNMaterial.uniforms.nightGlowBlur) {
+          earthDNMaterial.uniforms.nightGlowBlur.value = nightGlowBlur;
+        }
+        if (earthDNMaterial.uniforms.nightGlowOpacity) {
+          earthDNMaterial.uniforms.nightGlowOpacity.value = nightGlowOpacity;
+        }
       } catch (error) {
         console.error('[SimpleEarth] Error updating uniforms:', error);
       }
     }
-  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth]);
+  }, [earthDNMaterial, lightDirection, sunIntensity, lightColor, rimStrength, rimWidth, rimHeight, rimRadius, haloWidth, useNormalMap, normalMapStrength, normalFlipX, normalFlipY, earthNormal, earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size, receiveShadows, cloudShadowMap, cloudShadowStrength, enableCloudShadow, demNormalStrength, demNormalWeight, selfShadowSteps, selfShadowStrength, selfShadowDistance, debugMode, shadowHeightThreshold, shadowDistanceAttenuation, shadowMaxOcclusion, shadowSmoothFactor, nightEarthMapIntensity, nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness, nightGlowBlur, nightGlowOpacity]);
 
   // 调试信息
   useEffect(() => {
@@ -274,10 +870,18 @@ export function Earth({
         hasDayMap: !!earthMap,
         hasNightMap: !!earthNight,
         hasSpecMap: !!earthSpecular,
+        hasDisplacement: !!earthDisplacement,
+        demParams: {
+          demNormalStrength,
+          demNormalWeight,
+          selfShadowSteps,
+          selfShadowStrength,
+          selfShadowDistance
+        },
         mode: 'single-render-system'
       });
     }
-  }, [position, size, lightDirection, useTextures, earthMap, earthNight, earthSpecular]);
+  }, [position, size, lightDirection, useTextures, earthMap, earthNight, earthSpecular, earthDisplacement, demNormalStrength, demNormalWeight, selfShadowSteps, selfShadowStrength, selfShadowDistance]);
 
   return (
     <group 
@@ -286,16 +890,15 @@ export function Earth({
       // 🔧 关键修复：应用yawDeg参数控制地球自转，确保沿地轴（Y轴）旋转
     >
       {/* 地球核心 */}
-      <mesh>
-        <sphereGeometry args={[size, 144, 144]} />
+      <mesh castShadow={receiveShadows} receiveShadow={receiveShadows}
+        // 为阴影接收附加自定义深度材质（支持高度置换）
+        customDepthMaterial={receiveShadows ? depthMaterial : undefined}
+      >
+        <sphereGeometry args={[size, segments, segments]} />
         {earthDNMaterial ? (
           <primitive object={earthDNMaterial} attach="material" />
         ) : (
-          <meshPhongMaterial 
-            color={new THREE.Color('#9fb3c8')} 
-            shininess={6} 
-            specular={new THREE.Color('#2a2a2a')}
-          />
+          <meshPhongMaterial color={new THREE.Color('#9fb3c8')} shininess={6} specular={new THREE.Color('#2a2a2a')} />
         )}
       </mesh>
       

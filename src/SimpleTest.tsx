@@ -52,9 +52,21 @@ function MilkyWayMesh({
   }
   
   return (
-    <mesh key={`milky-${bgYawDeg}-${bgPitchDeg}`} rotation={[THREE.MathUtils.degToRad(bgPitchDeg ?? 0), THREE.MathUtils.degToRad(bgYawDeg ?? 0), 0]}>
+    <mesh
+      key={`milky-${bgYawDeg}-${bgPitchDeg}`}
+      rotation={[THREE.MathUtils.degToRad(bgPitchDeg ?? 0), THREE.MathUtils.degToRad(bgYawDeg ?? 0), 0]}
+      renderOrder={-10}
+    >
       <sphereGeometry args={[120, 64, 64]} />
-      <meshBasicMaterial map={starsMilky} side={THREE.BackSide} ref={matRef} transparent opacity={0.8} />
+      <meshBasicMaterial
+        map={starsMilky}
+        side={THREE.BackSide}
+        ref={matRef}
+        transparent
+        opacity={0.8}
+        depthTest={true}
+        depthWrite={false}
+      />
     </mesh>
   );
 }
@@ -68,6 +80,7 @@ import { calculateCameraOrientationForBirthPoint, calculateBirthPointLocalFrame,
 import { LocationSelector } from './components/LocationSelector';
 import { Moon } from './scenes/simple/api/components/Moon';
 import { Clouds, CloudsWithLayers } from './scenes/simple/api/components/Clouds';
+import { IntegratedCloudSystem } from './scenes/simple/api/components/IntegratedCloudSystem';
 import { AtmosphereEffects, setupAtmosphereConsoleCommands } from './scenes/simple/api/components/AtmosphereEffects';
 import { getEarthState, type TimeInterpretation } from './scenes/simple/api/earthState';
 import { toUTCFromLocal, calculateTerminatorLongitude } from './astro/ephemeris';
@@ -85,7 +98,10 @@ function SceneContent({
   moonEQD,
   dateISO,
   latDeg,
-  lonDeg
+  lonDeg,
+  isAlignedAndZoomed,
+  demParams,
+  debugMode
 }: { 
   composition: SimpleComposition;
   mode: 'debug' | 'celestial';
@@ -95,6 +111,19 @@ function SceneContent({
   dateISO: string;
   latDeg: number;
   lonDeg: number;
+  isAlignedAndZoomed: boolean;
+  demParams: {
+    demNormalStrength: number;
+    demNormalWeight: number;
+    selfShadowSteps: number;
+    selfShadowStrength: number;
+    selfShadowDistance: number;
+    shadowHeightThreshold: number;
+    shadowDistanceAttenuation: number;
+    shadowMaxOcclusion: number;
+    shadowSmoothFactor: number;
+  };
+  debugMode: number;
 }) {
   const { camera, scene } = useThree();
     // 暴露当前相机用于验证
@@ -219,7 +248,16 @@ function SceneContent({
         ]}
         intensity={finalIntensity}
         color={lightColor}
-        castShadow={finalCastShadow}
+        castShadow={composition.enableTerrainShadow || composition.enableCloudShadow}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-near={0.1}
+        shadow-camera-far={100}
+        shadow-camera-left={-earthInfo.size * 2.2}
+        shadow-camera-right={earthInfo.size * 2.2}
+        shadow-camera-top={earthInfo.size * 2.2}
+        shadow-camera-bottom={-earthInfo.size * 2.2}
+        shadow-bias={0.002}
+        shadow-normalBias={0.5}
       />
 
         
@@ -236,6 +274,7 @@ function SceneContent({
         <Earth 
           position={[0, 0, 0]}
           size={earthInfo.size}
+          segments={(composition.useSegLOD && (isAlignedAndZoomed || earthInfo.size >= (composition.segLODTriggerSize ?? 1.0))) ? (composition.earthSegmentsHigh ?? 288) : (composition.earthSegmentsBase ?? 144)}
           lightDirection={lightDirection}
           tiltDeg={0}
           yawDeg={composition.earthYawDeg}
@@ -244,46 +283,80 @@ function SceneContent({
           sunIntensity={lightIntensity}
           terminatorSoftness={composition.terminatorSoftness}
           nightIntensity={composition.nightIntensity}
+          nightFalloff={composition.nightFalloff}
+          terminatorLift={composition.terminatorLift}
+          terminatorTint={composition.terminatorTint}
+          nightEarthMapIntensity={composition.nightEarthMapIntensity}
+          nightEarthMapHue={composition.nightEarthMapHue}
+          nightEarthMapSaturation={composition.nightEarthMapSaturation}
+          nightEarthMapLightness={composition.nightEarthMapLightness}
+          nightGlowBlur={composition.nightGlowBlur}
+          nightGlowOpacity={composition.nightGlowOpacity}
           shininess={composition.shininess}
           specStrength={composition.specStrength}
           broadStrength={composition.broadStrength}
+          specFresnelK={composition.specFresnelK}
+            // 地球置换（相对半径比例）
+          displacementScaleRel={composition.earthDisplacementScale ?? 0.0}
+          displacementMid={composition.earthDisplacementMid ?? 0.5}
+          displacementContrast={composition.earthDisplacementContrast ?? 1.0}
           // 大气弧光参数
           rimStrength={composition.rimStrength}
           rimWidth={composition.rimWidth}
           rimHeight={composition.rimHeight}
           rimRadius={composition.rimRadius}
           haloWidth={composition.haloWidth}
+          // 阴影与云影
+          receiveShadows={composition.enableTerrainShadow ?? false}
+          cloudShadowMap={(composition.enableCloudShadow ?? false) ? earthClouds : undefined}
+          cloudShadowStrength={composition.cloudShadowStrength ?? 0.4}
+          enableCloudShadow={composition.enableCloudShadow ?? false}
+          // DEM地形参数
+          demNormalStrength={demParams.demNormalStrength}
+          demNormalWeight={demParams.demNormalWeight}
+          selfShadowSteps={demParams.selfShadowSteps}
+          selfShadowStrength={demParams.selfShadowStrength}
+          selfShadowDistance={demParams.selfShadowDistance}
+          // Debug参数
+          debugMode={debugMode}
+          // 新增地形阴影参数
+          shadowHeightThreshold={demParams.shadowHeightThreshold}
+          shadowDistanceAttenuation={demParams.shadowDistanceAttenuation}
+          shadowMaxOcclusion={demParams.shadowMaxOcclusion}
+          shadowSmoothFactor={demParams.shadowSmoothFactor}
         />
         
         
-        {/* 云层 */}
+        {/* 云层 - 回退到简单系统 */}
         {composition.useClouds && earthClouds && (
-          <>
-            <CloudsWithLayers
-              radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
-              texture={earthClouds}
-              position={[0, 0, 0]}
-              yawDeg={composition.cloudYawDeg}
-              pitchDeg={composition.cloudPitchDeg}
-              lightDir={lightDirection}
-              lightColor={lightColor}
-              strength={composition.cloudStrength}
-              sunI={lightIntensity}
-              cloudGamma={composition.cloudGamma}
-              cloudBlack={composition.cloudBlack}
-              cloudWhite={composition.cloudWhite}
-              cloudContrast={composition.cloudContrast}
-              // 置换贴图参数
-              displacementScale={composition.cloudDisplacementScale ?? 0.05}
-              displacementBias={composition.cloudDisplacementBias ?? 0.02}
-              // UV滚动速度参数
-              scrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
-              scrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
-              // 多层参数
-              numLayers={composition.cloudNumLayers ?? 3}
-              layerSpacing={composition.cloudLayerSpacing ?? 0.002}
-            />
-          </>
+          <CloudsWithLayers
+            radius={earthInfo.size * (1.0 + composition.cloudHeight) * 1.0006}
+            texture={earthClouds}
+            position={[0, 0, 0]}
+            yawDeg={composition.cloudYawDeg}
+            pitchDeg={composition.cloudPitchDeg}
+            lightDir={lightDirection}
+            lightColor={lightColor}
+            strength={composition.cloudStrength}
+            sunI={lightIntensity}
+            cloudGamma={composition.cloudGamma}
+            cloudBlack={composition.cloudBlack}
+            cloudWhite={composition.cloudWhite}
+            cloudContrast={composition.cloudContrast}
+            // 置换贴图参数
+            displacementScale={composition.cloudDisplacementScale ?? 0.05}
+            displacementBias={composition.cloudDisplacementBias ?? 0.02}
+            // UV滚动速度参数
+            scrollSpeedU={composition.cloudScrollSpeedU ?? 0.0003}
+            scrollSpeedV={composition.cloudScrollSpeedV ?? 0.00015}
+            // 多层参数 - 减少层数避免性能问题
+            numLayers={Math.min(3, composition.cloudNumLayers ?? 3)}
+            layerSpacing={composition.cloudLayerSpacing ?? 0.002}
+            // 禁用Triplanar避免性能问题
+            useTriplanar={false}
+            blendMode="alpha"
+            opacity={1.0}
+          />
         )}
 
         {/* 大气辉光增强 */}
@@ -478,12 +551,31 @@ export default function SimpleTest() {
   const [composition, setComposition] = useState<SimpleComposition>(initialComp);
   
   // 通用更新器：更新 composition 的某个字段
-  const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean) => {
+  const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean | [number, number, number, number]) => {
     setComposition(prev => ({ ...prev, [key]: value }));
   }, []);
 
   const [uiHidden, setUiHidden] = useState(false);
-  // 改进的本地时间转换函数
+  const [isAlignedAndZoomed, setIsAlignedAndZoomed] = useState(false);
+  
+  // DEM地形参数控制状态
+  const [demParams, setDemParams] = useState({
+    demNormalStrength: 3.0,
+    demNormalWeight: 0.05,
+    selfShadowSteps: 16,
+    selfShadowStrength: 2.0,
+    selfShadowDistance: 0.1,
+    // 地形阴影参数 - 更新为用户指定的默认值
+    shadowHeightThreshold: 0.010,  // 高度差阈值
+    shadowDistanceAttenuation: 2.0,  // 距离衰减指数
+    shadowMaxOcclusion: 0.10,  // 最大遮挡强度
+    shadowSmoothFactor: 0.85   // 平滑因子
+  });
+  
+  // Debug模式控制
+  const [debugMode, setDebugMode] = useState(0);
+  
+    // 改进的本地时间转换函数
   const toLocalInputValue = (d: Date) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -889,10 +981,15 @@ export default function SimpleTest() {
         }}
         style={{ background: '#000011' }}
         gl={{ 
-          antialias: true, 
+          antialias: true,
+          depth: true,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: composition.exposure 
         }}
+        onCreated={(state) => {
+          try { (state.gl as any).debug.checkShaderErrors = true; } catch {}
+        }}
+        shadows={composition.enableTerrainShadow || composition.enableCloudShadow}
       >
         <SceneContent 
           composition={composition} 
@@ -903,6 +1000,9 @@ export default function SimpleTest() {
           dateISO={dateISO}
           latDeg={latDeg}
           lonDeg={lonDeg}
+          isAlignedAndZoomed={isAlignedAndZoomed}
+          demParams={demParams}
+          debugMode={debugMode}
         />
         <NoTiltProbe />
         <AlignOnDemand 
@@ -916,6 +1016,7 @@ export default function SimpleTest() {
         />
       </Canvas>
       
+        
       {/* 控制面板 - 使用与原版本一致的样式 */}
       {uiHidden && (
         <div style={{ position:'absolute', top: 10, left: 10, zIndex: 40 }}>
@@ -1699,6 +1800,15 @@ export default function SimpleTest() {
             </div>
           </div>
           
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">海面菲涅尔: 系数 {composition.specFresnelK.toFixed(1)} (0关闭)</label>
+              <input className="input" type="range" min={0} max={5} step={0.1}
+                     value={composition.specFresnelK}
+                     onChange={(e) => updateValue('specFresnelK', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
           {/* 晨昏线控制 */}
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">
@@ -1708,10 +1818,106 @@ export default function SimpleTest() {
                      onChange={(e) => updateValue('terminatorSoftness', parseFloat(e.target.value))} />
             </div>
             <div className="col">
+              <label className="label">夜景衰减: {composition.nightFalloff.toFixed(1)}</label>
+              <input className="input" type="range" min={0.5} max={3.0} step={0.1}
+                     value={composition.nightFalloff}
+                     onChange={(e) => updateValue('nightFalloff', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">终止线提亮: {composition.terminatorLift.toFixed(3)}</label>
+              <input className="input" type="range" min={0} max={0.05} step={0.001}
+                     value={composition.terminatorLift}
+                     onChange={(e) => updateValue('terminatorLift', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
               <label className="label">夜景强度: {composition.nightIntensity.toFixed(1)}</label>
-              <input className="input" type="range" min={0} max={10} step={0.1}
+              <input className="input" type="range" min={0} max={5} step={0.1}
                      value={composition.nightIntensity}
                      onChange={(e) => updateValue('nightIntensity', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">终止线暖色调: R{composition.terminatorTint[0].toFixed(2)} G{composition.terminatorTint[1].toFixed(2)} B{composition.terminatorTint[2].toFixed(2)} A{composition.terminatorTint[3].toFixed(2)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0.8} max={1.2} step={0.01}
+                       value={composition.terminatorTint[0]}
+                       onChange={(e) => {
+                         const newTint = [...composition.terminatorTint];
+                         newTint[0] = parseFloat(e.target.value);
+                         updateValue('terminatorTint', newTint as [number, number, number, number]);
+                       }} />
+                <input className="input" type="range" min={0.7} max={1.0} step={0.01}
+                       value={composition.terminatorTint[1]}
+                       onChange={(e) => {
+                         const newTint = [...composition.terminatorTint];
+                         newTint[1] = parseFloat(e.target.value);
+                         updateValue('terminatorTint', newTint as [number, number, number, number]);
+                       }} />
+                <input className="input" type="range" min={0.6} max={0.9} step={0.01}
+                       value={composition.terminatorTint[2]}
+                       onChange={(e) => {
+                         const newTint = [...composition.terminatorTint];
+                         newTint[2] = parseFloat(e.target.value);
+                         updateValue('terminatorTint', newTint as [number, number, number, number]);
+                       }} />
+                <input className="input" type="range" min={0.0} max={0.1} step={0.005}
+                       value={composition.terminatorTint[3]}
+                       onChange={(e) => {
+                         const newTint = [...composition.terminatorTint];
+                         newTint[3] = parseFloat(e.target.value);
+                         updateValue('terminatorTint', newTint as [number, number, number, number]);
+                       }} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">月光地球贴图强度: {composition.nightEarthMapIntensity.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={0.8} step={0.05}
+                     value={composition.nightEarthMapIntensity}
+                     onChange={(e) => updateValue('nightEarthMapIntensity', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">月光色调: {composition.nightEarthMapHue.toFixed(0)}°</label>
+              <input className="input" type="range" min={0} max={360} step={1}
+                     value={composition.nightEarthMapHue}
+                     onChange={(e) => updateValue('nightEarthMapHue', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">月光饱和度: {composition.nightEarthMapSaturation.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={2} step={0.1}
+                     value={composition.nightEarthMapSaturation}
+                     onChange={(e) => updateValue('nightEarthMapSaturation', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">月光亮度: {composition.nightEarthMapLightness.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={2} step={0.1}
+                     value={composition.nightEarthMapLightness}
+                     onChange={(e) => updateValue('nightEarthMapLightness', parseFloat(e.target.value))} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">夜景发光模糊: {composition.nightGlowBlur.toFixed(3)}</label>
+              <input className="input" type="range" min={0} max={0.1} step={0.001}
+                     value={composition.nightGlowBlur}
+                     onChange={(e) => updateValue('nightGlowBlur', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <label className="label">夜景发光不透明度: {composition.nightGlowOpacity.toFixed(2)}</label>
+              <input className="input" type="range" min={0} max={1} step={0.05}
+                     value={composition.nightGlowOpacity}
+                     onChange={(e) => updateValue('nightGlowOpacity', parseFloat(e.target.value))} />
             </div>
           </div>
           
@@ -1753,7 +1959,7 @@ export default function SimpleTest() {
                 </div>
                 <div className="col" style={{ flex: 1 }}>
                   <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>厚度</div>
-                  <input type="range" min={0.02} max={0.08} step={0.01}
+                  <input type="range" min={0.02} max={0.30} step={0.01}
                          value={composition.atmoThickness ?? 0.05}
                          onChange={(e) => updateValue('atmoThickness', parseFloat(e.target.value))} />
                   <span style={{ fontSize: '10px', opacity: 0.8 }}>{(composition.atmoThickness ?? 0.05).toFixed(2)}</span>
@@ -1843,9 +2049,9 @@ export default function SimpleTest() {
                   <span style={{ fontSize: '10px', opacity: 0.8 }}>{(((composition as any).atmoScaleHeight ?? 0.0)).toFixed(3)}</span>
                 </div>
               </div>
-            </div>
+              </div>
           </div>
-          
+
           {/* 地球材质控制 */}
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">
@@ -1859,6 +2065,230 @@ export default function SimpleTest() {
               <input className="input" type="range" min={2000} max={10000} step={100}
                      value={composition.earthLightTempK}
                      onChange={(e) => updateValue('earthLightTempK', parseInt(e.target.value))} />
+            </div>
+          </div>
+
+          {/* 镜面/高光（放在此处，靠近材质与位移） */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">镜面高光: 强度 {Math.round((composition.specStrength * 100))}% · 锐度 {composition.shininess}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={300} step={1}
+                       value={Math.round((composition.specStrength * 100))}
+                       onChange={(e) => updateValue('specStrength', parseFloat(e.target.value) / 100)} />
+                <input className="input" type="range" min={1} max={400} step={1}
+                       value={composition.shininess}
+                       onChange={(e) => updateValue('shininess', parseInt(e.target.value))} />
+              </div>
+            </div>
+            <div className="col">
+              <label className="label">高光铺展: 强度 {Math.round((composition.broadStrength * 100))}%</label>
+              <input className="input" type="range" min={0} max={200} step={1}
+                     value={Math.round((composition.broadStrength * 100))}
+                     onChange={(e) => updateValue('broadStrength', parseFloat(e.target.value) / 100)} />
+            </div>
+          </div>
+          
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">海面菲涅尔: 系数 {composition.specFresnelK.toFixed(1)} (0关闭)</label>
+              <input className="input" type="range" min={0} max={5} step={0.1}
+                     value={composition.specFresnelK}
+                     onChange={(e) => updateValue('specFresnelK', parseFloat(e.target.value))} />
+            </div>
+          </div>
+
+  
+          {/* 地球置换控制（高度） */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">地球高度位移: 比例 {(composition.earthDisplacementScale ?? 0.0021).toFixed(4)} · 中点 {(composition.earthDisplacementMid ?? 0.30).toFixed(2)} · 对比 {(composition.earthDisplacementContrast ?? 4.00).toFixed(2)}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={0.01} step={0.0001}
+                       value={composition.earthDisplacementScale ?? 0.0021}
+                       onChange={(e) => updateValue('earthDisplacementScale', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0} max={1} step={0.01}
+                       value={composition.earthDisplacementMid ?? 0.30}
+                       onChange={(e) => updateValue('earthDisplacementMid', parseFloat(e.target.value))} />
+                <input className="input" type="range" min={0.5} max={6} step={0.1}
+                       value={composition.earthDisplacementContrast ?? 4.00}
+                       onChange={(e) => updateValue('earthDisplacementContrast', parseFloat(e.target.value))} />
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：需要提供地球高度贴图（height/displacement）；无贴图时该控制无效。</div>
+              
+              {/* Debug模式控制 */}
+              <label className="label" style={{ marginTop: 8 }}>Debug模式: {debugMode === 0 ? '关闭' : debugMode === 1 ? '原始高度' : debugMode === 2 ? '调整后高度' : '地形投影(AO)'}</label>
+              <div className="row">
+                <input className="input" type="range" min={0} max={3} step={1}
+                       value={debugMode}
+                       onChange={(e) => setDebugMode(parseInt(e.target.value))} />
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：0=关闭，1=显示原始高度，2=显示调整后高度，3=显示地形投影强度</div>
+            </div>
+          </div>
+
+          {/* 地表细节 LOD（预留） */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col">
+              <label className="label">地表细节 LOD</label>
+              <div className="row" style={{ gap: 8 }}>
+                <select className="input" value={(composition as any).earthDetailLOD ?? 'auto'}
+                        onChange={(e) => updateValue('earthDetailLOD' as any, e.target.value as any)}>
+                  <option value="auto">自动（按距离）</option>
+                  <option value="normal">仅法线</option>
+                  <option value="pom">POM（中距离）</option>
+                  <option value="displacement">置换（近景）</option>
+                </select>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>近景阈值</div>
+                  <input type="range" min={4} max={20} step={1}
+                         value={(composition as any).earthNearDistance ?? 8}
+                         onChange={(e) => updateValue('earthNearDistance' as any, parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(((composition as any).earthNearDistance ?? 8)).toFixed(0)}m</span>
+                </div>
+                <div className="col" style={{ flex: 1 }}>
+                  <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>远景阈值</div>
+                  <input type="range" min={10} max={40} step={1}
+                         value={(composition as any).earthFarDistance ?? 18}
+                         onChange={(e) => updateValue('earthFarDistance' as any, parseFloat(e.target.value))} />
+                  <span style={{ fontSize: '10px', opacity: 0.8 }}>{(((composition as any).earthFarDistance ?? 18)).toFixed(0)}m</span>
+                </div>
+              </div>
+          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：当前仅作为参数占位；近景将用于置换/POM，中远景使用法线。</div>
+            </div>
+          </div>
+
+          {/* DEM地形控制 */}
+          { (
+            <div className="row" style={{ marginBottom: 16 }}>
+              <div className="col">
+                <label className="label">DEM地形参数</label>
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>法线强度</div>
+                    <input type="range" min={0} max={3} step={0.1}
+                           value={demParams.demNormalStrength}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, demNormalStrength: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.demNormalStrength.toFixed(1)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>法线权重</div>
+                    <input type="range" min={0} max={0.2} step={0.01}
+                           value={demParams.demNormalWeight}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, demNormalWeight: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.demNormalWeight.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>自阴影步数</div>
+                    <input type="range" min={0} max={16} step={1}
+                           value={demParams.selfShadowSteps}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, selfShadowSteps: parseInt(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.selfShadowSteps}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>自阴影强度</div>
+                    <input type="range" min={0} max={2} step={0.1}
+                           value={demParams.selfShadowStrength}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, selfShadowStrength: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.selfShadowStrength.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>自阴影距离</div>
+                    <input type="range" min={0.001} max={0.1} step={0.001}
+                           value={demParams.selfShadowDistance}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, selfShadowDistance: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.selfShadowDistance.toFixed(3)}</span>
+                  </div>
+                </div>
+                
+                {/* 地形投影(AO)精细控制 */}
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>阴影阈值</div>
+                    <input type="range" min={0.001} max={0.1} step={0.001}
+                           value={demParams.shadowHeightThreshold}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, shadowHeightThreshold: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.shadowHeightThreshold.toFixed(3)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>距离衰减</div>
+                    <input type="range" min={0.5} max={5.0} step={0.1}
+                           value={demParams.shadowDistanceAttenuation}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, shadowDistanceAttenuation: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.shadowDistanceAttenuation.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>最大遮挡</div>
+                    <input type="range" min={0.1} max={1.0} step={0.05}
+                           value={demParams.shadowMaxOcclusion}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, shadowMaxOcclusion: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.shadowMaxOcclusion.toFixed(2)}</span>
+                  </div>
+                  <div className="col" style={{ flex: 1 }}>
+                    <div className="label" style={{ marginBottom: 4, fontSize: '12px' }}>平滑因子</div>
+                    <input type="range" min={0.1} max={1.0} step={0.05}
+                           value={demParams.shadowSmoothFactor}
+                           onChange={(e) => setDemParams(prev => ({ ...prev, shadowSmoothFactor: parseFloat(e.target.value) }))} />
+                    <span style={{ fontSize: '10px', opacity: 0.8 }}>{demParams.shadowSmoothFactor.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>说明：新参数可精细调节地形投影(AO)效果，避免"池塘"现象。</div>
+              </div>
+            </div>
+          )}
+
+          {/* 阴影与细分 LOD */}
+          <div className="row" style={{ marginBottom: 16 }}>
+            <div className="col" style={{ minWidth: 260 }}>
+              <div className="row" style={{ gap: 12, marginBottom: 8 }}>
+                <label>
+                  <input type="checkbox" checked={composition.enableTerrainShadow ?? false}
+                         onChange={(e) => updateValue('enableTerrainShadow', e.target.checked)} /> 地形投影（AO）
+                </label>
+                <label>
+                  <input type="checkbox" checked={composition.enableCloudShadow ?? false}
+                         onChange={(e) => updateValue('enableCloudShadow', e.target.checked)} /> 云层阴影（云贴图暗化）
+                </label>
+              </div>
+              <label className="label">云层阴影强度: {Math.round((composition.cloudShadowStrength ?? 0.4) * 100)}%</label>
+              <input className="input" type="range" min={0} max={1} step={0.01}
+                     value={composition.cloudShadowStrength ?? 0.4}
+                     onChange={(e) => updateValue('cloudShadowStrength', parseFloat(e.target.value))} />
+            </div>
+            <div className="col">
+              <div className="row" style={{ gap: 12, marginBottom: 8 }}>
+                <label>
+                  <input type="checkbox" checked={composition.useSegLOD ?? true}
+                         onChange={(e) => updateValue('useSegLOD', e.target.checked)} /> 启用细分 LOD
+                </label>
+              </div>
+              <div className="row" style={{ gap: 12 }}>
+                <div className="col">
+                  <label className="label">基础段数: {composition.earthSegmentsBase ?? 144}</label>
+                  <input className="input" type="range" min={32} max={512} step={16}
+                         value={composition.earthSegmentsBase ?? 144}
+                         onChange={(e) => updateValue('earthSegmentsBase', parseInt(e.target.value))} />
+                </div>
+                <div className="col">
+                  <label className="label">近景段数: {composition.earthSegmentsHigh ?? 288}</label>
+                  <input className="input" type="range" min={64} max={2048} step={16}
+                         value={composition.earthSegmentsHigh ?? 288}
+                         onChange={(e) => updateValue('earthSegmentsHigh', parseInt(e.target.value))} />
+                </div>
+              </div>
+              <div className="col">
+                <label className="label">LOD触发阈值（地球半径 size ≥）: {(composition.segLODTriggerSize ?? 1.0).toFixed(2)}</label>
+                <input className="input" type="range" min={0.5} max={2.0} step={0.05}
+                       value={composition.segLODTriggerSize ?? 1.0}
+                       onChange={(e) => updateValue('segLODTriggerSize', parseFloat(e.target.value))} />
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>也会在“经线对齐并放大”后触发。</div>
+              </div>
             </div>
           </div>
           
@@ -1930,9 +2360,9 @@ export default function SimpleTest() {
                      onChange={(e) => updateValue('cloudDisplacementScale', parseFloat(e.target.value))} />
             </div>
             <div className="col">
-              <label className="label">置换偏移: {((composition.cloudDisplacementBias ?? 0.02) * 100).toFixed(1)}%</label>
+              <label className="label">置换偏移: {((composition.cloudDisplacementBias ?? 0.01) * 100).toFixed(1)}%</label>
               <input className="input" type="range" min={-0.5} max={0.5} step={0.01}
-                     value={composition.cloudDisplacementBias ?? 0.02}
+                     value={composition.cloudDisplacementBias ?? 0.01}
                      onChange={(e) => updateValue('cloudDisplacementBias', parseFloat(e.target.value))} />
             </div>
           </div>
@@ -2116,9 +2546,11 @@ export default function SimpleTest() {
                         earthSize: 1.68,
                         lookAtDistanceRatio: 1.08
                       }));
+                      // 设置对齐状态，启用体积渲染
+                      setIsAlignedAndZoomed(true);
                       // 对齐后关闭实时与自动更新，避免后续tick带来抖动
                       try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
-                      console.log('[AlignZoom] yaw=', yaw.toFixed(2), 'pitch=', pitch.toFixed(2), 'earthSize=1.68', 'lookAtR=1.08', { lonDusk: +lonDusk.toFixed(2), L, seam, targetLat, obsLat });
+                      console.log('[AlignZoom] 对齐完成，启用体积渲染', { yaw: yaw.toFixed(2), pitch: pitch.toFixed(2), earthSize: 1.68, lookAtR: 1.08, lonDusk: +lonDusk.toFixed(2), L, seam, targetLat, obsLat });
                     } catch (e) {
                       console.error('[AlignZoom] failed:', e);
                     }
@@ -2323,7 +2755,6 @@ export default function SimpleTest() {
 
       {!uiHidden && (
         <>
-          <div className="credit">视觉基调：极简·低饱和·苹果风（MVP） · 构图：地球下1/3 + 右上小月亮</div>
           <div className="caption">SimpleTest v2.1 | 地球-月球完整场景测试 | 真实光照系统 | 相机锁定保持理想构图</div>
         </>
       )}

@@ -41,7 +41,7 @@ const shouldUseVolume = cameraDistance < 2 * cloudThickness && cameraAligned;
 - 基础LOD系统
 
 #### 任务清单
-- [ ] **1.1 POM实现（远景优化）**
+- [x] **1.1 POM实现（远景优化）**
   ```typescript
   // 在fragment shader中添加POM计算
   const pomSteps = 8 + 16 * (1 - Math.abs(dot(normal, viewDir)));
@@ -60,7 +60,7 @@ const shouldUseVolume = cameraDistance < 2 * cloudThickness && cameraAligned;
   }
   ```
 
-- [ ] **1.2 壳层扩展（中景优化）**
+- [x] **1.2 壳层扩展（中景优化）**
   ```typescript
   export function CloudsWithLayers({ 
     radius,
@@ -93,7 +93,7 @@ const shouldUseVolume = cameraDistance < 2 * cloudThickness && cameraAligned;
   }
   ```
 
-- [ ] **1.3 Triplanar采样支持**
+- [x] **1.3 Triplanar采样支持**
   ```typescript
   // 在fragment shader中添加Triplanar采样
   vec3 triplanarUV = worldPos * 0.1; // 缩放因子
@@ -109,45 +109,42 @@ const shouldUseVolume = cameraDistance < 2 * cloudThickness && cameraAligned;
   vec4 finalColor = texX * blend.x + texY * blend.y + texZ * blend.z;
   ```
 
-- [ ] **1.4 并存LOD系统（基于地球占屏比例）**
+- [x] **1.4 两套并存LOD系统（基于地球占屏比例）**
   ```typescript
   const getLODConfig = (earthSize: number, viewAngle: number, isAlignedAndZoomed: boolean) => {
-    // POM始终启用，提供基础视差效果
-    const usePOM = true;
-    const pomSteps = Math.min(24, 8 + 16 * (1 - Math.abs(viewAngle)));
+    // 中远景方案：始终启用（提供基础视差+厚度感）
+    const midFarConfig = {
+      usePOM: true,
+      pomSteps: Math.min(24, 8 + 16 * (1 - Math.abs(viewAngle))),
+      numLayers: Math.min(8, Math.floor(earthSize * 8)), // 1-8层
+      useVolume: false,
+      renderMode: 'pom-shell'
+    };
     
-    // 壳层层数根据地球占屏比例调整（earthSize越大，看起来越近）
-    let numLayers = 1;
-    if (earthSize < 0.5) {
-      numLayers = 1; // 远景：地球占屏<50%，最少层数
-    } else if (earthSize < 1.0) {
-      numLayers = 8; // 中远景：地球占屏50-100%，中等层数
-    } else if (earthSize < 2.0) {
-      numLayers = 16; // 中景：地球占屏100-200%，较多层数
-    } else {
-      numLayers = 24; // 近景：地球占屏>200%，最多层数
-    }
-    
-    // 体积渲染仅在点击"对齐放大"按钮后启用（earthSize=1.68时）
-    const useVolume = earthSize > 1.5 && isAlignedAndZoomed;
+    // 近景特写方案：仅在earthSize >= 1.0时启用（叠加到中远景上）
+    const nearCloseConfig = earthSize >= 1.0 ? {
+      usePOM: false, // 不重复POM
+      pomSteps: 0,
+      numLayers: Math.min(24, 8 + Math.floor((earthSize - 1.0) * 16)), // 8-24层
+      useVolume: earthSize > 1.5 && isAlignedAndZoomed,
+      renderMode: 'shell-volume'
+    } : null;
     
     return { 
-      usePOM, 
-      pomSteps, 
-      numLayers, 
-      useVolume,
-      // 并存策略：POM + 壳层同时渲染
-      renderMode: 'hybrid' // 'pom-only', 'shell-only', 'hybrid', 'volume'
+      midFar: midFarConfig,
+      nearClose: nearCloseConfig,
+      // 并存策略：中远景始终存在，近景特写叠加
+      renderMode: 'layered' // 'mid-far', 'near-close', 'layered'
     };
   };
   ```
 
 #### 验收标准
-- [ ] POM远景效果明显提升（视差和厚度感）
-- [ ] 16-24层壳层正常工作
-- [ ] Triplanar采样解决两极拉伸问题
-- [ ] LOD系统根据距离自动切换
-- [ ] 帧率保持在45+ FPS
+- [x] POM远景效果明显提升（视差和厚度感）
+- [x] 16-24层壳层正常工作
+- [x] Triplanar采样解决两极拉伸问题
+- [x] LOD系统根据距离自动切换
+- [x] 帧率保持在45+ FPS
 
 ### 第二阶段：体积光线行进（第3周）
 
@@ -407,9 +404,9 @@ const shouldUseVolume = cameraDistance < 2 * cloudThickness && cameraAligned;
   };
   ```
 
-- [ ] **3.3 并存系统集成（基于地球占屏比例）**
+- [ ] **3.3 两套并存系统集成（基于地球占屏比例）**
   ```typescript
-  // 与现有系统集成 - 并存策略，基于地球占屏比例
+  // 与现有系统集成 - 两套并存策略，基于地球占屏比例
   export function IntegratedCloudSystem({ 
     composition,
     earthInfo,
@@ -419,53 +416,68 @@ const shouldUseVolume = cameraDistance < 2 * cloudThickness && cameraAligned;
     camera,
     isAlignedAndZoomed // 从UI对齐按钮传入的状态
   }: IntegratedCloudSystemProps) {
-    const lodConfig = getAdvancedLOD(
-      composition.earthSize, // 使用地球占屏比例而非相机距离
+    const lodConfig = getLODConfig(
+      composition.earthSize, // 使用地球占屏比例
       viewAngle, 
-      getPerformanceLevel(),
       isAlignedAndZoomed // 使用UI对齐按钮状态
     );
     
     return (
       <>
-        {/* POM远景渲染 - 始终启用，提供基础视差 */}
+        {/* 中远景方案：始终启用 */}
+        {/* POM远景渲染 - 提供基础视差 */}
         <POMCloudRenderer 
           radius={earthInfo.size * 1.0006}
           texture={earthClouds}
           lightDir={lightDirection}
-          pomSteps={lodConfig.pomSteps}
-          // 与壳层混合，避免重复计算
+          pomSteps={lodConfig.midFar.pomSteps}
           blendMode="additive"
-          opacity={0.3} // 降低POM透明度，让壳层主导
+          opacity={0.4} // 中远景POM透明度
         />
         
-        {/* 壳层中景渲染 - 与POM并存，层数基于earthSize */}
+        {/* 中远景壳层渲染 - 1-8层 */}
         <CloudsWithLayers 
           radius={earthInfo.size * 1.0006}
           texture={earthClouds}
-          numLayers={lodConfig.numLayers}
+          numLayers={lodConfig.midFar.numLayers}
           useTriplanar={true}
           lightDir={lightDirection}
           lightColor={lightColor}
           strength={composition.cloudStrength}
-          // 与POM混合
           blendMode="alpha"
-          opacity={0.7} // 壳层主导透明度
+          opacity={0.6} // 中远景壳层透明度
         />
         
-        {/* 体积近景渲染 - 仅在earthSize>1.5且点击"对齐放大"按钮后启用 */}
-        {lodConfig.useVolume && (
-          <VolumeCloudRenderer 
-            camera={camera}
-            earthRadius={earthInfo.size}
-            cloudTexture={earthClouds}
-            lightDirection={lightDirection}
-            rayMarchSteps={lodConfig.rayMarchSteps}
-            // 对齐后启用高质量渲染
-            highQuality={true}
-            // 与POM+壳层混合
-            blendMode="multiply"
-          />
+        {/* 近景特写方案：仅在earthSize >= 1.0时启用 */}
+        {lodConfig.nearClose && (
+          <>
+            {/* 近景壳层渲染 - 8-24层，叠加到中远景上 */}
+            <CloudsWithLayers 
+              radius={earthInfo.size * 1.0006}
+              texture={earthClouds}
+              numLayers={lodConfig.nearClose.numLayers}
+              useTriplanar={true}
+              lightDir={lightDirection}
+              lightColor={lightColor}
+              strength={composition.cloudStrength * 0.8} // 降低强度避免过度叠加
+              blendMode="alpha"
+              opacity={0.5} // 近景壳层透明度
+            />
+            
+            {/* 体积渲染 - 仅在earthSize>1.5且对齐后启用 */}
+            {lodConfig.nearClose.useVolume && (
+              <VolumeCloudRenderer 
+                camera={camera}
+                earthRadius={earthInfo.size}
+                cloudTexture={earthClouds}
+                lightDirection={lightDirection}
+                rayMarchSteps={16}
+                highQuality={true}
+                blendMode="multiply"
+                opacity={0.3} // 体积渲染透明度
+              />
+            )}
+          </>
         )}
       </>
     );
@@ -644,7 +656,7 @@ cloudLayerSpacing: 0.002,     // 层间距（0.001-0.005）
 **实施难度**：中等
 **预期效果**：显著提升云层真实感
 
-### 第一阶段完成状态：✅ 已完成 + 🔧 近距离优化
+### 第一阶段完成状态：✅ 已完成 + 🔧 两套并存系统
 - [x] 3层云系统实现
 - [x] 性能监控工具
 - [x] 控制台调试命令
@@ -656,3 +668,20 @@ cloudLayerSpacing: 0.002,     // 层间距（0.001-0.005）
   - 置换强度差异最小化（5% 而非 40%）
   - UV滚动保持同步，避免层间错位
   - 强度递减减少到 2%，避免过度叠加
+- [x] **POM视差遮挡映射**（远景优化）
+  - 实现POMCloudRenderer组件
+  - 支持动态步数调整（8-24步）
+  - 与壳层并存渲染
+- [x] **Triplanar采样**（解决两极拉伸）
+  - 在Clouds组件中添加Triplanar支持
+  - 支持传统UV和Triplanar两种采样模式
+  - 可配置缩放因子和混合权重
+- [x] **两套并存LOD系统**
+  - 中远景方案：POM + 1-8层壳层（始终启用）
+  - 近景特写方案：8-24层壳层（earthSize >= 1.0时启用）
+  - 基于earthSize的智能LOD切换
+  - UI对齐按钮控制体积渲染启用
+- [x] **集成系统**
+  - IntegratedCloudSystem组件统一管理
+  - 支持多种混合模式（additive/alpha/multiply）
+  - 与现有SimpleTest系统完全集成

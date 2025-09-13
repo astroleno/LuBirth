@@ -93,10 +93,38 @@ export function useFirstAvailableTexture(paths: string[], enabled?: boolean) {
         urlWithCache,
         (t) => {
           if (canceled) return;
+          const img: any = t.image as any;
+          const w = img?.width ?? 0;
+          const h = img?.height ?? 0;
+
+          // 对超大纹理做一次性缩放，避免超过GPU最大纹理尺寸（常见 8192）
+          const MAX_SIZE = 8192; // 保守阈值，兼容多数设备
+          if (w > MAX_SIZE || h > MAX_SIZE) {
+            try {
+              const scale = Math.min(MAX_SIZE / Math.max(1, w), MAX_SIZE / Math.max(1, h));
+              const nw = Math.max(1, Math.floor(w * scale));
+              const nh = Math.max(1, Math.floor(h * scale));
+              const canvas = document.createElement('canvas');
+              canvas.width = nw;
+              canvas.height = nh;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, nw, nh);
+                (t as any).image = canvas;
+                (t as any).needsUpdate = true;
+                console.warn(`[TextureLoader] 🔧 纹理过大，已自动缩放: ${w}x${h} → ${nw}x${nh} (${p})`);
+              }
+            } catch (e) {
+              console.warn('[TextureLoader] 超大纹理缩放失败，继续使用原图（可能超出GPU限制）:', e);
+            }
+          }
+
           console.log(`[TextureLoader] ✅ 纹理加载成功: ${p}`, {
-            width: t.image?.width,
-            height: t.image?.height,
-            src: t.image?.src || 'no-src',
+            width: (t.image as any)?.width,
+            height: (t.image as any)?.height,
+            src: (t.image as any)?.src || 'no-src',
             colorSpace: t.colorSpace,
             wrapS: t.wrapS,
             wrapT: t.wrapT
@@ -195,6 +223,15 @@ export const TEXTURE_PATHS = {
     '/textures/2k_earth_specular_map.jpg',
     '/textures/2k_earth_specular_map.png'
   ],
+  earthDisplacement: [
+    // 优先使用JPG格式的高度贴图
+    '/textures/8k_earth_displacement_map.jpg',
+    '/textures/8k_earth_displacement.jpg',
+    '/textures/8k_earth_displacement_map.png',
+    '/textures/2k_earth_displacement_map.jpg',
+    '/textures/2k_earth_displacement.jpg',
+    '/textures/2k_earth_displacement_map.png'
+  ],
   earthClouds: [
     '/textures/8k_earth_clouds.jpg',
     '/textures/2k_earth_clouds.jpg'
@@ -237,6 +274,7 @@ export function useTextureLoader(composition: any) {
   const earthNight = useFirstAvailableTexture(TEXTURE_PATHS.earthNight, useTex);
   const earthNormal = useFirstAvailableTexture(TEXTURE_PATHS.earthNormal, useTex);
   const earthSpecular = useFirstAvailableTexture(TEXTURE_PATHS.earthSpecular, useTex);
+  const earthDisplacement = useFirstAvailableTexture(TEXTURE_PATHS.earthDisplacement, useTex);
   const earthClouds = useFirstAvailableTexture(TEXTURE_PATHS.earthClouds, useTex && !!composition?.useClouds);
   
   // 月球贴图
@@ -254,6 +292,7 @@ export function useTextureLoader(composition: any) {
       earthNight: earthNight ? '✅' : '❌',
       earthNormal: earthNormal ? '✅' : '❌',
       earthSpecular: earthSpecular ? '✅' : '❌',
+      earthDisplacement: earthDisplacement ? '✅' : '❌',
       earthClouds: earthClouds ? '✅' : '❌',
       moonMap: moonMap ? '✅' : '❌',
       moonNormalMap: moonNormalMap ? '✅' : '❌',
@@ -267,6 +306,7 @@ export function useTextureLoader(composition: any) {
     earthNight,
     earthNormal,
     earthSpecular,
+    earthDisplacement,
     earthClouds,
     moonMap,
     moonNormalMap,

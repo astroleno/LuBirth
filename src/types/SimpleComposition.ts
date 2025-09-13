@@ -25,8 +25,18 @@ export interface SimpleComposition {
   specStrength: number;        // 镜面高光强度
   shininess: number;           // 镜面高光锐度
   broadStrength: number;       // 高光铺展强度
+  specFresnelK: number;        // 海面高光菲涅尔系数（0关闭，默认1.8）
   terminatorSoftness: number;  // 晨昏线柔和度
   nightIntensity: number;      // 夜景强度
+  nightFalloff: number;        // 夜景衰减系数（0.5-3.0，默认1.6）
+  terminatorLift: number;      // 终止线提亮（0.0-0.05，默认0.01）
+  terminatorTint: [number, number, number, number]; // 终止线暖色调 [r,g,b,a]
+  nightEarthMapIntensity: number; // 月光下地球贴图强度（0.0-0.8，默认0.3）
+  nightEarthMapHue: number;       // 月光地球贴图色调（0-360，默认200）
+  nightEarthMapSaturation: number; // 月光地球贴图饱和度（0-2，默认1.0）
+  nightEarthMapLightness: number;  // 月光地球贴图亮度（0-2，默认1.0）
+  nightGlowBlur: number;           // 夜景灯光高斯模糊值（0-0.1，默认0.02）
+  nightGlowOpacity: number;        // 夜景灯光发光层不透明度（0-1，默认0.3）
   
   // 大气效果参数
   rimStrength: number;         // 大气弧光强度
@@ -57,6 +67,15 @@ export interface SimpleComposition {
   // 地球材质控制
   earthLightIntensity: number; // 地球材质亮度
   earthLightTempK: number;     // 地球材质色温
+  // 地球法线贴图控制
+  earthUseNormalMap?: boolean; // 启用地球法线贴图
+  earthNormalStrength?: number; // 法线强度 (0-2)
+  earthNormalFlipY?: boolean;   // Y翻转
+  earthNormalFlipX?: boolean;   // X翻转
+  // 地球置换贴图控制（高度）
+  earthDisplacementScale?: number; // 相对半径比例（0-0.02）
+  earthDisplacementMid?: number;   // 中点 (0-1)
+  earthDisplacementContrast?: number; // 对比 (0-4)
   
   // 月球材质控制
   moonLightIntensity: number;  // 月球材质亮度
@@ -161,6 +180,20 @@ export interface SimpleComposition {
   obliquityDeg?: number;           // 地轴倾角（度）
   seasonOffsetDays?: number;       // 季节偏移天数
 
+  // 地表细节 LOD（预留，便于POM/置换并存）
+  earthDetailLOD?: 'auto' | 'normal' | 'pom' | 'displacement';
+  earthNearDistance?: number; // 近景阈值（使用置换/POM）
+  earthFarDistance?: number;  // 远景阈值（仅法线）
+
+  // 阴影与细分控制
+  enableTerrainShadow?: boolean; // 地形阴影（地球接收定向光阴影）
+  enableCloudShadow?: boolean;   // 云层阴影（用云贴图对地表做暗化）
+  cloudShadowStrength?: number;  // 云层阴影强度（0-1）
+  useSegLOD?: boolean;           // 启用细分段数LOD
+  earthSegmentsBase?: number;    // 基础段数（默认144）
+  earthSegmentsHigh?: number;    // 放大/近景段数（默认288）
+  segLODTriggerSize?: number;    // 当地球半径size>=此值或对齐放大时使用高段数
+
 }
 
 // 默认值
@@ -190,8 +223,18 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   specStrength: 0.8,           // 镜面高光强度
   shininess: 80,               // 镜面高光锐度
   broadStrength: 0.4,          // 高光铺展强度
-  terminatorSoftness: 0.06,    // 晨昏线柔和度
-  nightIntensity: 3.0,         // 夜景强度
+  specFresnelK: 1.8,           // 海面高光菲涅尔系数（0关闭，默认1.8）
+  terminatorSoftness: 0.160,   // 晨昏线柔和度
+  nightIntensity: 1.0,         // 夜景强度
+  nightFalloff: 1.0,           // 夜景衰减系数（0.5-3.0，默认1.0）
+  terminatorLift: 0.006,       // 终止线提亮（0.0-0.05，默认0.006）
+  terminatorTint: [1.0, 0.9, 0.8, 0.01], // 终止线暖色调 [r,g,b,a]
+  nightEarthMapIntensity: 0.20, // 月光下地球贴图强度（0.0-0.8，默认0.20）
+  nightEarthMapHue: 200,       // 月光地球贴图色调（0-360，默认200）
+  nightEarthMapSaturation: 0.30, // 月光地球贴图饱和度（0-2，默认0.30）
+  nightEarthMapLightness: 0.60,  // 月光地球贴图亮度（0-2，默认0.60）
+  nightGlowBlur: 0.004,           // 夜景灯光高斯模糊值（0-0.1，默认0.004）
+  nightGlowOpacity: 0.25,         // 夜景灯光发光层不透明度（0-1，默认0.25）
   
   // 大气效果参数
   rimStrength: 2.00,           // 大气弧光强度
@@ -203,25 +246,43 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 大气辉光增强参数
   enableAtmosphere: true,      // 启用大气辉光增强
   atmoIntensity: 1.1,          // 大气辉光强度默认
-  atmoThickness: 0.06,         // 大气厚度默认
+  atmoThickness: 0.14,         // 大气厚度默认（更新）
   atmoColor: [0.43, 0.65, 1.0], // 大气颜色 RGB (蓝色)
   atmoFresnelPower: 3.0,       // Fresnel曲线幂次默认
   atmoContrast: 0.48,          // 主层昼夜对比默认
-  atmoSoftness: 0.0,           // 主层柔度默认
+  atmoSoftness: 1.0,           // 主层柔度默认（增加柔度，改善边缘过渡）
   atmoNearShell: true,         // 启用近地薄壳渐变
   atmoNearStrength: 0.5,       // 近地薄壳强度默认
-  atmoNearThickness: 0.10,     // 近地薄壳厚度默认（占主厚度）
+  atmoNearThickness: 0.30,     // 近地薄壳厚度默认（更新）
   atmoNearContrast: 0.40,      // 近地昼夜对比默认
-  atmoNearSoftness: 0.0,       // 近地渐变柔度默认
-  // 大气外缘融合实验参数（默认关闭）
-  atmoSoftBoundary: 0.0,
-  atmoPerceptualFloor: 0.0,
-  atmoBlendUseAlpha: false,
-  atmoScaleHeight: 0.0,
+  atmoNearSoftness: 1.0,       // 近地渐变柔度默认（增加柔度，改善边缘过渡）
+  // 大气外缘融合实验参数（默认启用，解决边界融合问题）
+  atmoSoftBoundary: 0.008,      // 外半径软边比例，解决边界硬边
+  atmoPerceptualFloor: 0.004,    // 感知地板，去除极低强度灰尾
+  atmoBlendUseAlpha: true,       // Alpha加权加法混合
+  atmoScaleHeight: 0.025,        // 指数尺度高度，控制高空衰减
   
   // 地球材质控制
   earthLightIntensity: 1.0,    // 地球材质亮度
   earthLightTempK: 5600,        // 地球材质色温
+  // 地球法线默认
+  earthUseNormalMap: true,
+  earthNormalStrength: 0.35,
+  earthNormalFlipY: true,
+  earthNormalFlipX: false,
+  // 地球置换默认（关闭）
+  earthDisplacementScale: 0.0010,
+  earthDisplacementMid: 0.30,
+  earthDisplacementContrast: 4.0,
+
+  // 阴影与细分控制默认
+  enableTerrainShadow: false,
+  enableCloudShadow: false,
+  cloudShadowStrength: 0.4,
+  useSegLOD: true,
+  earthSegmentsBase: 144,
+  earthSegmentsHigh: 2048,
+  segLODTriggerSize: 1.0,
   
   // 月球材质控制
   moonLightIntensity: 1.0,     // 月球材质亮度
@@ -244,21 +305,21 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   nightLift: 0.02,
   
   // 云层参数
-  cloudStrength: 1.2,          // 云层强度（增强）
+  cloudStrength: 0.60,          // 云层强度（按需求）
   cloudHeight: 0.001,          // 云层高度
   cloudYawDeg: 0,              // 云层经度旋转
   cloudPitchDeg: 0,            // 云层纬度旋转
-  cloudGamma: 0.7,             // 云层Gamma值（提高对比度）
-  cloudBlack: 0.1,             // 云层黑场（增加对比度）
-  cloudWhite: 0.9,             // 云层白场（保持细节）
-  cloudContrast: 1.8,          // 云层对比度（更锐利）
+  cloudGamma: 0.75,            // 云层Gamma值
+  cloudBlack: 0.00,            // 云层黑点
+  cloudWhite: 0.95,            // 云层白点
+  cloudContrast: 1.2,          // 云层对比度
   
   // 置换贴图参数
-  cloudDisplacementScale: 0.08, // 置换强度（增强细节）
-  cloudDisplacementBias: 0.03,  // 置换偏移（增加基础厚度）
+  cloudDisplacementScale: 0.0,  // 置换强度（按需求）
+  cloudDisplacementBias: 0.01,  // 置换偏移 1%
   // UV滚动速度参数
-  cloudScrollSpeedU: 0.0003,    // U方向滚动速度（x3提升）
-  cloudScrollSpeedV: 0.00015,   // V方向滚动速度（x3提升）
+  cloudScrollSpeedU: 0.0003,    // U方向滚动速度（= 3.0 标签）
+  cloudScrollSpeedV: 0.00015,   // V方向滚动速度（= 1.5 标签）
   
   // 云层厚度参数
   cloudNumLayers: 3,            // 云层层数（默认3）
@@ -322,6 +383,11 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
 
   // 纬度对齐默认目标（北纬28）
   latitudeAlignTargetDeg: 28,
+
+  // 地表细节 LOD 默认：自动，根据相机距离
+  earthDetailLOD: 'auto',
+  earthNearDistance: 8,
+  earthFarDistance: 18,
 };
 
 // 从原始Composition转换为SimpleComposition
@@ -347,13 +413,31 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     lightAzimuth: original.lightAzimuth ?? DEFAULT_SIMPLE_COMPOSITION.lightAzimuth,
     lightElevation: original.lightElevation ?? DEFAULT_SIMPLE_COMPOSITION.lightElevation,
     lightTempK: original.lightTempK ?? DEFAULT_SIMPLE_COMPOSITION.lightTempK,
+    // 地球法线贴图控制
+    earthUseNormalMap: original.earthUseNormalMap ?? DEFAULT_SIMPLE_COMPOSITION.earthUseNormalMap,
+    earthNormalStrength: original.earthNormalStrength ?? DEFAULT_SIMPLE_COMPOSITION.earthNormalStrength,
+    earthNormalFlipY: original.earthNormalFlipY ?? DEFAULT_SIMPLE_COMPOSITION.earthNormalFlipY,
+    earthNormalFlipX: original.earthNormalFlipX ?? DEFAULT_SIMPLE_COMPOSITION.earthNormalFlipX,
+    earthDisplacementScale: original.earthDisplacementScale ?? DEFAULT_SIMPLE_COMPOSITION.earthDisplacementScale,
+    earthDisplacementMid: original.earthDisplacementMid ?? DEFAULT_SIMPLE_COMPOSITION.earthDisplacementMid,
+    earthDisplacementContrast: original.earthDisplacementContrast ?? DEFAULT_SIMPLE_COMPOSITION.earthDisplacementContrast,
     
     // 视觉效果参数
     specStrength: original.specStrength ?? DEFAULT_SIMPLE_COMPOSITION.specStrength,
     shininess: original.shininess ?? DEFAULT_SIMPLE_COMPOSITION.shininess,
     broadStrength: original.broadStrength ?? DEFAULT_SIMPLE_COMPOSITION.broadStrength,
+    specFresnelK: original.specFresnelK ?? DEFAULT_SIMPLE_COMPOSITION.specFresnelK,
     terminatorSoftness: original.terminatorSoftness ?? DEFAULT_SIMPLE_COMPOSITION.terminatorSoftness,
     nightIntensity: original.nightIntensity ?? DEFAULT_SIMPLE_COMPOSITION.nightIntensity,
+    nightFalloff: original.nightFalloff ?? DEFAULT_SIMPLE_COMPOSITION.nightFalloff,
+    terminatorLift: original.terminatorLift ?? DEFAULT_SIMPLE_COMPOSITION.terminatorLift,
+    terminatorTint: original.terminatorTint ?? DEFAULT_SIMPLE_COMPOSITION.terminatorTint,
+    nightEarthMapIntensity: original.nightEarthMapIntensity ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapIntensity,
+    nightEarthMapHue: original.nightEarthMapHue ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapHue,
+    nightEarthMapSaturation: original.nightEarthMapSaturation ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapSaturation,
+    nightEarthMapLightness: original.nightEarthMapLightness ?? DEFAULT_SIMPLE_COMPOSITION.nightEarthMapLightness,
+    nightGlowBlur: original.nightGlowBlur ?? DEFAULT_SIMPLE_COMPOSITION.nightGlowBlur,
+    nightGlowOpacity: original.nightGlowOpacity ?? DEFAULT_SIMPLE_COMPOSITION.nightGlowOpacity,
     
     // 大气效果参数
     rimStrength: original.rimStrength ?? DEFAULT_SIMPLE_COMPOSITION.rimStrength,
@@ -470,5 +554,19 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     useSeasonalVariation: original.useSeasonalVariation ?? DEFAULT_SIMPLE_COMPOSITION.useSeasonalVariation,
     obliquityDeg: original.obliquityDeg ?? DEFAULT_SIMPLE_COMPOSITION.obliquityDeg,
     seasonOffsetDays: original.seasonOffsetDays ?? DEFAULT_SIMPLE_COMPOSITION.seasonOffsetDays,
+
+    // 地表细节 LOD
+    earthDetailLOD: original.earthDetailLOD ?? DEFAULT_SIMPLE_COMPOSITION.earthDetailLOD,
+    earthNearDistance: original.earthNearDistance ?? DEFAULT_SIMPLE_COMPOSITION.earthNearDistance,
+    earthFarDistance: original.earthFarDistance ?? DEFAULT_SIMPLE_COMPOSITION.earthFarDistance,
+
+    // 阴影与细分控制
+    enableTerrainShadow: original.enableTerrainShadow ?? DEFAULT_SIMPLE_COMPOSITION.enableTerrainShadow,
+    enableCloudShadow: original.enableCloudShadow ?? DEFAULT_SIMPLE_COMPOSITION.enableCloudShadow,
+    cloudShadowStrength: original.cloudShadowStrength ?? DEFAULT_SIMPLE_COMPOSITION.cloudShadowStrength,
+    useSegLOD: original.useSegLOD ?? DEFAULT_SIMPLE_COMPOSITION.useSegLOD,
+    earthSegmentsBase: original.earthSegmentsBase ?? DEFAULT_SIMPLE_COMPOSITION.earthSegmentsBase,
+    earthSegmentsHigh: original.earthSegmentsHigh ?? DEFAULT_SIMPLE_COMPOSITION.earthSegmentsHigh,
+    segLODTriggerSize: original.segLODTriggerSize ?? DEFAULT_SIMPLE_COMPOSITION.segLODTriggerSize,
   };
 }

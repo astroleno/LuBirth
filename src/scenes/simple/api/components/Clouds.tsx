@@ -186,7 +186,7 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// 云层组件 - 简化版，移除双层和法线贴图
+// 云层组件 - 支持Triplanar采样
 export function Clouds({ 
   radius, 
   texture, 
@@ -206,7 +206,13 @@ export function Clouds({
   displacementBias = 0.02,
   // UV滚动速度参数
   scrollSpeedU = 0.0003,
-  scrollSpeedV = 0.00015
+  scrollSpeedV = 0.00015,
+  // Triplanar采样参数
+  useTriplanar = false,
+  triplanarScale = 0.1,
+  // 混合参数
+  blendMode = "alpha",
+  opacity = 1.0
 }: {
   radius: number;
   texture: THREE.Texture | null;
@@ -227,6 +233,12 @@ export function Clouds({
   // UV滚动速度参数
   scrollSpeedU?: number;
   scrollSpeedV?: number;
+  // Triplanar采样参数
+  useTriplanar?: boolean;
+  triplanarScale?: number;
+  // 混合参数
+  blendMode?: "additive" | "alpha" | "multiply";
+  opacity?: number;
 }) {
   const ref = useRef<THREE.Mesh>(null!);
   const tAccum = useRef({ u: 0, v: 0 });
@@ -251,7 +263,12 @@ export function Clouds({
           // 置换贴图参数
           displacementMap: { value: texture }, // 使用同一张云层贴图
           displacementScale: { value: displacementScale ?? 0.05 },
-          displacementBias: { value: displacementBias ?? 0.02 }
+          displacementBias: { value: displacementBias ?? 0.02 },
+          // Triplanar参数
+          useTriplanar: { value: useTriplanar ?? false },
+          triplanarScale: { value: triplanarScale ?? 0.1 },
+          // 混合参数
+          opacity: { value: opacity ?? 1.0 }
         },
         vertexShader: `
           uniform sampler2D displacementMap;
@@ -292,19 +309,44 @@ export function Clouds({
           uniform float cloudContrast;
           uniform vec2 uvOffset;
           uniform float polarSlowdown;
+          uniform bool useTriplanar;
+          uniform float triplanarScale;
+          uniform float opacity;
           varying vec2 vUv; 
           varying vec3 vNormalW;
           varying vec3 vPosition;
           varying vec3 vViewPosition;
           
-          void main(){ 
-            // 极区减速：根据纬度（由 n.y 近似）缩小UV偏移的影响，避免极区拉伸
-            vec3 n = normalize(vNormalW);
-            float latFactor = clamp(sqrt(max(0.0, 1.0 - n.y*n.y)), 0.2, 1.0);
-            vec2 uv = vUv + uvOffset * (polarSlowdown * latFactor);
+          // Triplanar采样函数
+          vec3 triplanarSample(sampler2D tex, vec3 worldPos, vec3 normal) {
+            vec3 blend = abs(normal);
+            blend = normalize(max(blend, 0.00001));
+            float b = blend.x + blend.y + blend.z;
+            blend /= vec3(b, b, b);
             
+            vec3 triplanarUV = worldPos * triplanarScale;
+            
+            vec4 texX = texture2D(tex, triplanarUV.yz);
+            vec4 texY = texture2D(tex, triplanarUV.xz);
+            vec4 texZ = texture2D(tex, triplanarUV.xy);
+            
+            return texX.rgb * blend.x + texY.rgb * blend.y + texZ.rgb * blend.z;
+          }
+          
+          void main(){ 
+            vec3 n = normalize(vNormalW);
             float ndl = max(dot(n, normalize(lightDir)), 0.0);
-            vec3 src = texture2D(map, uv).rgb;
+            
+            vec3 src;
+            if (useTriplanar) {
+              // 使用Triplanar采样
+              src = triplanarSample(map, vPosition, n);
+            } else {
+              // 使用传统UV采样
+              float latFactor = clamp(sqrt(max(0.0, 1.0 - n.y*n.y)), 0.2, 1.0);
+              vec2 uv = vUv + uvOffset * (polarSlowdown * latFactor);
+              src = texture2D(map, uv).rgb;
+            }
             
             // Levels: black/white points + gamma + contrast
             float d = dot(src, vec3(0.299,0.587,0.114));
@@ -344,7 +386,7 @@ export function Clouds({
             c = mix(c, c * warmTint, tintStrength);
             
             vec3 col = mix(c, vec3(1.0), 0.40) * l * lightColor;
-            float a = clamp(dayW * strength * d, 0.0, 1.0);
+            float a = clamp(dayW * strength * d * opacity, 0.0, 1.0);
             gl_FragColor = vec4(col, a);
           }
         `,
@@ -352,7 +394,9 @@ export function Clouds({
         depthTest: true,
         depthWrite: false,
         toneMapped: true,
-        blending: THREE.NormalBlending,
+        blending: blendMode === "additive" ? THREE.AdditiveBlending : 
+                 blendMode === "multiply" ? THREE.MultiplyBlending : 
+                 THREE.NormalBlending,
       });
       
       console.log('[Clouds] ✅ 云层材质创建成功');
@@ -436,7 +480,7 @@ export function Clouds({
   );
 }
 
-// 多层云层组件 - 基于现有Clouds组件扩展
+// 多层云层组件 - 支持两套并存系统
 export function CloudsWithLayers({ 
   radius, 
   texture, 
@@ -459,7 +503,13 @@ export function CloudsWithLayers({
   scrollSpeedV = 0.00015,
   // 多层参数
   numLayers = 3,
-  layerSpacing = 0.002
+  layerSpacing = 0.002,
+  // Triplanar参数
+  useTriplanar = false,
+  triplanarScale = 0.1,
+  // 混合参数
+  blendMode = "alpha",
+  opacity = 1.0
 }: {
   radius: number;
   texture: THREE.Texture | null;
@@ -483,6 +533,12 @@ export function CloudsWithLayers({
   // 多层参数
   numLayers?: number;
   layerSpacing?: number;
+  // Triplanar参数
+  useTriplanar?: boolean;
+  triplanarScale?: number;
+  // 混合参数
+  blendMode?: "additive" | "alpha" | "multiply";
+  opacity?: number;
 }) {
   // 相机距离检测（用于近距离优化）
   const cameraRef = useRef<THREE.Camera>();
@@ -567,6 +623,11 @@ export function CloudsWithLayers({
             // UV滚动速度参数 - 完全同步，避免层间错位
             scrollSpeedU={params.scrollSpeedU}
             scrollSpeedV={params.scrollSpeedV}
+            // Triplanar和混合参数
+            useTriplanar={useTriplanar}
+            triplanarScale={triplanarScale}
+            blendMode={blendMode}
+            opacity={opacity}
           />
         );
       })}
