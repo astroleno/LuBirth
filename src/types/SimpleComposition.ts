@@ -243,8 +243,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   dayEarthMapHue: 200,         // 日半球地球贴图色调（0-360，默认200）
   dayEarthMapSaturation: 0.30,   // 日半球地球贴图饱和度（0-2，默认0.30）
   dayEarthMapLightness: 0.30,    // 日半球地球贴图亮度（0-2，默认0.30）
-  nightGlowBlur: 0.004,           // 夜景灯光高斯模糊值（0-0.1，默认0.004）
-  nightGlowOpacity: 0.25,         // 夜景灯光发光层不透明度（0-1，默认0.25）
+  nightGlowBlur: 0.015,           // 夜景灯光高斯模糊值（0-0.1，默认0.015）
+  nightGlowOpacity: 0.60,         // 夜景灯光发光层不透明度（0-1，默认0.60）
   
   // 大气效果参数
   rimStrength: 2.00,           // 大气弧光强度

@@ -58,8 +58,8 @@ export function Earth({
   dayEarthMapHue = 200,
   dayEarthMapSaturation = 0.30,
   dayEarthMapLightness = 0.30,
-  nightGlowBlur = 0.004,
-  nightGlowOpacity = 0.25,
+  nightGlowBlur = 0.015,
+  nightGlowOpacity = 0.60,
   // 大气弧光参数
   rimStrength = 1.46,
   rimWidth = 0.50,
