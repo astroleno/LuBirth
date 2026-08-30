@@ -1,9 +1,10 @@
 ---
 title: "feat: 微信小程序原生渲染能力 Spike"
 type: feat
-status: active
+status: completed
 date: 2026-08-30
 deepened: 2026-08-30
+completed: 2026-08-31
 ---
 
 # feat: 微信小程序原生渲染能力 Spike
@@ -15,6 +16,24 @@ deepened: 2026-08-30
 本 Spike 不是“做一个能转的地球”，而是完成一条足以暴露真实风险的竖切片：固定太阳、地球昼夜、云层、大气、真实月相、月球 PIP、触摸相机、2K/8K 资源档位、页面生命周期和真机性能。最终输出 `GO-FULL`、`GO-ADAPTIVE` 或 `NO-GO-NATIVE`，作为是否进入正式移植及采用何种画质策略的依据。
 
 **计划假设：**目标是原生微信小程序；`web-view` 只作为决策后的兜底，不是本 Spike 的实现路线。若产品对最低机型、最低基础库或必须保持 8K 画质已有硬性要求，应在执行前补充到本计划，不能在 Spike 中静默降低设计目标。
+
+### 2026-08-30 执行范围修订：2K 生产特效同源门槛
+
+用户已明确本轮不再把 8K、15 分钟性能基准和长时间压力作为进入正式移植前的门槛；保留既有能力代码和历史证据，但当前执行只验证 2K 全效果。Unit 4 在形成移植结论前必须补齐以下生产特效，不能再以简化代表材质代替：
+
+- Earth：夜景 glow（模糊与叠加强度）、日面漫反射控制、生产地弧/rim；
+- Atmosphere：主大气层与近地薄壳、光程扩散、软边、尺度高度和 alpha 加权叠加；
+- Clouds：默认生产配置下的体积散射、厚度映射、边缘与 Fresnel；
+- PIP：离屏月球在拖拽、缩放及横竖屏 resize 后保持固定屏幕坐标与正方形像素尺寸；
+- 视觉证据：白昼、晨昏线、夜面三个固定观察预设均使用 2K 资源，分别确认上述效果可见，并记录 Shader/GL 错误。
+
+本轮完成条件是“2K 生产特效能否在 r160 小程序真机运行”的明确结论。8K、完整设备矩阵和发布级长稳结论仍标记为 deferred，不得由本轮结果推断为已通过。
+
+### 2026-08-31 结项
+
+本计划已按修订后的范围完成，结论为 `FEASIBILITY-PASS`：iOS、竖屏、2K、Three.js r160 的原生微信小程序路线可以承载 LuBirth 核心视觉竖切片。原计划中的 Android、横屏和 8K 已由用户明确移出范围；60 秒性能、PIP 配对成本、10 分钟长稳和 10 次重入迁入正式实现计划的发布验收阶段。
+
+本文件保留原始门槛和执行历史，不再作为正式迁移的执行清单。结项事实见 [`../spikes/wechat-miniprogram-capability-report.md`](../spikes/wechat-miniprogram-capability-report.md)，生效边界见 [`../spikes/wechat-miniprogram-migration-boundary.md`](../spikes/wechat-miniprogram-migration-boundary.md)，后续执行见 [`2026-08-31-001-feat-wechat-miniprogram-migration-plan.md`](./2026-08-31-001-feat-wechat-miniprogram-migration-plan.md)。
 
 ## Problem Frame
 

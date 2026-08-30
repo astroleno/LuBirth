@@ -1,86 +1,131 @@
 # 微信小程序原生渲染能力 Spike 报告
 
-日期：2026-08-30
-当前决策：`INCONCLUSIVE`
+日期：2026-08-31
+范围结论：`FEASIBILITY-PASS`
+迁移决策：`PROCEED-TO-IMPLEMENTATION-PLAN`
+生效范围：`iOS / 竖屏 / 2K / Three.js r160`
 
 ## 结论
 
-工程竖切片、证据格式和真机执行入口已完成，本地构建与自动测试通过；但当前没有真实 AppID、合法 HTTPS 资源域名以及规定的三台物理设备数据。因此不能输出 `GO-FULL`、`GO-ADAPTIVE` 或 `NO-GO-NATIVE`，也不能把开发者工具或 Node 测试当作真机能力证据。
+LuBirth 的核心视觉链路可以迁移到原生微信小程序。真实 AppID、HTTPS 资源域名和物理 iOS 设备已经打通；Three.js r160 在小程序 WebGL Canvas 上能够以有界适配运行，并承载地球昼夜、城市灯光、六层云、大气内侧菲涅尔、外侧卡门线扩散、银河星空、真实月相、render-target PIP 和触摸相机。
 
-当前可以确认的是“Spike 已具备采证能力”，不能确认“原生微信小程序已满足发布前迁移门槛”。
+本次 Spike 的目标已经从原计划的跨平台/多画质发布决策，收敛为用户确认的“快速证明 2K 生产特效能否搬运”。在该范围内，结论是通过，可以进入正式迁移计划。Android、横屏和 8K 已被用户明确排除，不再作为本轮缺失证据；60 秒性能、PIP 配对成本和生命周期长稳仍有产品价值，但改为正式迁移阶段的验收门，不阻塞架构和实现启动。
 
-## 已完成的可审计实现
+这不是 `GO-FULL`，也不表示小程序已经达到发布状态。准确口径是：
 
-| 维度 | 本地状态 | 真机状态 | 证据入口 |
-|---|---|---|---|
-| 独立工程与结果契约 | 通过 | 待执行 | [`spikes/wechat-miniprogram/README.md`](../../spikes/wechat-miniprogram/README.md)、[`result-schema.ts`](../../spikes/wechat-miniprogram/src/metrics/result-schema.ts) |
-| r160 窄适配与官方 r108 对照 | 构建/单测通过 | `inconclusive` | [`runtime-comparison.json`](../../spikes/wechat-miniprogram/results/runtime-comparison.json) |
-| 天文单一源码与 Web 基线 | 本地 characterization 通过 | `inconclusive` | [`astro-parity.json`](../../spikes/wechat-miniprogram/results/astro-parity.json) |
-| 地球/云层/大气/月球/PIP/触摸 | 构建/单测通过 | `inconclusive` | [`lubirth-capability-scene.ts`](../../spikes/wechat-miniprogram/src/scene/lubirth-capability-scene.ts) |
-| 2K/8K 下载、解码、GPU 上传 | 测试桩通过 | `inconclusive` | [`asset-matrix.json`](../../spikes/wechat-miniprogram/results/asset-matrix.json) |
-| RAF、前后台、卸载与内存告警 | 跨页面持久会话与生命周期单测通过 | `inconclusive` | [`lifecycle-evidence-session.ts`](../../spikes/wechat-miniprogram/src/lifecycle/lifecycle-evidence-session.ts) |
-| 60 秒性能与 PIP 三轮配对 | 统计门槛单测通过 | `inconclusive` | [`device-matrix.json`](../../spikes/wechat-miniprogram/results/device-matrix.json) |
-| 真机主包 | 压缩构建 1,421,008 bytes，2 MiB gate 通过 | 待开发者工具/真机复测 | [`build.config.mjs`](../../spikes/wechat-miniprogram/build.config.mjs) |
+- **已证明：**iOS 竖屏、2K、r160 原生渲染路线在技术上可行，核心效果可以迁移，适配边界可枚举。
+- **尚未证明：**最低支持 iPhone、发布级持续性能、长时间稳定性、全部 Web 产品参数零差异，以及登录/分享/音频/截图等业务能力。
 
-这里的“本地通过”只说明代码路径、统计规则和不变量在自动测试中成立，不代表设备 GPU、驱动、微信基础库或纹理解码器通过。
+## 最终验证范围
 
-## 关键实现观察
+### 纳入并通过
 
-### 运行时
+- 原生 `canvas type="webgl"`，不使用 `web-view` 作为通过条件；
+- Three.js `0.160.1`，Canvas facade、Canvas 作用域 RAF/Image、DPR 和 renderer 生命周期窄适配；
+- `astronomy-engine` 与 LuBirth 天文源码打包运行，太阳、月球、月相与 Y-up 坐标路径保持单一事实源；
+- 2K 远程纹理下载、解码、色彩空间、GPU 上传和 2:1 经度循环采样；
+- 地球日夜纹理、城市灯光 glow、镜面、导数法线、位移和云影；
+- 六层云、体积散射、厚度映射、边缘淡化与 Fresnel；
+- 内侧地表菲涅尔与外侧卡门线/大气扩散分层；
+- 银河星空贴图；
+- 真实月相月球与同一 renderer 的 `WebGLRenderTarget` PIP；
+- 单指旋转、双指缩放，PIP 保持固定屏幕锚点；
+- 白昼、晨昏、夜面三个观察预设。
 
-- r160 路线只适配小程序 Canvas、Canvas 作用域 RAF/Image、尺寸/DPR 和 renderer 生命周期，没有注入全局 DOM。
-- r108 路线使用官方 `threejs-miniprogram@0.0.8` 的 `createScopedThreejs(canvas)`，结果与 r160 分槽记录。
-- 当前优先候选仍是 r160；在两条路线完成 iOS/Android 真机 Shader、render target 和销毁重建前，不做最终路线选择。
+### 明确不在本轮范围
 
-### 天文一致性
+- Android；
+- 横屏；
+- 8K；
+- 完整业务页面、登录、分享、音频、截图、城市搜索；
+- 发布级最低机型承诺；
+- Web 与小程序每一个视觉参数的逐项零差异证明。
 
-- Spike 构建直接打包仓库现有 `src/astro/` 源码，不复制太阳或月相算法。
-- 本地固定样例包含春分/夏至/冬至、近天顶、极区与日期变更线；方向角门槛为 `0.01°`。
-- Web 基线保存独立的完整 source fingerprint；真机结果必须与相同 revision、dirty 状态、依赖锁、资源和天文源码指纹的 Web 基线比较，否则自动降为 `inconclusive`，不再用当前小程序指纹代替 Web 指纹。
+## 证据摘要
 
-### 代表性场景与 PIP
+### 真机运行时
 
-- 竖切片保留多纹理昼夜、导数法线、位移、云影、透明云层、大气 Fresnel、真实月相、星空和出生点。
-- 保持单一方向光、地球绕世界 Y、相机与星空不挂地球组、PIP 月球不进入主场景。
-- PIP 使用同一 renderer 的 `WebGLRenderTarget`，支持 256/512 和 30fps 更新；两档都必须完成三轮配对，任一档失败时总结果失败，中断或数据不全时总结果为 `inconclusive`。
+验证设备为 iPhone Air（iPhone18,4）、iOS 26.3、微信 8.0.76、基础库 3.17.2、DPR 3。r160 能力 run 已确认：
 
-Shader 竖切片保留当前生产实现的主要平台风险特征，但不是生产 Shader 的逐字副本：Earth 保留昼夜、多纹理、导数法线、位移、镜面和云影；Cloud 保留纹理位移、透明混合和昼夜着色，但未搬入生产端全部体积散射、三平面与调参分支；Moon 保留真实月相方向、导数法线和位移，但未搬入全部生产调参；Atmosphere 使用背面、Fresnel、昼夜权重和加法混合。因而本地或真机“代表性 Shader 通过”只能证明这些风险特征可运行，不能独立证明完整生产 Shader 零差异迁移。正式 Go 前仍需把生产 Shader 同源抽取纳入迁移检查点。
+- WebGL 1 上下文创建成功；
+- fragment `highp`、`OES_standard_derivatives`、透明混合和 render target 可用；
+- `MAX_TEXTURE_SIZE=16384`；
+- renderer 销毁后可以重新创建；
+- r160 适配没有修改 Three renderer、material、shader chunk 或色彩管理核心。
 
-### 资源与生命周期
+r108 对照代码保留在 Spike 中，但 r160 已满足当前正式路线，不应把 r108 打入正式产品主包。
 
-- 清单记录真实文件名、文件字节、像素尺寸、色彩空间与 RGBA 解码体积；单张 8K RGBA 纹理约 128 MiB。
-- 8K 在下载/解码前先与运行时 `MAX_TEXTURE_SIZE` 比较；超限直接记录为 `unsupported`，避免用网络和解码内存去证明硬件已知不支持的尺寸。
-- 加载顺序是完整 2K 基线后再逐项 8K 替换。8K 失败保留在高画质结果中，不覆盖 2K 原始证据。
-- 页面隐藏暂停 RAF；显示恢复；卸载释放 scene、render target、material、geometry、texture 与 renderer；内存告警停止高画质并释放 8K 纹理。10 分钟/10 次重入使用跨页面 session id，原始事件独立落盘，最终汇总只引用事件 run id。
-- 场景选择、资源档与运行时路线改变时会销毁旧实例；结果 JSON 同时记录请求配置和实际加载配置，避免把旧场景或旧档位误标为当前选择。
-- 截图从临时路径复制到小程序用户目录下的 run-id 文件名，便于与原始 JSON 一一核对。
+### 天文与自动测试
 
-## 未完成证据与阻塞
+2026-08-31 的新鲜本地验证结果：
 
-以下三项缺一不可：
+- Spike 单元测试：`80/80`；
+- 天文源码集成测试：`3/3`；
+- 既有太阳 characterization：`6/6`；
+- 全量光照 characterization：`40/40`；
+- 月相 characterization：`6/6`；
+- TypeScript `--noEmit`：通过；
+- r160 真机构建：通过；
+- 主包：`852,869 / 2,097,152 bytes`；
+- 微信预览包：`967,008 bytes`。
 
-1. 可真机预览的真实 AppID。
-2. 已登记、可访问清单中全部纹理的 HTTPS 资源域名。
-3. 至少一台主流 iOS、一台 Android 中档和一台 Android 低档设备；每台记录系统、微信、基础库、DPR、WebGL 能力。
+命令：
 
-由于这些是外部执行条件，本报告没有填造 run id、截图、FPS、内存或设备型号。
+```bash
+cd spikes/wechat-miniprogram
+SPIKE_RESOURCE_BASE_URL=https://assets.aitoshuu.me/releases/lubirth-wechat-spike/textures npm run verify
+```
 
-## 真机执行与判定
+### 视觉证据
 
-每台设备按相同场景和缓存状态执行：2K 冷/热加载、8K 逐项压力、三个固定天文时刻、Shader/PIP、2K 60 秒基线、PIP 256/512 三轮交替 A/B、10 分钟稳定性和 10 次页面重入。原始结果由页面写入 `results/runs/<run-id>.json`，再把 run id 和截图路径填入设备矩阵。
+最终 v6 真机截图覆盖多个地球旋转位置和日夜角度。人工审查结论：
 
-判定顺序：
+- 原先可见的经线接缝在最终截图中未再出现；
+- 内侧菲涅尔与外侧大气不再出现垂直于地表的硬截断；
+- 晨昏过渡比早期版本连续，夜面城市灯光方向与日照关系可读；
+- 云层保持可见层次，没有遮蔽地表主体；
+- 银河星空恢复且密度符合当前 Spike 目标；
+- PIP 月球保持固定窗口，并使用真实月球纹理与月相光照。
 
-1. 前置条件或设备矩阵不全：`INCONCLUSIVE`。
-2. 2K 核心竖切片在目标平台失败，或需要无界 Three.js fork：`NO-GO-NATIVE`。
-3. 2K 全部门槛通过但 8K 只支持部分设备：`GO-ADAPTIVE`，画质与最低机型必须再次由产品确认。
-4. 2K/8K、性能、稳定性和维护性全部通过：`GO-FULL`。
+最终截图由用户在真机侧提供，当前没有纳入 Git。若将来需要审计发布版本，应由正式客户端把截图与对应 run id 一同归档。
 
-`GO-*` 仅表示可以开始正式迁移架构与排期，不表示小程序已达到发布状态。
+## Spike 中发现并解决的风险
 
-## 参考
+| 风险 | 现象 | 结论/约束 |
+|---|---|---|
+| 小程序 Canvas 与 Three r160 宿主差异 | renderer 无法直接假定 DOM Canvas | 使用局部 Canvas facade，不注入全局 DOM |
+| r108/r160 版本分叉 | 官方适配器基于 r108 | 正式路线固定 r160；r108 只保留为诊断对照 |
+| 微信合法域名 | `downloadFile` 真机拒绝 CDN | `assets.aitoshuu.me` 必须登记为 downloadFile 合法域名 |
+| GPU 错误归因 | 旧 run 在场景后读到遗留 `1281` | 每张纹理上传前清空旧错误，上传后立刻绑定错误到资源 |
+| 2:1 纹理接缝 | 地球/云层出现垂直经线 | 所有等距柱状纹理强制 `wrapS=RepeatWrapping`、`wrapT=ClampToEdgeWrapping` |
+| 晨昏硬截断 | 法线扰动直接参与昼夜混合 | 几何法线负责昼夜权重，导数法线只负责局部着色 |
+| 大气尾部过硬 | additive RGB 与 alpha 重复衰减 | 使用预乘 alpha 的线性加法能量，并分离近地薄壳与外层扩散 |
+| 黑屏误判 | 开发者工具缓存出现 `__wxAppCode__` 错误 | 清理编译缓存后恢复；不得把宿主代码包错误归因给 Shader |
+| 包体膨胀 | r108 与诊断代码进入启动包 | 真机 profile 只包含 r160，并保留 2 MiB 构建 gate |
 
-- [微信 Canvas 文档](https://developers.weixin.qq.com/miniprogram/dev/component/canvas.html)
-- [微信运行时资源优化](https://developers.weixin.qq.com/miniprogram/dev/framework/performance/tips/runtime_resource.html)
-- [微信运行时内存优化](https://developers.weixin.qq.com/miniprogram/dev/framework/performance/tips/runtime_memory.html)
-- [微信 threejs-miniprogram](https://github.com/wechat-miniprogram/threejs-miniprogram)
+## 正式迁移采用的技术结论
+
+1. **正式客户端使用 Three.js r160。**适配只允许覆盖 Canvas、RAF/Image、事件、DPR、纹理来源和生命周期。
+2. **小程序不迁移 React DOM、R3F、Drei 或 OrbitControls。**正式客户端使用原生 Page + 命令式渲染核心。
+3. **2K 是完整效果档。**它包含地球、夜景、云、大气、星空、月相和 PIP，不是删减版。
+4. **纹理继续走腾讯 COS/CDN。**主包只保留启动代码和必要的极小占位资源。
+5. **天文、坐标、视觉配置和 Shader 需要单一事实源。**Web 与小程序不能继续复制两套参数和公式。
+6. **PIP 使用同一 renderer + render target。**不引入第二 WebGL Canvas 或像素读回链路。
+7. **正式迁移保留 Spike 的固定场景与证据 schema。**它们从探索工具转为跨宿主回归和发布验收工具。
+
+详细边界见 [`wechat-miniprogram-migration-boundary.md`](./wechat-miniprogram-migration-boundary.md)，正式执行步骤见 [`2026-08-31-001-feat-wechat-miniprogram-migration-plan.md`](../plans/2026-08-31-001-feat-wechat-miniprogram-migration-plan.md)。
+
+## 剩余风险的处理位置
+
+| 风险 | 是否阻塞规划 | 正式处理位置 |
+|---|---|---|
+| v6 没有对应的完整真机 JSON | 否 | 正式客户端保留诊断路由，在视觉基线冻结时补录 |
+| 60 秒 2K 性能窗口 | 否 | 正式迁移计划的发布验收任务 |
+| PIP 开/关三轮配对成本 | 否 | 正式迁移计划的发布验收任务 |
+| 10 分钟运行与 10 次重入 | 否 | 正式迁移计划的生命周期验收任务 |
+| 最低支持 iPhone/基础库 | 否，但阻塞发布 | 产品发布门，在首个候选版本前锁定 |
+| Android、横屏、8K | 否 | 非本计划目标；若重新进入范围必须另开计划 |
+
+## 最终判定
+
+Spike 在用户确认的范围内完成，状态为 `FEASIBILITY-PASS`。可以开始正式迁移实现，但不得把该结论扩张为 Android、横屏、8K 或发布级稳定性已经通过。
