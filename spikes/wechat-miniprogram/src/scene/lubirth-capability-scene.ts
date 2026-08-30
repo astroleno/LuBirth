@@ -37,6 +37,18 @@ export function latLonToWorld(latDeg: number, lonDeg: number, radius: number) {
   };
 }
 
+export function resizeCapabilityViewport(
+  renderer: any,
+  scene: LubirthCapabilityScene,
+  scenario: ExperimentScenario,
+  width: number,
+  height: number,
+) {
+  renderer.setSize(width, height, false);
+  scene.resize(width, height, scenario);
+  return scene.pip.layoutSnapshot();
+}
+
 export class LubirthCapabilityScene {
   readonly scene: any;
   readonly camera: any;
@@ -84,7 +96,7 @@ export class LubirthCapabilityScene {
     this.earthGroup = new options.THREE.Group();
     this.earthGroup.name = 'earthGroup';
     this.earthGroup.rotation.order = 'YXZ';
-    this.earthGroup.rotation.set(0, options.THREE.MathUtils.degToRad(options.scenario.earthYawDeg), 0);
+    this.earthGroup.rotation.set(0, options.scenario.earthYawDeg * Math.PI / 180, 0);
     this.scene.add(this.earthGroup);
 
     const rayDirection = options.scenario.fixedSunDirection;
@@ -177,13 +189,35 @@ export class LubirthCapabilityScene {
       if (object.isDirectionalLight) directionalLights.push(object);
       if (/moon/i.test(object.name ?? '')) mainMoons.push(object);
     });
+    const pipLayout = this.pip.layoutSnapshot();
+    const earthUniforms = this.earth.material?.uniforms ?? {};
+    const atmosphereMain = this.atmosphere.getObjectByName?.('atmosphereMainShell');
+    const atmosphereNear = this.atmosphere.getObjectByName?.('atmosphereNearShell');
+    const firstCloudLayer = this.clouds.children?.[0];
+    const cloudUniforms = firstCloudLayer?.material?.uniforms ?? {};
     return {
       singleDirectionalLight: directionalLights.length === 1,
       cameraIndependent: this.camera.parent !== this.earthGroup,
       starsIndependent: this.stars.parent === this.scene,
       moonAbsentFromMainScene: mainMoons.length === 0,
       pipUsesRenderTarget: Boolean(this.pip.renderTarget?.isWebGLRenderTarget),
+      pipLayoutFixed: Number.isFinite(pipLayout.screenX)
+        && Number.isFinite(pipLayout.screenY)
+        && Math.abs(pipLayout.widthPx - pipLayout.heightPx) <= 0.01,
       earthAxisYUp: this.earthGroup.rotation.x === 0 && this.earthGroup.rotation.z === 0,
+      productionEarthEffects: earthUniforms.nightGlowBlur?.value > 0
+        && earthUniforms.nightGlowOpacity?.value > 0
+        && earthUniforms.rimStrength?.value > 0
+        && earthUniforms.dayDiffuseMax?.value > 0,
+      productionAtmosphereEffects: Boolean(
+        atmosphereMain?.material?.uniforms?.scaleHeight?.value > 0
+        && atmosphereMain?.material?.uniforms?.softBoundaryDelta?.value > 0
+        && atmosphereNear?.material?.uniforms?.nearStrength?.value > 0,
+      ),
+      productionCloudEffects: this.clouds.children?.length === 6
+        && cloudUniforms.useVolumeScattering?.value === true
+        && cloudUniforms.useThicknessMapping?.value === true
+        && cloudUniforms.useFresnel?.value === true,
     };
   }
 
@@ -193,6 +227,7 @@ export class LubirthCapabilityScene {
     this.pip.dispose();
     for (const pass of this.passes) pass.dispose();
     for (const texture of Object.values(this.fallbacks) as any[]) texture.dispose();
-    this.scene.clear();
+    if (typeof this.scene.clear === 'function') this.scene.clear();
+    else while (this.scene.children.length > 0) this.scene.remove(this.scene.children[0]);
   }
 }

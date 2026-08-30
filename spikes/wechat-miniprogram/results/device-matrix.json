@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": null,
+  "generatedAt": "2026-08-30T15:54:00.000Z",
   "decision": "INCONCLUSIVE",
   "decisionReasons": [
-    "real AppID evidence is missing",
-    "approved HTTPS resource-domain evidence is missing",
-    "required physical-device matrix has not been executed"
+    "Android midrange and low-end device evidence is missing",
+    "iOS 8K, performance and lifecycle evidence is incomplete",
+    "required physical-device matrix has not been completed"
   ],
   "thresholds": {
     "baseline2kMedianFpsMin": 30,
@@ -20,9 +20,31 @@
     {
       "slot": "ios-mainstream",
       "status": "inconclusive",
-      "device": null,
-      "runIds": [],
-      "screenshots": []
+      "device": {
+        "model": "iPhone Air<iPhone18,4>",
+        "osVersion": "iOS 26.3",
+        "wechatVersion": "8.0.76",
+        "baseLibraryVersion": "3.17.2",
+        "dpr": 3,
+        "screenWidth": 420,
+        "screenHeight": 912
+      },
+      "runIds": [
+        "equinox-shanghai-2k-assets-2k-mtfvtds4-une01v",
+        "equinox-shanghai-2k-runtime-r160-mtfxwcvq-yzrwhn",
+        "equinox-shanghai-2k-astro-parity-mtfxwcxr-k5zuih",
+        "equinox-shanghai-2k-assets-2k-mtfxwczp-1u10nd",
+        "equinox-shanghai-2k-effects-2k-mtfxwfmd-r6hpqq"
+      ],
+      "screenshots": [],
+      "gates": {
+        "core2k": "pass",
+        "productionEffectMatrix2k": "pass",
+        "assetUploadGlAttribution": "inconclusive",
+        "high8k": "inconclusive",
+        "performance": "inconclusive",
+        "lifecycle": "inconclusive"
+      }
     },
     {
       "slot": "android-midrange",

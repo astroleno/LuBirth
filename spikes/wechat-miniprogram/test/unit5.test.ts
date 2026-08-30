@@ -3,17 +3,23 @@ import { statSync } from 'node:fs';
 import test from 'node:test';
 
 import { ASSET_MANIFEST, selectAssetsForTier } from '../src/assets/asset-manifest.ts';
-import { createWechatTextureLoader, MiniProgramTextureLoader } from '../src/assets/texture-loader.ts';
+import {
+  createWechatTextureLoader,
+  formatAssetFailureStatus,
+  MiniProgramTextureLoader,
+} from '../src/assets/texture-loader.ts';
 import { SceneLifecycle } from '../src/lifecycle/scene-lifecycle.ts';
 import { summarizeAssetTier } from '../src/tests/asset-tier-test.ts';
 import { evaluateLifecycleStress } from '../src/tests/lifecycle-stress-test.ts';
 
-test('asset tiers select one best-fit asset per semantic without pretending missing 8K moon/normal exist', () => {
+test('asset tiers include a true 2K star texture and do not pretend missing 8K moon/normal exist', () => {
   const baseline = selectAssetsForTier('2k');
   const high = selectAssetsForTier('8k');
 
-  assert.equal(baseline.length, 9);
+  assert.equal(baseline.length, 10);
   assert.ok(baseline.every((asset) => asset.tier === '2k'));
+  assert.equal(baseline.find((asset) => asset.key === 'stars')?.id, 'stars-2k');
+  assert.equal(baseline.find((asset) => asset.key === 'stars')?.width, 2048);
   assert.equal(new Set(high.map((asset) => asset.key)).size, high.length);
   assert.equal(high.find((asset) => asset.key === 'earthDay')?.tier, '8k');
   assert.equal(high.find((asset) => asset.key === 'earthNormal')?.tier, '2k');
@@ -76,6 +82,82 @@ test('texture loading retries once, records phases, and produces a real texture 
   assert.equal((result.texture as any).colorSpace, 'srgb');
 });
 
+test('equirectangular textures repeat across longitude before their first GPU upload', async () => {
+  let uploadedTexture: any = null;
+  const THREE = {
+    SRGBColorSpace: 'srgb',
+    NoColorSpace: 'linear',
+    RepeatWrapping: 'repeat',
+    ClampToEdgeWrapping: 'clamp',
+    Texture: class {
+      needsUpdate = false;
+      colorSpace = '';
+      wrapS = 'clamp';
+      wrapT = 'clamp';
+      constructor(_image: unknown) {}
+      dispose() {}
+    },
+  };
+  const loader = new MiniProgramTextureLoader({
+    THREE,
+    resourceBaseUrl: 'https://cdn.example/textures',
+    download: async () => ({ localPath: '/tmp/earth-day.jpg', statusCode: 200 }),
+    createImage: () => {
+      const image: any = { width: 2048, height: 1024 };
+      Object.defineProperty(image, 'src', { set() { queueMicrotask(() => image.onload?.()); } });
+      return image;
+    },
+    uploadTexture: async (texture) => { uploadedTexture = texture; },
+  });
+
+  const result = await loader.loadEntry(ASSET_MANIFEST.find((asset) => asset.id === 'earth-day-2k')!);
+
+  assert.equal(result.status, 'pass');
+  assert.equal(uploadedTexture, result.texture);
+  assert.equal(uploadedTexture.wrapS, 'repeat');
+  assert.equal(uploadedTexture.wrapT, 'clamp');
+});
+
+test('2K star texture downloads from the configured CDN before decode and GPU upload', async () => {
+  let downloads = 0;
+  let uploads = 0;
+  let requestedUrl = '';
+  const THREE = {
+    SRGBColorSpace: 'srgb',
+    NoColorSpace: 'linear',
+    Texture: class {
+      needsUpdate = false;
+      colorSpace = '';
+      constructor(_image: unknown) {}
+      dispose() {}
+    },
+  };
+  const loader = new MiniProgramTextureLoader({
+    THREE,
+    resourceBaseUrl: 'https://cdn.example/textures',
+    download: async (url) => {
+      downloads += 1;
+      requestedUrl = url;
+      return { localPath: '/tmp/2k-stars.webp', statusCode: 200 };
+    },
+    createImage: () => {
+      const image: any = { width: 2048, height: 1024 };
+      Object.defineProperty(image, 'src', { set() { queueMicrotask(() => image.onload?.()); } });
+      return image;
+    },
+    uploadTexture: async () => { uploads += 1; },
+  });
+  const stars = ASSET_MANIFEST.find((asset) => asset.id === 'stars-2k')!;
+
+  const result = await loader.loadEntry(stars);
+
+  assert.equal(result.status, 'pass');
+  assert.equal(result.url, 'https://cdn.example/textures/2k_stars_milky_way.webp');
+  assert.equal(requestedUrl, result.url);
+  assert.equal(downloads, 1);
+  assert.equal(uploads, 1);
+});
+
 test('required asset failure is retained at its exact tier after bounded retries', async () => {
   let attempts = 0;
   const loader = new MiniProgramTextureLoader({
@@ -127,8 +209,8 @@ test('8K loading establishes the complete 2K baseline before applying high-quali
   const result = await loader.loadTier('8k');
 
   assert.equal(result.status, 'pass');
-  assert.deepEqual(result.results.slice(0, 9).map((entry) => entry.tier), Array(9).fill('2k'));
-  assert.deepEqual(result.results.slice(9).map((entry) => entry.tier), Array(6).fill('8k'));
+  assert.deepEqual(result.results.slice(0, 10).map((entry) => entry.tier), Array(10).fill('2k'));
+  assert.deepEqual(result.results.slice(10).map((entry) => entry.tier), Array(6).fill('8k'));
   assert.equal(Object.keys(result.textures).length, 10);
   const highEarthDay = result.textures.earthDay;
   const downgraded = loader.handleMemoryWarning();
@@ -229,6 +311,165 @@ test('WeChat texture loader uses downloadFile, reads exact bytes and forces a GP
     'renderer.initTexture',
     'gl.finish',
   ]);
+});
+
+test('WeChat texture loader attributes a GPU upload GL error to the exact asset', async () => {
+  const image: any = { width: 2048, height: 1024 };
+  Object.defineProperty(image, 'src', {
+    set() { queueMicrotask(() => image.onload?.()); },
+  });
+  const glErrors = [0, 1281];
+  const session: any = {
+    capability: { maxTextureSize: 4096 },
+    THREE: {
+      SRGBColorSpace: 'srgb',
+      NoColorSpace: 'linear',
+      Texture: class {
+        needsUpdate = false;
+        colorSpace = '';
+        constructor(_image: unknown) {}
+        dispose() {}
+      },
+    },
+    renderer: { initTexture: () => undefined },
+    gl: {
+      NO_ERROR: 0,
+      INVALID_VALUE: 1281,
+      finish: () => undefined,
+      getError: () => glErrors.shift() ?? 0,
+    },
+    createImage: () => image,
+  };
+  const wxApi = {
+    downloadFile(options: any) {
+      options.success({ statusCode: 200, tempFilePath: '/wx/cache/earth.jpg' });
+    },
+    getFileSystemManager() {
+      return { statSync: () => ({ size: 463_087 }) };
+    },
+  };
+  const loader = createWechatTextureLoader(session, 'https://cdn.example/textures', wxApi);
+
+  const result = await loader.loadEntry(ASSET_MANIFEST.find((asset) => asset.id === 'earth-day-2k')!);
+
+  assert.equal(result.status, 'fail');
+  assert.match(result.error ?? '', /GPU upload WebGL error 1281/);
+  assert.equal(result.id, 'earth-day-2k');
+});
+
+test('WeChat texture loader clears a pre-existing GL error before attributing the texture upload', async () => {
+  const image: any = { width: 2048, height: 1024 };
+  Object.defineProperty(image, 'src', {
+    set() { queueMicrotask(() => image.onload?.()); },
+  });
+  const glErrors = [1281, 0];
+  let uploads = 0;
+  const session: any = {
+    capability: { maxTextureSize: 4096 },
+    THREE: {
+      SRGBColorSpace: 'srgb',
+      NoColorSpace: 'linear',
+      Texture: class {
+        needsUpdate = false;
+        colorSpace = '';
+        constructor(_image: unknown) {}
+        dispose() {}
+      },
+    },
+    renderer: { initTexture: () => { uploads += 1; } },
+    gl: {
+      NO_ERROR: 0,
+      finish: () => undefined,
+      getError: () => glErrors.shift() ?? 0,
+    },
+    createImage: () => image,
+  };
+  const wxApi = {
+    downloadFile(options: any) {
+      options.success({ statusCode: 200, tempFilePath: '/wx/cache/earth.jpg' });
+    },
+    getFileSystemManager() {
+      return { statSync: () => ({ size: 463_087 }) };
+    },
+  };
+  const loader = createWechatTextureLoader(session, 'https://cdn.example/textures', wxApi);
+
+  const result = await loader.loadEntry(ASSET_MANIFEST.find((asset) => asset.id === 'earth-day-2k')!);
+
+  assert.equal(result.status, 'pass');
+  assert.equal(uploads, 1);
+});
+
+test('WeChat texture loader preserves downloadFile errMsg objects from a physical device', async () => {
+  const session: any = {
+    capability: { maxTextureSize: 4096 },
+    THREE: { Texture: class {}, SRGBColorSpace: 'srgb', NoColorSpace: 'linear' },
+    renderer: {},
+    gl: {},
+    createImage: () => ({}),
+  };
+  const wxApi = {
+    downloadFile(options: any) {
+      options.fail({
+        errMsg: 'downloadFile:fail url not in domain list',
+        errno: 600009,
+      });
+    },
+    getFileSystemManager() {
+      return { statSync: () => ({ size: 0 }) };
+    },
+  };
+  const loader = createWechatTextureLoader(session, 'https://assets.aitoshuu.me/textures', wxApi);
+
+  const result = await loader.loadEntry(ASSET_MANIFEST.find((asset) => asset.id === 'earth-day-2k')!);
+
+  assert.equal(result.status, 'fail');
+  assert.equal(result.error, 'downloadFile:fail url not in domain list (errno 600009)');
+});
+
+test('WeChat texture loader records the URL when downloadFile fails without details', async () => {
+  const session: any = {
+    capability: { maxTextureSize: 4096 },
+    THREE: { Texture: class {}, SRGBColorSpace: 'srgb', NoColorSpace: 'linear' },
+    renderer: {},
+    gl: {},
+    createImage: () => ({}),
+  };
+  const wxApi = {
+    downloadFile(options: any) {
+      options.fail(undefined);
+    },
+    getFileSystemManager() {
+      return { statSync: () => ({ size: 0 }) };
+    },
+  };
+  const loader = createWechatTextureLoader(session, 'https://assets.aitoshuu.me', wxApi);
+
+  const result = await loader.loadEntry(ASSET_MANIFEST.find((asset) => asset.id === 'earth-day-2k')!);
+
+  assert.equal(result.status, 'fail');
+  assert.equal(
+    result.error,
+    'downloadFile failed without error details: https://assets.aitoshuu.me/2k_earth_daymap.jpg',
+  );
+});
+
+test('asset failure status names the missing WeChat downloadFile legal domain', () => {
+  const statusText = formatAssetFailureStatus('2k', [{
+    id: 'earth-day-2k',
+    key: 'earthDay',
+    tier: '2k',
+    status: 'fail',
+    attempts: 2,
+    url: 'https://assets.aitoshuu.me/textures/2k_earth_daymap.jpg',
+    timings: { totalMs: 10 },
+    error: 'downloadFile:fail url not in domain list (errno 600009)',
+  }]);
+
+  assert.equal(
+    statusText,
+    '2K 下载被微信拦截：请把 assets.aitoshuu.me 加入 downloadFile 合法域名',
+  );
 });
 
 test('asset evidence keeps timing, cache and failed-resource boundaries auditable', () => {

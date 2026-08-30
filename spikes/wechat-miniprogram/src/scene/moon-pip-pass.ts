@@ -38,6 +38,8 @@ export class MoonPipPass {
   private enabled: boolean;
   private fps: number;
   private lastRenderedAt = Number.NEGATIVE_INFINITY;
+  private viewportWidth = 1;
+  private viewportHeight = 1;
 
   constructor(options: MoonPipOptions) {
     this.THREE = options.THREE;
@@ -64,8 +66,25 @@ export class MoonPipPass {
     this.overlayScene.name = 'moonPipOverlayScene';
     this.overlayCamera = new options.THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
     this.overlayGeometry = new options.THREE.PlaneGeometry(2, 2);
-    this.overlayMaterial = new options.THREE.MeshBasicMaterial({
-      map: this.renderTarget.texture,
+    this.overlayMaterial = new options.THREE.ShaderMaterial({
+      uniforms: { map: { value: this.renderTarget.texture } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D map;
+        varying vec2 vUv;
+        void main() {
+          vec4 sampleColor = texture2D(map, vUv);
+          float radius = length(vUv - vec2(0.5));
+          float mask = 1.0 - smoothstep(0.46, 0.5, radius);
+          gl_FragColor = vec4(sampleColor.rgb, sampleColor.a * mask);
+        }
+      `,
       transparent: true,
       depthTest: false,
       depthWrite: false,
@@ -81,10 +100,15 @@ export class MoonPipPass {
     if (!this.enabled || !shouldRenderPip(this.lastRenderedAt, now, this.fps)) return false;
     const previousTarget = this.renderer.getRenderTarget?.() ?? null;
     const previousAutoClear = this.renderer.autoClear;
+    const previousClearAlpha = this.renderer.getClearAlpha?.() ?? 1;
+    const previousClearColor = new this.THREE.Color(0x000000);
+    this.renderer.getClearColor?.(previousClearColor);
     this.renderer.setRenderTarget(this.renderTarget);
     this.renderer.autoClear = true;
+    this.renderer.setClearColor?.(0x000000, 0);
     this.renderer.clear?.(true, true, true);
     this.renderer.render(this.scene, this.camera);
+    this.renderer.setClearColor?.(previousClearColor, previousClearAlpha);
     this.renderer.setRenderTarget(previousTarget);
     this.renderer.autoClear = previousAutoClear;
     this.lastRenderedAt = now;
@@ -114,16 +138,28 @@ export class MoonPipPass {
     if (this.renderTarget.width === resolution && this.renderTarget.height === resolution) return;
     const previous = this.renderTarget;
     this.renderTarget = this.createRenderTarget(resolution);
-    this.overlayMaterial.map = this.renderTarget.texture;
+    this.overlayMaterial.uniforms.map.value = this.renderTarget.texture;
     this.overlayMaterial.needsUpdate = true;
     previous.dispose();
     this.lastRenderedAt = Number.NEGATIVE_INFINITY;
   }
 
   setLayout(screenX: number, screenY: number, size: number, viewportWidth: number, viewportHeight: number): void {
-    const aspect = Math.max(1, viewportWidth) / Math.max(1, viewportHeight);
+    this.viewportWidth = Math.max(1, viewportWidth);
+    this.viewportHeight = Math.max(1, viewportHeight);
+    const aspect = this.viewportWidth / this.viewportHeight;
     this.overlayQuad.position.set(screenX * 2 - 1, 1 - screenY * 2, 0);
     this.overlayQuad.scale.set(size, size * aspect, 1);
+  }
+
+  layoutSnapshot(): { screenX: number; screenY: number; widthPx: number; heightPx: number } {
+    const round = (value: number) => Math.round(value * 100) / 100;
+    return {
+      screenX: round((this.overlayQuad.position.x + 1) / 2),
+      screenY: round((1 - this.overlayQuad.position.y) / 2),
+      widthPx: round(this.overlayQuad.scale.x * this.viewportWidth),
+      heightPx: round(this.overlayQuad.scale.y * this.viewportHeight),
+    };
   }
 
   updateLightRay(direction: any): void {

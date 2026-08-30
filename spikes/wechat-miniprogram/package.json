@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node build.config.mjs",
-    "build:device": "SPIKE_DEVICE_BUILD=1 node build.config.mjs",
+    "build:device": "SPIKE_DEVICE_BUILD=1 SPIKE_RUNTIME_PROFILE=r160 node build.config.mjs",
+    "build:device:comparison": "SPIKE_DEVICE_BUILD=1 SPIKE_RUNTIME_PROFILE=both node build.config.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test --experimental-strip-types test/*.test.ts",
     "test:astro": "esbuild test/astro-source.integration.ts --bundle --platform=node --format=esm --outfile=/tmp/lubirth-astro-source.integration.mjs --log-level=error && node --test /tmp/lubirth-astro-source.integration.mjs",

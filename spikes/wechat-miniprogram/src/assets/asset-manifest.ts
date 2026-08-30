@@ -40,6 +40,7 @@ export const ASSET_MANIFEST: readonly AssetManifestEntry[] = [
   entry({ id: 'moon-color-2k', key: 'moon', tier: '2k', fileName: '2k_moon.jpg', mimeType: 'image/jpeg', fileBytes: 1053869, width: 2048, height: 1024, colorSpace: 'srgb', required: true }),
   entry({ id: 'moon-displacement-2k', key: 'moonDisplacement', tier: '2k', fileName: '2k_moon_displacement.jpg', mimeType: 'image/jpeg', fileBytes: 852265, width: 2048, height: 1024, colorSpace: 'linear', required: true }),
   entry({ id: 'moon-normal-2k', key: 'moonNormal', tier: '2k', fileName: '2k_moon_normal.jpg', mimeType: 'image/jpeg', fileBytes: 1718242, width: 2048, height: 1024, colorSpace: 'linear', required: true }),
+  entry({ id: 'stars-2k', key: 'stars', tier: '2k', fileName: '2k_stars_milky_way.webp', mimeType: 'image/webp', fileBytes: 43612, width: 2048, height: 1024, colorSpace: 'srgb', required: true }),
   entry({ id: 'earth-clouds-8k', key: 'clouds', tier: '8k', fileName: '8k_earth_clouds.webp', mimeType: 'image/webp', fileBytes: 8284478, width: 8192, height: 4096, colorSpace: 'srgb', required: true }),
   entry({ id: 'earth-day-8k', key: 'earthDay', tier: '8k', fileName: '8k_earth_daymap.webp', mimeType: 'image/webp', fileBytes: 2460196, width: 8192, height: 4096, colorSpace: 'srgb', required: true }),
   entry({ id: 'earth-displacement-8k', key: 'earthDisplacement', tier: '8k', fileName: '8k_earth_displacement_map.jpg', mimeType: 'image/jpeg', fileBytes: 1588717, width: 8192, height: 4096, colorSpace: 'linear', required: true }),

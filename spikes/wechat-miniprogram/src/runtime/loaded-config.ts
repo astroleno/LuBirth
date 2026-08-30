@@ -10,6 +10,11 @@ export type LoadedSceneConfig = {
 
 export type LoadedSceneConfigMismatch = keyof LoadedSceneConfig | 'missingLoadedConfig';
 
+export type EffectMatrixReadiness = {
+  ready: boolean;
+  missing: Array<'runtime' | 'loader' | 'passingScene' | 'remote2k'>;
+};
+
 export function compareLoadedSceneConfig(
   actual: LoadedSceneConfig | null,
   requested: LoadedSceneConfig,
@@ -23,4 +28,20 @@ export function compareLoadedSceneConfig(
   ];
   const mismatches = fields.filter((field) => actual[field] !== requested[field]);
   return { matches: mismatches.length === 0, mismatches };
+}
+
+export function evaluateEffectMatrixReadiness(input: {
+  runtimeReady: boolean;
+  loaderReady: boolean;
+  loadedSceneStatus: 'pass' | 'fail' | 'unsupported' | 'inconclusive' | null;
+  loadedConfig: LoadedSceneConfig | null;
+}): EffectMatrixReadiness {
+  const missing: EffectMatrixReadiness['missing'] = [];
+  if (!input.runtimeReady) missing.push('runtime');
+  if (!input.loaderReady) missing.push('loader');
+  if (input.loadedSceneStatus !== 'pass') missing.push('passingScene');
+  if (input.loadedConfig?.assetTier !== '2k' || input.loadedConfig.assetSource !== 'remote') {
+    missing.push('remote2k');
+  }
+  return { ready: missing.length === 0, missing };
 }

@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "Native Capability",
-  "disableScroll": true
+  "disableScroll": true,
+  "pageOrientation": "auto"
 }

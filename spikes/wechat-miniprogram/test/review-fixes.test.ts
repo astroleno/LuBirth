@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   compareLoadedSceneConfig,
+  evaluateEffectMatrixReadiness,
   type LoadedSceneConfig,
 } from '../src/runtime/loaded-config.ts';
 import { evaluateBenchmarkStatus } from '../src/tests/performance-benchmark-test.ts';
@@ -15,7 +16,10 @@ import {
   type LifecycleEventRecord,
   type LifecycleSummary,
 } from '../src/lifecycle/lifecycle-evidence-session.ts';
-import { ScreenshotStore } from '../src/metrics/screenshot-store.ts';
+import {
+  captureScreenshotEvidence,
+  ScreenshotStore,
+} from '../src/metrics/screenshot-store.ts';
 import { assertDevicePackageSize, sumPackageBytes } from '../build-output.mjs';
 
 const loaded: LoadedSceneConfig = {
@@ -40,6 +44,25 @@ test('loaded-scene comparison rejects stale runtime, tier, scenario and fallback
     matches: false,
     mismatches: ['missingLoadedConfig'],
   });
+});
+
+test('production effect matrix requires a passing remote 2K scene', () => {
+  assert.equal(evaluateEffectMatrixReadiness({
+    runtimeReady: true,
+    loaderReady: true,
+    loadedSceneStatus: 'pass',
+    loadedConfig: loaded,
+  }).ready, true);
+
+  for (const candidate of [
+    { runtimeReady: false, loaderReady: true, loadedSceneStatus: 'pass' as const, loadedConfig: loaded },
+    { runtimeReady: true, loaderReady: false, loadedSceneStatus: 'pass' as const, loadedConfig: loaded },
+    { runtimeReady: true, loaderReady: true, loadedSceneStatus: 'fail' as const, loadedConfig: loaded },
+    { runtimeReady: true, loaderReady: true, loadedSceneStatus: 'pass' as const, loadedConfig: { ...loaded, assetTier: '8k' as const } },
+    { runtimeReady: true, loaderReady: true, loadedSceneStatus: 'pass' as const, loadedConfig: { ...loaded, assetSource: 'fallback' as const } },
+  ]) {
+    assert.equal(evaluateEffectMatrixReadiness(candidate).ready, false);
+  }
 });
 
 test('benchmark aggregate cannot pass when PIP 512 fails or a stage is interrupted', () => {
@@ -195,6 +218,26 @@ test('screenshot store copies temporary output to a run-id-addressed persistent 
     'mkdir:/wx-user/results/screenshots',
     'copy:/tmp/canvas.png->/wx-user/results/screenshots/scene-abc-123.png',
   ]);
+});
+
+test('unsupported WebGL canvas screenshots remain non-blocking evidence', async () => {
+  const store = new ScreenshotStore('/wx-user/results', {
+    exists: async () => false,
+    ensureDirectory: async () => undefined,
+    copyFile: async () => undefined,
+  });
+
+  const evidence = await captureScreenshotEvidence({
+    runId: 'scene-ios-webgl',
+    captureTemporaryPath: async () => {
+      throw { errMsg: 'canvasToTempFilePath:fail Invalid context type [2d] for Canvas#getContext' };
+    },
+    store,
+  });
+
+  assert.deepEqual(evidence, {
+    error: 'canvasToTempFilePath:fail Invalid context type [2d] for Canvas#getContext',
+  });
 });
 
 test('device package size gate sums output and rejects anything over two MiB', () => {

@@ -34,8 +34,8 @@ export function createMoonPass(
       lightDir: { value: lightRayDirection.clone().normalize() },
       displacementScale: { value: textures.moonDisplacement ? 0.026 : 0 },
       normalStrength: { value: 0.45 },
-      terminatorSoftness: { value: 0.035 },
-      nightLift: { value: 0.012 },
+      terminatorSoftness: { value: 0.02 },
+      nightLift: { value: 0.002 },
     },
     vertexShader: `
       uniform sampler2D displacementMap;

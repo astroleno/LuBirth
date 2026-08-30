@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -10,6 +11,7 @@ import {
 import { PerformanceProbe } from '../src/metrics/performance-probe.ts';
 import { SCENARIOS, getScenario } from '../src/config/scenarios.ts';
 import { ResultStore } from '../src/metrics/result-store.ts';
+import { createCompleteValidationBundle } from '../src/metrics/evidence-bundle.ts';
 import { RunHarness } from '../src/tests/harness-self-test.ts';
 
 const completeDevice = {
@@ -28,6 +30,26 @@ const fingerprint: SourceFingerprint = {
   assetManifestSha256: 'asset-a',
   astroSourceSha256: 'astro-a',
 };
+
+function completedRun(runId: string, stage: string, status: 'pass' | 'fail' | 'unsupported' | 'inconclusive') {
+  const run = createRunResult({
+    runId,
+    scenarioId: 'equinox-shanghai-2k',
+    startedAt: '2026-08-30T00:00:00.000Z',
+    source: fingerprint,
+    device: completeDevice,
+    prerequisites: { appId: true, resourceDomain: true, physicalDevice: true },
+  });
+  run.tests.push({
+    name: `${stage} test`,
+    stage,
+    status,
+    startedAt: run.startedAt,
+    endedAt: run.startedAt,
+    durationMs: 0,
+  });
+  return finalizeRun(run, '2026-08-30T00:01:00.000Z');
+}
 
 test('missing device prerequisites make a run inconclusive', () => {
   const run = createRunResult({
@@ -146,6 +168,43 @@ test('the experiment matrix fixes three astronomical inputs and both PIP sizes',
   assert.equal(getScenario('equinox-shanghai').performance.durationMs, 60_000);
 });
 
+test('the active 2K visual matrix exposes camera-facing day, terminator and night presets', () => {
+  assert.deepEqual(SCENARIOS.map((scenario) => scenario.visualFocus), [
+    'day',
+    'terminator',
+    'night',
+  ]);
+  assert.deepEqual(SCENARIOS.map((scenario) => scenario.assetTiers), [
+    ['2k'],
+    ['2k'],
+    ['2k'],
+  ]);
+
+  const facingLight = SCENARIOS.map((scenario) => {
+    const azimuth = scenario.camera.azimuthDeg * Math.PI / 180;
+    const elevation = scenario.camera.elevationDeg * Math.PI / 180;
+    const cameraFacing = [
+      Math.cos(elevation) * Math.sin(azimuth),
+      Math.sin(elevation),
+      Math.cos(elevation) * Math.cos(azimuth),
+    ];
+    const toSun = scenario.fixedSunDirection.map((value) => -value);
+    return cameraFacing.reduce((sum, value, index) => sum + value * toSun[index], 0);
+  });
+
+  assert.ok(facingLight[0] > 0.99);
+  assert.ok(Math.abs(facingLight[1]) < 0.001);
+  assert.ok(facingLight[2] < -0.99);
+});
+
+test('capability page allows physical orientation changes for fixed PIP resize evidence', () => {
+  const pageConfig = JSON.parse(readFileSync(
+    new URL('../src/pages/capability/index.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(pageConfig.pageOrientation, 'auto');
+});
+
 test('raw run evidence is immutable and summaries only reference run ids', async () => {
   const files = new Map<string, string>();
   const store = new ResultStore('/user-data', {
@@ -171,4 +230,54 @@ test('raw run evidence is immutable and summaries only reference run ids', async
     summaryId: 'latest',
     runIds: ['run-immutable'],
   });
+});
+
+test('result persistence reuses an existing runs directory', async () => {
+  const files = new Map<string, string>();
+  const directories = new Set(['/user-data/results/runs']);
+  const store = new ResultStore('/user-data', {
+    exists: async (path) => directories.has(path) || files.has(path),
+    ensureDirectory: async (path) => {
+      if (directories.has(path)) throw { errMsg: `mkdir:fail file already exists ${path}` };
+      directories.add(path);
+    },
+    writeText: async (path, content) => { files.set(path, content); },
+  });
+  const run = createRunResult({
+    runId: 'run-after-earlier-result',
+    scenarioId: 'equinox-shanghai-2k',
+    startedAt: '2026-08-30T00:00:00.000Z',
+    source: fingerprint,
+    device: completeDevice,
+    prerequisites: { appId: true, resourceDomain: true, physicalDevice: true },
+  });
+
+  await store.writeRun(run);
+
+  assert.equal(files.has('/user-data/results/runs/run-after-earlier-result.json'), true);
+});
+
+test('complete validation bundle does not hide an earlier failed stage behind a passing asset run', () => {
+  const runs = [
+    completedRun('runtime-run', 'runtime', 'fail'),
+    completedRun('astro-run', 'astro', 'pass'),
+    completedRun('scene-run', 'scene', 'pass'),
+    completedRun('assets-run', 'assets', 'pass'),
+  ];
+
+  const bundle = createCompleteValidationBundle(runs, '2026-08-30T00:02:00.000Z');
+
+  assert.equal(bundle.status, 'fail');
+  assert.deepEqual(bundle.runIds, ['runtime-run', 'astro-run', 'scene-run', 'assets-run']);
+  assert.deepEqual(bundle.runs, runs);
+});
+
+test('complete validation bundle stays inconclusive until all four stage runs are present', () => {
+  const bundle = createCompleteValidationBundle([
+    completedRun('runtime-run', 'runtime', 'pass'),
+    completedRun('astro-run', 'astro', 'pass'),
+    completedRun('scene-run', 'scene', 'pass'),
+  ]);
+
+  assert.equal(bundle.status, 'inconclusive');
 });

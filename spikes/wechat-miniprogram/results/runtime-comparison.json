@@ -1,16 +1,16 @@
 {
   "schemaVersion": "1.0.0",
   "status": "inconclusive",
-  "generatedAt": null,
+  "generatedAt": "2026-08-30T15:54:00.000Z",
   "recommendation": {
-    "route": null,
-    "decision": "inconclusive",
-    "reason": "physical-device-runtime-evidence-missing"
+    "route": "r160",
+    "decision": "conditional",
+    "reason": "r160-passed-on-ios-android-evidence-missing"
   },
   "routes": {
     "r160": {
       "threeVersion": "0.160.1",
-      "status": "inconclusive",
+      "status": "pass",
       "adapterBoundary": [
         "canvas facade",
         "canvas-scoped RAF and Image",
@@ -18,7 +18,19 @@
         "renderer lifecycle"
       ],
       "touchesThreeInternals": false,
-      "runIds": []
+      "runIds": [
+        "equinox-shanghai-2k-assets-2k-mtfvtds4-une01v",
+        "equinox-shanghai-2k-runtime-r160-mtfxwcvq-yzrwhn",
+        "equinox-shanghai-2k-effects-2k-mtfxwfmd-r6hpqq"
+      ],
+      "observedCoreScene": {
+        "status": "pass",
+        "glError": 0,
+        "shaderPrograms": 8,
+        "shaderErrorCount": 0,
+        "pipRenderTarget": true,
+        "devicePlatform": "ios"
+      }
     },
     "r108": {
       "adapterVersion": "threejs-miniprogram@0.0.8",
@@ -29,9 +41,6 @@
     }
   },
   "missingEvidence": [
-    "real AppID",
-    "physical iOS and Android runs",
-    "shader and render-target logs",
-    "destroy/recreate lifecycle run"
+    "physical Android runtime runs"
   ]
 }

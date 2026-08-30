@@ -5,6 +5,7 @@ import {
   CanvasEventBridge,
   computeDrawingBufferSize,
   type MiniProgramCanvas,
+  type RendererLike,
   type RuntimeAdapter,
   type RuntimeCreateOptions,
   type RuntimeSession,
@@ -13,6 +14,30 @@ import {
 type CanvasFacade = HTMLCanvasElement & {
   dispatchEvent(event: Event | { type: string }): boolean;
 };
+
+export function disposeR160Renderer(
+  renderer: Pick<RendererLike, 'setRenderTarget' | 'dispose'>,
+): void {
+  renderer.setRenderTarget(null);
+  try {
+    renderer.dispose();
+  } catch (error) {
+    const message = typeof (error as { message?: unknown })?.message === 'string'
+      ? (error as { message: string }).message
+      : String(error);
+    const missingAnimationContext = /cancelAnimationFrame/i.test(message)
+      && /null|undefined/i.test(message);
+    if (!missingAnimationContext) throw error;
+  }
+}
+
+export function selectR160GlContext(
+  canvas: MiniProgramCanvas,
+  attributes: Record<string, unknown>,
+): WebGLRenderingContext | WebGL2RenderingContext | null {
+  return canvas.getContext('webgl', attributes)
+    ?? canvas.getContext('webgl2', attributes);
+}
 
 export function createCanvasFacade(
   canvas: MiniProgramCanvas,
@@ -74,8 +99,7 @@ export class R160Adapter implements RuntimeAdapter {
       preserveDrawingBuffer: true,
       powerPreference: 'high-performance',
     };
-    const gl = canvas.getContext('webgl2', attributes)
-      ?? canvas.getContext('webgl', attributes);
+    const gl = selectR160GlContext(canvas, attributes);
     if (!gl) throw new Error('Unable to create a WebGL context on the mini-program canvas');
 
     const capability = probeCapabilities(gl);
@@ -98,7 +122,7 @@ export class R160Adapter implements RuntimeAdapter {
     renderer.setClearColor(0x000000, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1;
+    renderer.toneMappingExposure = 0.9;
     renderer.debug.checkShaderErrors = true;
 
     let disposed = false;
@@ -117,8 +141,7 @@ export class R160Adapter implements RuntimeAdapter {
       dispose: () => {
         if (disposed) return;
         disposed = true;
-        renderer.setRenderTarget(null);
-        renderer.dispose();
+        disposeR160Renderer(renderer);
       },
     };
   }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -7,7 +8,11 @@ import {
   selectRuntimeRoute,
 } from '../src/runtime/runtime-contract.ts';
 import { probeCapabilities } from '../src/runtime/capability-probe.ts';
-import { createCanvasFacade } from '../src/runtime/r160-adapter.ts';
+import {
+  createCanvasFacade,
+  disposeR160Renderer,
+  selectR160GlContext,
+} from '../src/runtime/r160-adapter.ts';
 
 function fakeGl(overrides: Record<string, unknown> = {}) {
   const parameters = new Map<unknown, unknown>([
@@ -144,4 +149,51 @@ test('r160 canvas facade supplies only local DOM-shaped surface and syncs dimens
   facade.removeEventListener('webglcontextlost', () => undefined);
   assert.deepEqual(nativeListeners, ['add:webglcontextlost', 'remove:webglcontextlost']);
   assert.equal((globalThis as any).document, undefined);
+});
+
+test('r160 session disposal tolerates the Three animation-context cleanup defect', () => {
+  const calls: string[] = [];
+  const renderer = {
+    setRenderTarget: (target: unknown) => calls.push(`target:${String(target)}`),
+    dispose: () => {
+      calls.push('dispose');
+      throw new TypeError("Cannot read property 'cancelAnimationFrame' of null");
+    },
+  };
+
+  assert.doesNotThrow(() => disposeR160Renderer(renderer));
+  assert.deepEqual(calls, ['target:null', 'dispose']);
+});
+
+test('r160 session disposal recognizes a cross-realm Three cleanup error by its message', () => {
+  const renderer = {
+    setRenderTarget: () => undefined,
+    dispose: () => {
+      throw {
+        name: 'TypeError',
+        message: "Cannot read property 'cancelAnimationFrame' of null",
+      };
+    },
+  };
+
+  assert.doesNotThrow(() => disposeR160Renderer(renderer));
+});
+
+test('r160 selects WebGL1 first so the same mini-program canvas can switch to official r108', () => {
+  const calls: string[] = [];
+  const webgl1 = { version: 1 };
+  const canvas = {
+    getContext(type: string) {
+      calls.push(type);
+      return type === 'webgl' ? webgl1 : { version: 2 };
+    },
+  } as any;
+
+  assert.equal(selectR160GlContext(canvas, {}), webgl1);
+  assert.deepEqual(calls, ['webgl']);
+});
+
+test('r160 production renderer leaves highlight headroom for the Earth and atmosphere stack', () => {
+  const source = readFileSync(new URL('../src/runtime/r160-adapter.ts', import.meta.url), 'utf8');
+  assert.match(source, /renderer\.toneMappingExposure = 0\.9;/);
 });

@@ -2,12 +2,14 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .stage {
   position: relative;
-  height: 55vh;
-  min-height: 600rpx;
+  flex: none;
+  height: 44vh;
+  min-height: 0;
   background: radial-gradient(circle at 50% 45%, #17223a 0, #070b14 68%);
 }
 
@@ -34,9 +36,40 @@
 .badge--unsupported { color: #c5a7ff; }
 
 .controls {
-  flex: 1;
+  flex: none;
+  height: 56vh;
+  min-height: 0;
   box-sizing: border-box;
   padding: 24rpx;
+}
+
+.diagnostic-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+  padding: 14rpx 18rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 16rpx;
+  background: rgba(16, 23, 37, 0.96);
+}
+
+.diagnostic-status {
+  min-width: 0;
+  color: #b9c6df;
+  font-size: 22rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagnostic-copy {
+  flex: none;
+  margin: 0;
 }
 
 .section {
@@ -66,6 +99,21 @@
   gap: 14rpx;
   align-items: center;
   margin-top: 18rpx;
+}
+
+.effect-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 16rpx;
+}
+
+.effect-list text {
+  padding: 6rpx 12rpx;
+  border: 1rpx solid rgba(124, 229, 174, 0.3);
+  border-radius: 999rpx;
+  color: #7ce5ae;
+  font-size: 18rpx;
 }
 
 .actions {

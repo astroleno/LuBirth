@@ -4,6 +4,7 @@ declare function Page(options: any): void;
 declare function getApp<T = any>(): T;
 
 declare const __RESOURCE_BASE_URL__: string;
+declare const __SPIKE_RUNTIME_PROFILE__: 'r160' | 'both';
 declare const __SPIKE_BUILD__: {
   builtAt: string;
   revision: string;

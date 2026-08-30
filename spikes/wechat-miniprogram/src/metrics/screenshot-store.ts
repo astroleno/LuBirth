@@ -4,6 +4,30 @@ export interface ScreenshotFileSystem {
   copyFile(source: string, destination: string): Promise<void>;
 }
 
+export type ScreenshotEvidence = {
+  persistentPath?: string;
+  error?: string;
+};
+
+export async function captureScreenshotEvidence(options: {
+  runId: string;
+  captureTemporaryPath(): Promise<string>;
+  store: ScreenshotStore;
+}): Promise<ScreenshotEvidence> {
+  try {
+    const temporaryPath = await options.captureTemporaryPath();
+    return { persistentPath: await options.store.persist(temporaryPath, options.runId) };
+  } catch (error) {
+    const message = error && typeof error === 'object'
+      && typeof (error as { errMsg?: unknown }).errMsg === 'string'
+      ? (error as { errMsg: string }).errMsg
+      : error instanceof Error
+        ? error.message
+        : String(error);
+    return { error: message };
+  }
+}
+
 export class ScreenshotStore {
   private readonly resultRoot: string;
   private readonly fileSystem: ScreenshotFileSystem;

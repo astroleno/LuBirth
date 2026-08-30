@@ -15,7 +15,7 @@ npm run verify
 远程纹理域名通过环境变量注入，不写入源码：
 
 ```bash
-SPIKE_RESOURCE_BASE_URL=https://your-approved-cdn.example npm run build:device
+SPIKE_RESOURCE_BASE_URL=https://assets.aitoshuu.me/releases/lubirth-wechat-spike/textures npm run build:device
 ```
 
 域名必须在小程序后台登记。没有真实 AppID、合法资源域名或物理设备时，结果契约会将相关 run 标记为 `inconclusive`。
@@ -30,22 +30,30 @@ SPIKE_RESOURCE_BASE_URL=https://your-approved-cdn.example npm run build:device
 - 状态只有 `pass`、`fail`、`unsupported`、`inconclusive`。
 - 开发者工具数据仅用于诊断；Go/No-Go 需要计划规定的真机矩阵。
 
-## 真机执行
+## 当前 2K 生产特效验证
 
 1. 记录设备型号、系统、微信版本、基础库、DPR 与 WebGL 信息。
-2. 依次执行三个固定场景的 2K/8K 档位。
-3. 每档先预热，再执行 60 秒基线；PIP 256/512 各做三轮开/关配对。
-4. 执行 10 分钟前后台压力和 10 次页面重入。
-5. 导出 JSON、固定时刻截图和人工视觉检查表；提交前去标识化。
+2. 点击“运行 2K 特效完整验证”，等待运行时、天文、2K 远程纹理和三预设特效矩阵完成。
+3. 依次选择“白昼 · 上海（2K）”“晨昏线 · 上海（2K）”“夜面 · 上海（2K）”，人工检查画面。
+4. 拖拽、双指缩放，并在设备支持时切换横竖屏，确认主相机变化时 PIP 仍固定在屏幕位置且保持正方形。
+5. 复制最新 JSON，并保存三种预设截图；提交前去标识化。
+
+视觉检查重点：
+
+- 白昼：日面漫反射、六层云的体积散射和边缘能辨认；
+- 晨昏线：内外地弧、主大气层与近地薄壳的扩散和软边最明显；
+- 夜面：城市灯光与模糊 glow 可见，日面颜色不应污染夜面；
+- 全部预设：PIP 月球独立于主场景，拖拽/缩放/resize 后位置稳定；
+- JSON：三条视觉测试与最终 matrix gate 均为 `pass`，`glError=0` 且 Shader 日志为空。
 
 页面按钮的用途：
 
-- “运行完整验证”执行运行时、天文、代表性场景与远程资源链路，不自动启动长时间性能基准。
-- “真机性能基准”仅在真实 AppID、合法资源域名、物理设备和生产纹理都就绪时启动；每个档位约 15 分钟。
-- “开始 / 继续 10 分钟与 10 次重入测试”创建可跨页面恢复的会话；完成 10 次重入且总时长达到 10 分钟后，用“完成生命周期测试并写入汇总”固化结果。
-- 2K/8K 与 r160/r108 是独立选择，不能把一条路线或一个资源档位的结果写到另一个槽位。
+- “运行 2K 特效完整验证”执行运行时、天文、2K 远程资源和白昼/晨昏线/夜面生产特效矩阵。
+- “白昼 / 晨昏线 / 夜面特效矩阵”可单独重跑三预设 Shader/GL 与不变量 gate。
+- “当前预设 / PIP 测试”只重跑当前 picker 中的预设，便于定位某一种效果。
+- r160/r108 仍分槽记录；当前优先验证 r160，不能把 r108 结果写成 r160 通过。
 
-CDN 根目录应直接包含 `src/assets/asset-manifest.ts` 中列出的原始纹理文件名。加载器先依据真机 `MAX_TEXTURE_SIZE` 做预判，不支持 8K 的设备不会先下载或解码 8K；支持时先建立完整 2K 基线，再逐项上传 8K 替换。内存告警会停止高画质升级并释放已加载的 8K 纹理。
+注入的 CDN 基地址所指目录应直接包含 `src/assets/asset-manifest.ts` 中列出的原始纹理文件名；当前腾讯 COS 对应目录是 `releases/lubirth-wechat-spike/textures/`。本轮 UI 固定为 2K；8K、长时间性能与生命周期能力代码仍保留，但按 2026-08-30 用户确认的范围延后，不参与这次“生产特效能否搬运”的判断。
 
 仓库中的 `results/*.json` 是待填充的不可变证据索引模板，不是已完成的真机结果。当前没有真机 run id 时，最终状态必须保持 `inconclusive` / `INCONCLUSIVE`。
 

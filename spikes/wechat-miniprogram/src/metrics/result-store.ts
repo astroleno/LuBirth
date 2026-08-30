@@ -29,7 +29,7 @@ export class ResultStore {
   async writeRun(run: RunResult): Promise<string> {
     assertSafeId(run.runId, 'runId');
     const path = `${this.runsDirectory}/${run.runId}.json`;
-    await this.fs.ensureDirectory(this.runsDirectory);
+    await this.ensureDirectory(this.runsDirectory);
     if (await this.fs.exists(path)) {
       throw new Error(`Run ${run.runId} already exists; raw evidence is immutable`);
     }
@@ -41,12 +41,16 @@ export class ResultStore {
     assertSafeId(summaryId, 'summaryId');
     for (const runId of runIds) assertSafeId(runId, 'runId');
     const path = `${this.resultsDirectory}/${summaryId}.json`;
-    await this.fs.ensureDirectory(this.resultsDirectory);
+    await this.ensureDirectory(this.resultsDirectory);
     await this.fs.writeText(path, JSON.stringify({
       schemaVersion: RESULT_SCHEMA_VERSION,
       summaryId,
       runIds: [...runIds],
     }, null, 2));
     return path;
+  }
+
+  private async ensureDirectory(path: string): Promise<void> {
+    if (!(await this.fs.exists(path))) await this.fs.ensureDirectory(path);
   }
 }

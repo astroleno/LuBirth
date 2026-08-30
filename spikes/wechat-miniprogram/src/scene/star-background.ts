@@ -9,6 +9,8 @@ export function createStarBackground(THREE: any, textures: SceneTextureBundle, f
     uniforms: {
       starMap: { value: textures.stars ?? fallback.stars },
       hasStarMap: { value: textures.stars ? 1 : 0 },
+      starDetailScale: { value: 1.7 },
+      starDetailStrength: { value: 0.5 },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -20,6 +22,8 @@ export function createStarBackground(THREE: any, textures: SceneTextureBundle, f
     fragmentShader: `
       uniform sampler2D starMap;
       uniform float hasStarMap;
+      uniform float starDetailScale;
+      uniform float starDetailStrength;
       varying vec2 vUv;
       float hash21(vec2 p) {
         p = fract(p * vec2(123.34, 345.45));
@@ -27,7 +31,12 @@ export function createStarBackground(THREE: any, textures: SceneTextureBundle, f
         return fract(p.x * p.y);
       }
       void main() {
-        vec3 mapped = pow(texture2D(starMap, vUv).rgb, vec3(2.2));
+        vec3 mapped = texture2D(starMap, vUv).rgb;
+        vec2 detailUv = fract(vUv * starDetailScale + vec2(0.173, 0.319));
+        vec3 detailSample = texture2D(starMap, detailUv).rgb;
+        float detailPeak = max(max(detailSample.r, detailSample.g), detailSample.b);
+        float detailMask = smoothstep(0.48, 0.82, detailPeak);
+        mapped = max(mapped * 0.82, detailSample * detailMask * starDetailStrength);
         vec2 grid = floor(vUv * vec2(720.0, 360.0));
         float seed = hash21(grid);
         float star = smoothstep(0.996, 1.0, seed);

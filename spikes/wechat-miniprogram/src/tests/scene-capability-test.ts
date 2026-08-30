@@ -9,6 +9,45 @@ export type SceneCapabilityResult = {
   shaderLogs: string[];
 };
 
+type VisualFocus = 'day' | 'terminator' | 'night';
+
+type EffectMatrixEntry = {
+  visualFocus: VisualFocus;
+  status: ResultStatus;
+  invariants: Partial<ReturnType<LubirthCapabilityScene['auditInvariants']>>;
+};
+
+const REQUIRED_VISUALS: readonly VisualFocus[] = ['day', 'terminator', 'night'];
+const REQUIRED_EFFECT_INVARIANTS = [
+  'productionEarthEffects',
+  'productionAtmosphereEffects',
+  'productionCloudEffects',
+  'pipLayoutFixed',
+] as const;
+
+export function evaluateProductionEffectMatrix(entries: readonly EffectMatrixEntry[]): {
+  status: ResultStatus;
+  missingVisuals: VisualFocus[];
+  failedVisuals: VisualFocus[];
+} {
+  const missingVisuals = REQUIRED_VISUALS.filter(
+    (visualFocus) => !entries.some((entry) => entry.visualFocus === visualFocus),
+  );
+  const failedVisuals = entries
+    .filter((entry) => entry.status === 'fail' || REQUIRED_EFFECT_INVARIANTS.some(
+      (key) => entry.invariants[key] !== true,
+    ))
+    .map((entry) => entry.visualFocus);
+  const status: ResultStatus = failedVisuals.length > 0
+    ? 'fail'
+    : missingVisuals.length > 0 || entries.some((entry) => entry.status === 'inconclusive')
+      ? 'inconclusive'
+      : entries.some((entry) => entry.status === 'unsupported')
+        ? 'unsupported'
+        : 'pass';
+  return { status, missingVisuals, failedVisuals };
+}
+
 export function runSceneCapabilityTest(
   scene: LubirthCapabilityScene,
   renderer: any,

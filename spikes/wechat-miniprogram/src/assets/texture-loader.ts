@@ -40,6 +40,36 @@ export type AssetLoadResult = {
   error?: string;
 };
 
+function normalizeWechatError(error: unknown, url: string): Error {
+  if (error instanceof Error) return error;
+  if (error && typeof error === 'object') {
+    const details = error as { errMsg?: unknown; errno?: unknown; errCode?: unknown };
+    const message = typeof details.errMsg === 'string'
+      ? details.errMsg
+      : JSON.stringify(error) || `downloadFile failed without error details: ${url}`;
+    const code = details.errno ?? details.errCode;
+    return new Error(code === undefined ? message : `${message} (errno ${String(code)})`);
+  }
+  const message = error === undefined || error === null || String(error).length === 0
+    ? `downloadFile failed without error details: ${url}`
+    : String(error);
+  return new Error(message);
+}
+
+export function formatAssetFailureStatus(
+  tier: AssetTier,
+  results: readonly AssetLoadResult[],
+): string | null {
+  const failed = results.find((result) => result.status === 'fail');
+  if (!failed) return null;
+  const error = failed.error ?? failed.status;
+  if (/domain list|合法域名|url not in domain/i.test(error)) {
+    const host = /^https:\/\/([^/]+)/.exec(failed.url)?.[1] ?? failed.url;
+    return `${tier.toUpperCase()} 下载被微信拦截：请把 ${host} 加入 downloadFile 合法域名`;
+  }
+  return `${tier.toUpperCase()} 纹理失败：${failed.id} · ${error}`;
+}
+
 function loadImage(createImage: () => any, path: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const image = createImage();
@@ -47,6 +77,15 @@ function loadImage(createImage: () => any, path: string): Promise<any> {
     image.onerror = (error: unknown) => reject(error instanceof Error ? error : new Error(String(error)));
     image.src = path;
   });
+}
+
+function configureTextureSampling(THREE: any, texture: any, entry: AssetManifestEntry): void {
+  if (entry.width === entry.height * 2 && THREE.RepeatWrapping !== undefined) {
+    texture.wrapS = THREE.RepeatWrapping;
+  }
+  if (THREE.ClampToEdgeWrapping !== undefined) {
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+  }
 }
 
 export class MiniProgramTextureLoader {
@@ -134,6 +173,7 @@ export class MiniProgramTextureLoader {
       } else if ('encoding' in texture) {
         texture.encoding = entry.colorSpace === 'srgb' ? this.THREE.sRGBEncoding : this.THREE.LinearEncoding;
       }
+      configureTextureSampling(this.THREE, texture, entry);
       texture.needsUpdate = true;
       const uploadStarted = this.now();
       await this.uploadTexture(texture);
@@ -252,6 +292,19 @@ function uploadedFileBytes(fileSystem: any, path: string): number | undefined {
 }
 
 async function uploadTexture(session: RuntimeSession, texture: any): Promise<void> {
+  const gl = session.gl as any;
+  if (typeof gl.getError === 'function') {
+    const noError = gl.NO_ERROR ?? 0;
+    const clearedErrors: unknown[] = [];
+    for (let index = 0; index < 16; index += 1) {
+      const error = gl.getError();
+      if (error === noError) break;
+      clearedErrors.push(error);
+    }
+    if (clearedErrors.length > 0) {
+      console.warn(`[TextureUpload] cleared pre-existing WebGL errors: ${clearedErrors.join(', ')}`);
+    }
+  }
   const renderer = session.renderer as any;
   if (typeof renderer.initTexture === 'function') {
     renderer.initTexture(texture);
@@ -279,7 +332,11 @@ async function uploadTexture(session: RuntimeSession, texture: any): Promise<voi
       scene.clear?.();
     }
   }
-  (session.gl as any).finish?.();
+  gl.finish?.();
+  if (typeof gl.getError === 'function') {
+    const error = gl.getError();
+    if (error !== (gl.NO_ERROR ?? 0)) throw new Error(`GPU upload WebGL error ${String(error)}`);
+  }
 }
 
 /** Creates the production loader without introducing window/document/Image globals. */
@@ -302,7 +359,7 @@ export function createWechatTextureLoader(
           bytes: uploadedFileBytes(fileSystem, response.tempFilePath),
           fromCache: Boolean(response.fromCache),
         }),
-        fail: (error: unknown) => reject(error instanceof Error ? error : new Error(String(error))),
+        fail: (error: unknown) => reject(normalizeWechatError(error, url)),
       });
     }),
     uploadTexture: (texture) => uploadTexture(session, texture),

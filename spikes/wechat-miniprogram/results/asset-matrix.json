@@ -1,12 +1,21 @@
 {
   "schemaVersion": "1.0.0",
   "status": "inconclusive",
-  "generatedAt": null,
+  "generatedAt": "2026-08-30T15:54:00.000Z",
   "tiers": {
     "2k": {
-      "status": "inconclusive",
-      "runIds": [],
-      "coldCacheRunIds": [],
+      "status": "pass",
+      "runIds": [
+        "equinox-shanghai-2k-assets-2k-mtfvtds4-une01v",
+        "equinox-shanghai-2k-assets-2k-mtfxwczp-1u10nd",
+        "equinox-shanghai-2k-effects-2k-mtfxwfmd-r6hpqq"
+      ],
+      "coldCacheRunIds": [
+        "equinox-shanghai-2k-assets-2k-mtfvtds4-une01v"
+      ],
+      "observedColdStatus": "pass",
+      "latestProductionEffectMatrixStatus": "pass",
+      "latestUploadGlAttributionStatus": "inconclusive",
       "warmCacheRunIds": []
     },
     "8k": {
@@ -23,8 +32,8 @@
     "runIds": []
   },
   "missingEvidence": [
-    "approved HTTPS resource domain",
-    "physical-device 2K cold and warm cache runs",
+    "physical-device 2K warm cache run",
+    "latest 2K per-texture GL attribution rerun",
     "physical-device 8K stress runs",
     "10-minute stability run",
     "10 page reentries"

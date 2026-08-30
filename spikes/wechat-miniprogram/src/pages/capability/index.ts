@@ -1,15 +1,25 @@
 import baseline from '../../astro/web-baseline.json';
 import { computeAstroSnapshot, computeAstroSnapshots, runSourceCharacterization } from '../../astro/entry.ts';
-import { createWechatTextureLoader, type MiniProgramTextureLoader } from '../../assets/texture-loader.ts';
+import {
+  createWechatTextureLoader,
+  formatAssetFailureStatus,
+  type MiniProgramTextureLoader,
+} from '../../assets/texture-loader.ts';
 import { SCENARIOS } from '../../config/scenarios.ts';
 import {
   finalizeRun,
   createRunResult,
   type DeviceMetadata,
+  type RunResult,
   type SourceFingerprint,
 } from '../../metrics/result-schema.ts';
+import { createCompleteValidationBundle } from '../../metrics/evidence-bundle.ts';
 import { ResultStore, type FileSystemAdapter } from '../../metrics/result-store.ts';
-import { ScreenshotStore, type ScreenshotFileSystem } from '../../metrics/screenshot-store.ts';
+import {
+  captureScreenshotEvidence,
+  ScreenshotStore,
+  type ScreenshotFileSystem,
+} from '../../metrics/screenshot-store.ts';
 import {
   LifecycleEvidenceSession,
   type LifecycleEvidencePersistence,
@@ -17,14 +27,17 @@ import {
   type LifecycleEventRecord,
   type LifecycleSummary,
 } from '../../lifecycle/lifecycle-evidence-session.ts';
-import { R108OfficialAdapter } from '../../runtime/r108-official-adapter.ts';
 import { R160Adapter } from '../../runtime/r160-adapter.ts';
 import {
   compareLoadedSceneConfig,
+  evaluateEffectMatrixReadiness,
   type LoadedSceneConfig,
 } from '../../runtime/loaded-config.ts';
-import type { RuntimeRoute, RuntimeSession } from '../../runtime/runtime-contract.ts';
-import { LubirthCapabilityScene } from '../../scene/lubirth-capability-scene.ts';
+import type { RuntimeAdapter, RuntimeRoute, RuntimeSession } from '../../runtime/runtime-contract.ts';
+import {
+  LubirthCapabilityScene,
+  resizeCapabilityViewport,
+} from '../../scene/lubirth-capability-scene.ts';
 import { RunHarness } from '../../tests/harness-self-test.ts';
 import { createAstroParityReport, type AstroSnapshot } from '../../tests/astro-parity-test.ts';
 import { summarizeAssetTier } from '../../tests/asset-tier-test.ts';
@@ -37,7 +50,14 @@ import {
   runPairedPipBenchmark,
 } from '../../tests/performance-benchmark-test.ts';
 import { runRuntimeCapabilityTest } from '../../tests/runtime-capability-test.ts';
-import { runSceneCapabilityTest } from '../../tests/scene-capability-test.ts';
+import {
+  evaluateProductionEffectMatrix,
+  runSceneCapabilityTest,
+} from '../../tests/scene-capability-test.ts';
+
+const R108AdapterConstructor = __SPIKE_RUNTIME_PROFILE__ === 'both'
+  ? (require('../../runtime/r108-official-adapter.ts') as typeof import('../../runtime/r108-official-adapter.ts')).R108OfficialAdapter
+  : null;
 
 function collectDeviceMetadata(): DeviceMetadata {
   const system = typeof wx.getSystemInfoSync === 'function' ? wx.getSystemInfoSync() : {};
@@ -68,6 +88,16 @@ function hasRealAppId(): boolean {
   } catch {
     return false;
   }
+}
+
+function createRuntimeAdapter(route: RuntimeRoute): RuntimeAdapter {
+  if (route === 'r108') {
+    if (!R108AdapterConstructor) {
+      throw new Error('r108 is not included in the 2K r160 startup profile');
+    }
+    return new R108AdapterConstructor();
+  }
+  return new R160Adapter();
 }
 
 function createFileSystemAdapter(): FileSystemAdapter {
@@ -140,21 +170,20 @@ async function captureCanvasScreenshot(
   if (typeof wx.canvasToTempFilePath !== 'function') {
     return { error: 'wx.canvasToTempFilePath unavailable' };
   }
-  const temporaryPath = await new Promise<string>((resolve, reject) => {
-    wx.canvasToTempFilePath({
-      canvas,
-      fileType: 'png',
-      quality: 1,
-      success: (result: any) => resolve(result.tempFilePath),
-      fail: (error: unknown) => reject(error instanceof Error ? error : new Error(String(error))),
-    });
+  const store = new ScreenshotStore(`${wx.env.USER_DATA_PATH}/results`, createScreenshotFileSystem());
+  return captureScreenshotEvidence({
+    runId,
+    store,
+    captureTemporaryPath: () => new Promise<string>((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas,
+        fileType: 'png',
+        quality: 1,
+        success: (result: any) => resolve(result.tempFilePath),
+        fail: (error: unknown) => reject(error),
+      });
+    }),
   });
-  try {
-    const store = new ScreenshotStore(`${wx.env.USER_DATA_PATH}/results`, createScreenshotFileSystem());
-    return { persistentPath: await store.persist(temporaryPath, runId) };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
-  }
 }
 
 function createLifecyclePersistence(): LifecycleEvidencePersistence {
@@ -279,6 +308,7 @@ Page({
     assetTier: '2k',
     pipEnabled: true,
     runtimeRoute: 'r160',
+    r108Available: __SPIKE_RUNTIME_PROFILE__ === 'both',
     running: false,
     hasResult: false,
     statusText: '等待运行',
@@ -302,6 +332,7 @@ Page({
   memoryWarningHandler: null as ((warning: unknown) => void) | null,
   contextLostHandler: null as ((event: any) => void) | null,
   contextRestoredHandler: null as ((event: any) => void) | null,
+  windowResizeHandler: null as (() => void) | null,
   benchmarkAbort: null as FrameWindowAbort | null,
   stableFrameAbort: null as FrameWindowAbort | null,
   highQualityDisabled: false,
@@ -353,6 +384,8 @@ Page({
           this.canvas.addEventListener('webglcontextrestored', this.contextRestoredHandler);
         }
       });
+    this.windowResizeHandler = () => this.refreshViewport();
+    wx.onWindowResize?.(this.windowResizeHandler);
     this.memoryWarningHandler = (warning: unknown) => {
       this.highQualityDisabled = true;
       const baselineTextures = this.assetLoader?.handleMemoryWarning();
@@ -372,15 +405,54 @@ Page({
     wx.onMemoryWarning?.(this.memoryWarningHandler);
   },
 
+  refreshViewport() {
+    wx.createSelectorQuery()
+      .select('#webgl')
+      .fields({ size: true })
+      .exec((result: Array<{ width?: number; height?: number }>) => {
+        const width = result?.[0]?.width ?? 0;
+        const height = result?.[0]?.height ?? 0;
+        if (width <= 0 || height <= 0) return;
+        this.canvasWidth = width;
+        this.canvasHeight = height;
+        if (this.runtimeSession && this.capabilityScene) {
+          resizeCapabilityViewport(
+            this.runtimeSession.renderer,
+            this.capabilityScene,
+            SCENARIOS[this.data.scenarioIndex],
+            width,
+            height,
+          );
+        } else {
+          this.runtimeSession?.renderer.setSize(width, height, false);
+        }
+      });
+  },
+
   onScenarioChange(event: any) {
     const scenarioIndex = Number(event.detail.value);
     if (this.data.running || scenarioIndex === this.data.scenarioIndex) return;
-    this.disposeLoadedScene();
-    this.setData({ scenarioIndex });
+    const textures = this.assetLoader?.getLoadedTextures('2k');
+    const canReuseTextures = Boolean(this.runtimeSession && this.assetLoader && textures && Object.keys(textures).length > 0);
+    if (!canReuseTextures) {
+      this.disposeLoadedScene();
+      this.setData({ scenarioIndex });
+      return;
+    }
+    this.stopSceneLoop();
+    this.capabilityScene?.dispose();
+    this.capabilityScene = null;
+    this.loadedSceneConfig = null;
+    this.loadedSceneStatus = null;
+    this.setData({ scenarioIndex }, () => this.rebuildSceneWithTextures(textures));
   },
 
   onTierChange(event: any) {
     const tier = event.currentTarget.dataset.tier;
+    if (tier !== '2k') {
+      this.setData({ statusText: '本轮已锁定 2K 生产特效验证', statusTone: 'inconclusive' });
+      return;
+    }
     if (tier === '8k' && this.highQualityDisabled) {
       this.setData({ statusText: '本次页面生命周期已因内存告警禁用 8K', statusTone: 'unsupported' });
       return;
@@ -453,8 +525,12 @@ Page({
   },
 
   onRuntimeRouteChange(event: any) {
-    const runtimeRoute = event.currentTarget.dataset.route;
+    const runtimeRoute = event.currentTarget.dataset.route as RuntimeRoute;
     if (this.data.running || runtimeRoute === this.data.runtimeRoute) return;
+    if (runtimeRoute === 'r108' && !this.data.r108Available) {
+      this.setData({ statusText: 'r108 位于独立对照构建，不进入 2K 特效启动包', statusTone: 'unsupported' });
+      return;
+    }
     this.disposeLoadedRuntime();
     this.setData({ runtimeRoute });
   },
@@ -548,6 +624,7 @@ Page({
     if (!this.harness) throw new Error('Harness is not initialized');
     const final = finalizeRun(this.harness.snapshot());
     const resultJson = JSON.stringify(final, null, 2);
+    console.log('[LuBirthValidation:JSON]', resultJson);
     const store = new ResultStore(wx.env.USER_DATA_PATH, createFileSystemAdapter());
     await store.writeRun(final);
     this.latestResult = resultJson;
@@ -586,16 +663,21 @@ Page({
   },
 
   async runRuntime() {
-    if (this.data.running) return;
+    if (this.data.running) return null;
     if (!this.canvas || !this.canvasWidth || !this.canvasHeight) {
       this.setData({ statusText: 'Canvas 尚未就绪', statusTone: 'fail' });
-      return;
+      return null;
     }
     this.disposeLoadedRuntime();
     this.setData({ running: true, statusText: `测试 ${this.data.runtimeRoute}…`, statusTone: 'inconclusive' });
     const harness = this.createHarness(`runtime-${this.data.runtimeRoute}`);
-    const Adapter = this.data.runtimeRoute === 'r108' ? R108OfficialAdapter : R160Adapter;
-    const adapter = new Adapter();
+    let adapter: RuntimeAdapter;
+    try {
+      adapter = createRuntimeAdapter(this.data.runtimeRoute);
+    } catch (error) {
+      this.setData({ running: false, statusText: String(error), statusTone: 'unsupported' });
+      return null;
+    }
     const options = {
       cssWidth: this.canvasWidth,
       cssHeight: this.canvasHeight,
@@ -636,14 +718,15 @@ Page({
       };
     });
     try {
-      await this.persistHarnessResult();
+      return await this.persistHarnessResult();
     } catch (error) {
       this.setData({ running: false, statusText: `运行时结果写入失败：${String(error)}`, statusTone: 'fail' });
+      return null;
     }
   },
 
   async runAstro() {
-    if (this.data.running) return;
+    if (this.data.running) return null;
     this.setData({ running: true, statusText: '运行天文一致性测试…', statusTone: 'inconclusive' });
     const harness = this.createHarness('astro-parity');
     await harness.runTest('shared astro source parity', 'astro', () => {
@@ -683,18 +766,19 @@ Page({
       };
     });
     try {
-      await this.persistHarnessResult();
+      return await this.persistHarnessResult();
     } catch (error) {
       this.setData({ running: false, statusText: `天文结果写入失败：${String(error)}`, statusTone: 'fail' });
+      return null;
     }
   },
 
   async runScene() {
-    if (this.data.running) return;
+    if (this.data.running) return null;
     if (!this.runtimeSession || this.loadedRuntimeRoute !== this.data.runtimeRoute) await this.runRuntime();
     if (!this.runtimeSession || this.loadedRuntimeRoute !== this.data.runtimeRoute) {
       this.setData({ statusText: '运行时未就绪，无法创建场景', statusTone: 'fail' });
-      return;
+      return null;
     }
     this.setData({ running: true, statusText: '编译核心场景与 PIP…', statusTone: 'inconclusive' });
     const harness = this.createHarness('scene-capability');
@@ -705,7 +789,7 @@ Page({
       latDeg: scenario.observer.latDeg,
       lonDeg: scenario.observer.lonDeg,
     });
-    await harness.runTest('production-representative scene shaders and PIP', 'scene', async () => {
+    await harness.runTest('2K production-effect scene shaders and PIP', 'scene', async () => {
       this.stopSceneLoop();
       this.disposeLoadedScene();
       this.capabilityScene = new LubirthCapabilityScene({
@@ -734,6 +818,11 @@ Page({
           pipResolution: 256,
           pipEnabled: Boolean(this.data.pipEnabled),
           singleDirectionalLight: result.invariants.singleDirectionalLight,
+          pipLayoutFixed: result.invariants.pipLayoutFixed,
+          productionEarthEffects: result.invariants.productionEarthEffects,
+          productionAtmosphereEffects: result.invariants.productionAtmosphereEffects,
+          productionCloudEffects: result.invariants.productionCloudEffects,
+          visualFocus: scenario.visualFocus,
           actualRuntimeRoute: this.loadedSceneConfig.runtimeRoute,
           actualAssetTier: this.loadedSceneConfig.assetTier,
           actualScenarioId: this.loadedSceneConfig.scenarioId,
@@ -744,22 +833,24 @@ Page({
     });
     this.startSceneLoop();
     try {
-      await this.persistHarnessResult();
+      return await this.persistHarnessResult();
     } catch (error) {
       this.setData({ running: false, statusText: `场景结果写入失败：${String(error)}`, statusTone: 'fail' });
+      return null;
     }
   },
 
   async runAssets() {
-    if (this.data.running) return;
+    if (this.data.running) return null;
     if (!this.runtimeSession || this.loadedRuntimeRoute !== this.data.runtimeRoute) await this.runRuntime();
     if (!this.runtimeSession || this.loadedRuntimeRoute !== this.data.runtimeRoute) {
       this.setData({ statusText: '运行时未就绪，无法验证纹理', statusTone: 'fail' });
-      return;
+      return null;
     }
     this.setData({ running: true, statusText: `加载 ${this.data.assetTier} 资源…`, statusTone: 'inconclusive' });
     const harness = this.createHarness(`assets-${this.data.assetTier}`);
     const resourceDomainReady = /^https:\/\//.test(__RESOURCE_BASE_URL__);
+    let failureStatusText: string | null = null;
     await harness.runTest(`${this.data.assetTier} remote texture and GPU upload`, 'assets', async () => {
       if (!resourceDomainReady) {
         return {
@@ -780,6 +871,7 @@ Page({
       this.assetLoader = loader;
       const loadStartedAt = Date.now();
       const tierResult = await loader.loadTier(this.data.assetTier);
+      failureStatusText = formatAssetFailureStatus(this.data.assetTier, tierResult.results);
       const summary = summarizeAssetTier(this.data.assetTier, tierResult.results);
       const scenario = SCENARIOS[this.data.scenarioIndex];
       const astro = computeAstroSnapshot({
@@ -858,9 +950,14 @@ Page({
     });
     this.startSceneLoop();
     try {
-      await this.persistHarnessResult();
+      const final = await this.persistHarnessResult();
+      if (failureStatusText && final.status !== 'pass') {
+        this.setData({ statusText: failureStatusText });
+      }
+      return final;
     } catch (error) {
       this.setData({ running: false, statusText: `资源结果写入失败：${String(error)}`, statusTone: 'fail' });
+      return null;
     }
   },
 
@@ -967,6 +1064,132 @@ Page({
     }
   },
 
+  async runEffectMatrix() {
+    if (this.data.running) return null;
+    let readiness = evaluateEffectMatrixReadiness({
+      runtimeReady: Boolean(this.runtimeSession),
+      loaderReady: Boolean(this.assetLoader),
+      loadedSceneStatus: this.loadedSceneStatus,
+      loadedConfig: this.loadedSceneConfig,
+    });
+    if (!readiness.ready) {
+      await this.runAssets();
+      readiness = evaluateEffectMatrixReadiness({
+        runtimeReady: Boolean(this.runtimeSession),
+        loaderReady: Boolean(this.assetLoader),
+        loadedSceneStatus: this.loadedSceneStatus,
+        loadedConfig: this.loadedSceneConfig,
+      });
+    }
+    if (!readiness.ready || !this.runtimeSession || !this.assetLoader) {
+      this.setData({ statusText: '2K 远程纹理未就绪，无法运行特效矩阵', statusTone: 'fail' });
+      return null;
+    }
+
+    const textures = this.assetLoader.getLoadedTextures('2k');
+    const originalScenarioIndex = this.data.scenarioIndex;
+    const harness = this.createHarness('effects-2k');
+    const matrixEntries: Array<{
+      visualFocus: 'day' | 'terminator' | 'night';
+      status: 'pass' | 'fail' | 'unsupported' | 'inconclusive';
+      invariants: ReturnType<LubirthCapabilityScene['auditInvariants']>;
+    }> = [];
+    let matrixStatus: RunResult['status'] = 'inconclusive';
+    this.setData({ running: true, statusText: '运行 2K 白昼 / 晨昏线 / 夜面特效矩阵…', statusTone: 'inconclusive' });
+    this.stopSceneLoop();
+
+    try {
+      for (const scenario of SCENARIOS) {
+        await harness.runTest(`2K ${scenario.visualFocus} production effects`, 'scene', async () => {
+          this.capabilityScene?.dispose();
+          const astro = computeAstroSnapshot({
+            id: scenario.id,
+            utc: scenario.utc,
+            latDeg: scenario.observer.latDeg,
+            lonDeg: scenario.observer.lonDeg,
+          });
+          this.capabilityScene = new LubirthCapabilityScene({
+            THREE: this.runtimeSession!.THREE,
+            renderer: this.runtimeSession!.renderer,
+            scenario,
+            assetTier: '2k',
+            textures,
+            astro,
+            pipEnabled: this.data.pipEnabled,
+            pipResolution: 256,
+            viewportWidth: this.canvasWidth,
+            viewportHeight: this.canvasHeight,
+          });
+          this.loadedSceneConfig = {
+            runtimeRoute: this.loadedRuntimeRoute ?? this.data.runtimeRoute,
+            assetTier: '2k',
+            scenarioId: scenario.id,
+            assetSource: 'remote',
+          };
+          const result = runSceneCapabilityTest(
+            this.capabilityScene,
+            this.runtimeSession!.renderer,
+            this.runtimeSession!.gl,
+          );
+          matrixEntries.push({
+            visualFocus: scenario.visualFocus,
+            status: result.status,
+            invariants: result.invariants,
+          });
+          const layout = this.capabilityScene.pip.layoutSnapshot();
+          const screenshot = await captureCanvasScreenshot(
+            this.canvas,
+            `${harness.snapshot().runId}-${scenario.visualFocus}`,
+          );
+          return {
+            status: result.status,
+            metrics: {
+              visualFocus: scenario.visualFocus,
+              shaderPrograms: result.shaderPrograms,
+              glError: result.glError,
+              pipLayoutFixed: result.invariants.pipLayoutFixed,
+              pipScreenX: layout.screenX,
+              pipScreenY: layout.screenY,
+              pipWidthPx: layout.widthPx,
+              pipHeightPx: layout.heightPx,
+              productionEarthEffects: result.invariants.productionEarthEffects,
+              productionAtmosphereEffects: result.invariants.productionAtmosphereEffects,
+              productionCloudEffects: result.invariants.productionCloudEffects,
+            },
+            notes: [JSON.stringify({ scenario, result, layout, screenshot })],
+          };
+        });
+      }
+
+      const matrix = evaluateProductionEffectMatrix(matrixEntries);
+      matrixStatus = matrix.status;
+      await harness.runTest('2K production effect matrix gate', 'scene', () => ({
+        status: matrix.status,
+        metrics: {
+          visualPresetCount: matrixEntries.length,
+          missingVisualCount: matrix.missingVisuals.length,
+          failedVisualCount: matrix.failedVisuals.length,
+        },
+        notes: [JSON.stringify({ matrix, entries: matrixEntries })],
+      }));
+    } finally {
+      this.capabilityScene?.dispose();
+      this.capabilityScene = null;
+      this.loadedSceneConfig = null;
+      this.loadedSceneStatus = null;
+      this.setData({ scenarioIndex: originalScenarioIndex });
+      this.rebuildSceneWithTextures(textures);
+      this.loadedSceneStatus = matrixStatus;
+    }
+
+    try {
+      return await this.persistHarnessResult();
+    } catch (error) {
+      this.setData({ running: false, statusText: `特效矩阵结果写入失败：${String(error)}`, statusTone: 'fail' });
+      return null;
+    }
+  },
+
   startSceneLoop() {
     if (!this.pageVisible || this.pageUnloaded || !this.runtimeSession || !this.capabilityScene || this.frameId !== null) return;
     const frame = (timestamp: number) => {
@@ -990,10 +1213,25 @@ Page({
   },
 
   async runAll() {
-    await this.runRuntime();
-    await this.runAstro();
-    await this.runScene();
-    await this.runAssets();
+    const runs: RunResult[] = [];
+    const collect = (run: RunResult | null) => {
+      if (run) runs.push(run);
+    };
+    collect(await this.runRuntime());
+    collect(await this.runAstro());
+    collect(await this.runAssets());
+    collect(await this.runEffectMatrix());
+    const bundle = createCompleteValidationBundle(runs);
+    const resultJson = JSON.stringify(bundle, null, 2);
+    this.latestResult = resultJson;
+    console.log('[LuBirthCompleteValidation:JSON]', resultJson);
+    this.setData({
+      running: false,
+      hasResult: true,
+      statusText: `完整验证：${bundle.status}`,
+      statusTone: bundle.status,
+      resultJson,
+    });
   },
 
   copyLatestResult() {
@@ -1040,6 +1278,8 @@ Page({
     this.capabilityScene?.dispose();
     this.assetLoader?.dispose();
     this.runtimeSession?.dispose();
+    if (this.windowResizeHandler) wx.offWindowResize?.(this.windowResizeHandler);
+    this.windowResizeHandler = null;
     if (this.lifecycleEvidence) {
       try {
         this.lifecycleEvidence.recordResourceCount(0);

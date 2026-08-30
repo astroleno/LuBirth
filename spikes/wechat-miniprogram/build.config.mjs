@@ -11,6 +11,11 @@ const repositoryRoot = resolve(spikeRoot, '../..');
 const sourceRoot = join(spikeRoot, 'src');
 const outputRoot = join(spikeRoot, 'miniprogram');
 const deviceBuild = process.env.SPIKE_DEVICE_BUILD === '1';
+const runtimeProfile = process.env.SPIKE_RUNTIME_PROFILE ?? (deviceBuild ? 'r160' : 'both');
+
+if (!['r160', 'both'].includes(runtimeProfile)) {
+  throw new Error(`Unsupported SPIKE_RUNTIME_PROFILE: ${runtimeProfile}`);
+}
 
 if (basename(outputRoot) !== 'miniprogram' || dirname(outputRoot) !== spikeRoot) {
   throw new Error(`Refusing to clean unexpected build directory: ${outputRoot}`);
@@ -79,6 +84,7 @@ await build({
   define: {
     __SPIKE_BUILD__: JSON.stringify(buildMetadata),
     __RESOURCE_BASE_URL__: JSON.stringify(process.env.SPIKE_RESOURCE_BASE_URL ?? ''),
+    __SPIKE_RUNTIME_PROFILE__: JSON.stringify(runtimeProfile),
   },
 });
 
