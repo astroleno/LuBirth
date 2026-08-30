@@ -1,0 +1,14 @@
+{
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "3.8.12",
+  "miniprogramRoot": "miniprogram/",
+  "projectname": "LuBirth-WeChat-Native-Spike",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "minified": true,
+    "postcss": true,
+    "urlCheck": true
+  }
+}

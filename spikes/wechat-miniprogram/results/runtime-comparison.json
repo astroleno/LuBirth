@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "inconclusive",
+  "generatedAt": null,
+  "recommendation": {
+    "route": null,
+    "decision": "inconclusive",
+    "reason": "physical-device-runtime-evidence-missing"
+  },
+  "routes": {
+    "r160": {
+      "threeVersion": "0.160.1",
+      "status": "inconclusive",
+      "adapterBoundary": [
+        "canvas facade",
+        "canvas-scoped RAF and Image",
+        "drawing-buffer DPR clamp",
+        "renderer lifecycle"
+      ],
+      "touchesThreeInternals": false,
+      "runIds": []
+    },
+    "r108": {
+      "adapterVersion": "threejs-miniprogram@0.0.8",
+      "threeVersion": "r108",
+      "status": "inconclusive",
+      "versionFallback": true,
+      "runIds": []
+    }
+  },
+  "missingEvidence": [
+    "real AppID",
+    "physical iOS and Android runs",
+    "shader and render-target logs",
+    "destroy/recreate lifecycle run"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/capability/index"],
+  "window": {
+    "navigationBarTitleText": "LuBirth Native Spike",
+    "navigationBarBackgroundColor": "#070b14",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#070b14"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

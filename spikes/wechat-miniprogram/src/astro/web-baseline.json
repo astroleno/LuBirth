@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "1.0.0",
+  "host": "web-bundled-node",
+  "generatedFromRevision": "48bdde113b179a92f2ed7dc355afd7c388f95541",
+  "astronomyEngineVersion": "2.1.19",
+  "astroSourceSha256": "89f9d1dbfedccca2292f2f49dcd4f96499c66a53a2072e9037b81f918d2711e5",
+  "sourceFingerprint": {
+    "revision": "48bdde113b179a92f2ed7dc355afd7c388f95541",
+    "dirty": false,
+    "dependencyLockSha256": "e672bcf0bcd362e60ac96f3beda802f339f755149581b88b006fbc8b1869ee61",
+    "assetManifestSha256": "7748347fb584ebec7891e90916ce3544a1bf755b0ae5745a8210a90d82103222",
+    "astroSourceSha256": "89f9d1dbfedccca2292f2f49dcd4f96499c66a53a2072e9037b81f918d2711e5"
+  },
+  "sourceFiles": {
+    "src/astro/ephemeris.ts": "dcb5234b86adc58ecfeb985b8cd69cda572f700bb0fecdac60c64cad26f93329",
+    "src/astro/autoTests.ts": "63a36920694efcc103d6746689b00beca43670a76cb1f2fde1370f48d94755d2",
+    "src/astro/fullLightingAutoTest.ts": "3ba20a06bdc08feaf2426a8179b997a30313eb9b0e262b5ade6088996878b9ae",
+    "src/astro/moonPhaseAutoTests.ts": "df8bd158f51f8865366efbccbd1ed9b9ba20c5c9b29ea49775c2374063f5692c"
+  },
+  "cases": [
+    {
+      "id": "equinox-shanghai",
+      "utc": "2024-03-21T12:00:00.000Z",
+      "latDeg": 31.2304,
+      "lonDeg": 121.4737,
+      "altDeg": -24.300850541716244,
+      "azDeg": 286.97705995770684,
+      "azDefined": true,
+      "illumination": 0.8762236199260709,
+      "sunWorld": { "x": 0.9992030526928788, "y": 0.014185148445112122, "z": 0.03731006637386482 },
+      "moonWorld": { "x": -0.7755430554802922, "y": 0.3195655183978478, "z": 0.5444362667451602 }
+    },
+    {
+      "id": "summer-solstice-shanghai",
+      "utc": "2024-06-21T12:00:00.000Z",
+      "latDeg": 31.2304,
+      "lonDeg": 121.4737,
+      "altDeg": -10.837990848452463,
+      "azDeg": 306.64480376195274,
+      "azDefined": true,
+      "illumination": 0.9947337592652538,
+      "sunWorld": { "x": 0.914737213290536, "y": 0.4037674327085966, "z": 0.015089430253424796 },
+      "moonWorld": { "x": -0.8716842665666669, "y": -0.47967143512336347, "z": 0.10040843463984972 }
+    },
+    {
+      "id": "winter-solstice-shanghai",
+      "utc": "2024-12-21T12:00:00.000Z",
+      "latDeg": 31.2304,
+      "lonDeg": 121.4737,
+      "altDeg": -38.002789677103266,
+      "azDeg": 263.50055227877533,
+      "azDefined": true,
+      "illumination": 0.6359194740397401,
+      "sunWorld": { "x": 0.9184665988485027, "y": -0.39549771574372095, "z": -0.0008146417387269941 },
+      "moonWorld": { "x": -0.239704719080584, "y": 0.1266161823187505, "z": -0.9625538894137424 }
+    },
+    {
+      "id": "equinox-equator-near-zenith",
+      "utc": "2024-03-21T12:00:00.000Z",
+      "latDeg": 0,
+      "lonDeg": 0,
+      "altDeg": 88.16608824846924,
+      "azDeg": 72.83094176288995,
+      "azDefined": true,
+      "illumination": 0.8762236199260709,
+      "sunWorld": { "x": 0.9994877941572039, "y": 0.009446836667509598, "z": 0.030576242538024396 },
+      "moonWorld": { "x": -0.7746977547856223, "y": 0.321082996535114, "z": 0.5447468201523968 }
+    },
+    {
+      "id": "arctic-circle-summer-midnight",
+      "utc": "2024-06-21T00:00:00.000Z",
+      "latDeg": 66.6,
+      "lonDeg": 0,
+      "altDeg": 0.5143829589613915,
+      "azDeg": 359.58409501564165,
+      "azDefined": true,
+      "illumination": 0.9856324253644377,
+      "sunWorld": { "x": -0.9141280457522012, "y": 0.40536061642370524, "z": -0.007258555080397439 },
+      "moonWorld": { "x": 0.8584956457834233, "y": -0.4641754532818608, "z": -0.21800544658673604 }
+    },
+    {
+      "id": "antarctic-circle-polar-night",
+      "utc": "2024-06-21T12:00:00.000Z",
+      "latDeg": -66.6,
+      "lonDeg": 0,
+      "altDeg": 0.44871167479033147,
+      "azDeg": 0.44068133515241925,
+      "azDefined": true,
+      "illumination": 0.9947337592652538,
+      "sunWorld": { "x": 0.9208095674746041, "y": 0.38993664681195767, "z": 0.007691028557931243 },
+      "moonWorld": { "x": -0.8817243286105054, "y": -0.4584269741296036, "z": 0.11138634443561436 }
+    },
+    {
+      "id": "date-line-east",
+      "utc": "2024-03-21T00:00:00.000Z",
+      "latDeg": 15,
+      "lonDeg": 179.9,
+      "altDeg": 75.22927978524996,
+      "azDeg": 172.56928968209854,
+      "azDefined": true,
+      "illumination": 0.8432472684678431,
+      "sunWorld": { "x": -0.9994938640465877, "y": 0.0060698082217268134, "z": -0.031227762669980903 },
+      "moonWorld": { "x": 0.7107013625986631, "y": 0.3544000704299134, "z": -0.6077040095965106 }
+    },
+    {
+      "id": "date-line-west",
+      "utc": "2024-03-21T00:00:00.000Z",
+      "latDeg": 15,
+      "lonDeg": -179.9,
+      "altDeg": 75.25295444263404,
+      "azDeg": 173.34863920993098,
+      "azDefined": true,
+      "illumination": 0.8432472684678431,
+      "sunWorld": { "x": -0.9994938365743234, "y": 0.006069798855684788, "z": -0.031228643771237134 },
+      "moonWorld": { "x": 0.7107083205073795, "y": 0.35440858976469375, "z": -0.6076909038833647 }
+    }
+  ]
+}

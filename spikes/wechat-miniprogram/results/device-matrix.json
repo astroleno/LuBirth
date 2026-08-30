@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": null,
+  "decision": "INCONCLUSIVE",
+  "decisionReasons": [
+    "real AppID evidence is missing",
+    "approved HTTPS resource-domain evidence is missing",
+    "required physical-device matrix has not been executed"
+  ],
+  "thresholds": {
+    "baseline2kMedianFpsMin": 30,
+    "baseline2kP95FrameMsMax": 50,
+    "pip256MedianDeltaMsMax": 2,
+    "pip512MedianDeltaMsMax": 2,
+    "pipPairedRounds": 3,
+    "stabilityDurationMs": 600000,
+    "reentryCount": 10
+  },
+  "requiredDevices": [
+    {
+      "slot": "ios-mainstream",
+      "status": "inconclusive",
+      "device": null,
+      "runIds": [],
+      "screenshots": []
+    },
+    {
+      "slot": "android-midrange",
+      "status": "inconclusive",
+      "device": null,
+      "runIds": [],
+      "screenshots": []
+    },
+    {
+      "slot": "android-lowend",
+      "status": "inconclusive",
+      "device": null,
+      "runIds": [],
+      "screenshots": []
+    }
+  ],
+  "optionalDevices": [
+    {
+      "slot": "ios-legacy",
+      "status": "inconclusive",
+      "device": null,
+      "runIds": [],
+      "screenshots": []
+    }
+  ],
+  "developerTools": {
+    "status": "diagnostic-only",
+    "runIds": []
+  }
+}

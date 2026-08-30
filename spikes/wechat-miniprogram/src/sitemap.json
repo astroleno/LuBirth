@@ -1,0 +1,4 @@
+{
+  "desc": "LuBirth native capability spike",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}

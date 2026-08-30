@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "inconclusive",
+  "generatedAt": null,
+  "tiers": {
+    "2k": {
+      "status": "inconclusive",
+      "runIds": [],
+      "coldCacheRunIds": [],
+      "warmCacheRunIds": []
+    },
+    "8k": {
+      "status": "inconclusive",
+      "runIds": [],
+      "coldCacheRunIds": [],
+      "warmCacheRunIds": []
+    }
+  },
+  "lifecycle": {
+    "status": "inconclusive",
+    "requiredDurationMs": 600000,
+    "requiredReentryCount": 10,
+    "runIds": []
+  },
+  "missingEvidence": [
+    "approved HTTPS resource domain",
+    "physical-device 2K cold and warm cache runs",
+    "physical-device 8K stress runs",
+    "10-minute stability run",
+    "10 page reentries"
+  ]
+}

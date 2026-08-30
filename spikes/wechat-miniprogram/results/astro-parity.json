@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "inconclusive",
+  "webBaseline": "src/astro/web-baseline.json",
+  "webSourceFingerprint": {
+    "revision": "48bdde113b179a92f2ed7dc355afd7c388f95541",
+    "dirty": false,
+    "dependencyLockSha256": "e672bcf0bcd362e60ac96f3beda802f339f755149581b88b006fbc8b1869ee61",
+    "assetManifestSha256": "7748347fb584ebec7891e90916ce3544a1bf755b0ae5745a8210a90d82103222",
+    "astroSourceSha256": "89f9d1dbfedccca2292f2f49dcd4f96499c66a53a2072e9037b81f918d2711e5"
+  },
+  "webCaseCount": 8,
+  "miniprogramCases": [],
+  "thresholds": {
+    "sunDirectionDeg": 0.01,
+    "moonDirectionDeg": 0.01,
+    "altDeg": 0.01,
+    "azDeg": 0.01,
+    "illumination": 0.000001
+  },
+  "localBundledCharacterization": {
+    "status": "pass",
+    "auto": "6/6",
+    "full": "40/40",
+    "moon": "6/6"
+  },
+  "missingEvidence": [
+    "physical-device miniprogram values",
+    "matching miniprogram run id"
+  ]
+}

@@ -1,0 +1,6 @@
+node_modules/
+miniprogram/
+project.private.config.json
+results/runs/
+results/screenshots/
+*.log

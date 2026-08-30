@@ -1,0 +1,56 @@
+<view class="page">
+  <view class="stage">
+    <canvas
+      id="webgl"
+      type="webgl"
+      class="canvas"
+      bindtouchstart="onTouchStart"
+      bindtouchmove="onTouchMove"
+      bindtouchend="onTouchEnd"
+      bindtouchcancel="onTouchCancel"
+    />
+    <view class="badge badge--{{statusTone}}">{{statusText}}</view>
+  </view>
+
+  <scroll-view class="controls" scroll-y enhanced>
+    <view class="section">
+      <text class="eyebrow">EXPERIMENT</text>
+      <picker range="{{scenarioLabels}}" value="{{scenarioIndex}}" bindchange="onScenarioChange" disabled="{{running}}">
+        <view class="select">{{scenarioLabels[scenarioIndex]}}</view>
+      </picker>
+      <view class="row">
+        <button size="mini" data-tier="2k" bindtap="onTierChange" disabled="{{running}}" type="{{assetTier === '2k' ? 'primary' : 'default'}}">2K</button>
+        <button size="mini" data-tier="8k" bindtap="onTierChange" disabled="{{running}}" type="{{assetTier === '8k' ? 'primary' : 'default'}}">8K</button>
+        <switch checked="{{pipEnabled}}" bindchange="onPipToggle" disabled="{{running}}" color="#5b8cff" />
+        <text>PIP</text>
+      </view>
+      <view class="row">
+        <button size="mini" data-route="r160" bindtap="onRuntimeRouteChange" disabled="{{running}}" type="{{runtimeRoute === 'r160' ? 'primary' : 'default'}}">Three r160</button>
+        <button size="mini" data-route="r108" bindtap="onRuntimeRouteChange" disabled="{{running}}" type="{{runtimeRoute === 'r108' ? 'primary' : 'default'}}">官方 r108</button>
+      </view>
+    </view>
+
+    <view class="section actions">
+      <button type="primary" bindtap="runAll" loading="{{running}}" disabled="{{running}}">运行完整验证</button>
+      <button bindtap="runRuntime" disabled="{{running}}">运行时能力测试</button>
+      <button bindtap="runAstro" disabled="{{running}}">天文一致性测试</button>
+      <button bindtap="runScene" disabled="{{running}}">核心场景 / PIP 测试</button>
+      <button bindtap="runAssets" disabled="{{running}}">远程资源 / GPU 上传测试</button>
+      <button bindtap="runBenchmark" disabled="{{running}}">真机性能基准（约 15 分钟）</button>
+      <button bindtap="runHarness" disabled="{{running}}">证据契约自测</button>
+      <button bindtap="startLifecycleTest" disabled="{{running || lifecycleActive}}">开始 / 继续 10 分钟与 10 次重入测试</button>
+      <button bindtap="finishLifecycleTest" disabled="{{running || !lifecycleActive}}">完成生命周期测试并写入汇总</button>
+      <view class="row">
+        <button size="mini" data-type="black-screen" bindtap="recordLifecycleFault" disabled="{{!lifecycleActive}}">记录黑屏</button>
+        <button size="mini" data-type="crash" bindtap="recordLifecycleFault" disabled="{{!lifecycleActive}}">记录崩溃</button>
+      </view>
+      <text class="result">{{lifecycleStatus}}</text>
+      <button bindtap="copyLatestResult" disabled="{{!hasResult}}">复制最新 JSON</button>
+    </view>
+
+    <view class="section">
+      <text class="eyebrow">LATEST RESULT</text>
+      <text selectable class="result">{{resultJson}}</text>
+    </view>
+  </scroll-view>
+</view>
