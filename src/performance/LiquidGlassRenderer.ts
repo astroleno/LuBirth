@@ -29,19 +29,34 @@ void main() {
   if (distance > 0.0) discard;
   vec2 normal = normalize(p - clamp(p, -halfSize + r, halfSize - r) + vec2(0.0001));
   float depth = -distance;
-  float bevel = min(20.0, r);
-  float lens = sin(clamp(depth / bevel, 0.0, 1.0) * 3.14159265);
-  vec2 offset = -normal * lens * strength - p * 0.018;
+  // Optical thickness is independent of the outline corner radius. Small
+  // rectangular corners still need a broad curved lens, not a one-pixel rim.
+  float bevel = min(22.0, min(halfSize.x, halfSize.y) * 0.65);
+  float t = clamp(depth / bevel, 0.0, 1.0);
+  float lens = sin(t * 3.14159265) * (1.0 - t * 0.35);
+  vec2 offset = -normal * lens * strength - p * 0.012;
   vec2 uv = clamp((pixel + offset) / viewport, 0.001, 0.999);
-  vec2 fringe = normal * lens * 0.65 / viewport;
+  vec2 fringe = normal * lens * 0.8 / viewport;
   vec3 color = vec3(texture2D(backdrop, uv + fringe).r,
                     texture2D(backdrop, uv).g,
                     texture2D(backdrop, uv - fringe).b);
-  // Subtle optical transmission and opposing light rims; the readable tint lives in CSS.
-  float rim = exp(-depth * 0.72);
-  float glint = pow(abs(dot(normal, normalize(vec2(-0.65, 0.76)))), 5.0);
-  color = color * 0.98 + vec3(0.78, 0.88, 1.0) * rim * (0.06 + 0.36 * glint);
-  color += vec3(0.36, 0.49, 0.65) * lens * 0.035;
+  // A lightly diffused interior retains moving scene detail. Specular reflection
+  // and the inner caustic make the curved edge legible even over black space.
+  vec2 blur = vec2(1.25) / viewport;
+  vec3 soft = (texture2D(backdrop, uv + vec2(blur.x, blur.y)).rgb
+             + texture2D(backdrop, uv + vec2(-blur.x, blur.y)).rgb
+             + texture2D(backdrop, uv + vec2(blur.x, -blur.y)).rgb
+             + texture2D(backdrop, uv - blur).rgb) * 0.25;
+  color = mix(color, soft, 0.25 * smoothstep(0.0, bevel, depth));
+  float direction = dot(normal, normalize(vec2(-0.6, 0.8)));
+  float specular = pow(max(direction, 0.0), 4.0)
+                 + pow(max(-direction, 0.0), 6.0) * 0.65;
+  float rim = exp(-depth * 0.48);
+  float caustic = exp(-pow((depth - bevel * 0.72) / 2.8, 2.0));
+  color *= 0.99 - lens * 0.08;
+  color += vec3(0.94, 0.97, 1.0) * rim * (0.08 + 0.48 * specular);
+  color += vec3(0.82, 0.9, 1.0) * caustic * (0.025 + 0.07 * specular);
+  color += vec3(0.8, 0.86, 0.94) * 0.022;
   gl_FragColor = vec4(color, 1.0);
 }`;
 
@@ -107,7 +122,7 @@ export class LiquidGlassRenderer {
       this.rects.push({
         rect: new THREE.Vector4(box.left - canvasRect.left, canvasRect.bottom - box.bottom, box.width, box.height),
         radius: parseFloat(getComputedStyle(element).borderTopLeftRadius) || 26,
-        strength: element.classList.contains('client-panel') ? 16 : 10,
+        strength: element.classList.contains('client-panel') ? 22 : 15,
       });
     }
     this.observed = elements;
