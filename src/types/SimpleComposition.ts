@@ -25,7 +25,7 @@ export interface SimpleComposition {
   specStrength: number;        // 镜面高光强度
   shininess: number;           // 镜面高光锐度
   broadStrength: number;       // 高光铺展强度
-  specFresnelK: number;        // 海面高光菲涅尔幂次（0关闭，默认5）
+  specFresnelK: number;        // 海面高光菲涅尔幂次（0关闭，默认1.8）
   terminatorSoftness: number;  // 晨昏线柔和度
   nightIntensity: number;      // 夜景强度
   nightFalloff: number;        // 夜景衰减系数（0.5-3.0，默认1.6）
@@ -292,8 +292,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   // 视觉效果参数
   specStrength: 0.8,           // 镜面高光强度
   shininess: 80,               // 镜面高光锐度
-  broadStrength: 0.18,         // 收敛宽高光，避免海面呈塑料质感
-  specFresnelK: 5.0,           // 水面 Schlick 近似幂次（0关闭）
+  broadStrength: 0.4,          // 保留原有海面高光铺展
+  specFresnelK: 1.8,           // 保留原有掠射角菲涅尔表现（0关闭）
   terminatorSoftness: 0.160,   // 晨昏线柔和度
   nightIntensity: 3.0,         // 夜景强度
   nightFalloff: 1.0,           // 夜景衰减系数（0.5-3.0，默认1.0）
@@ -315,30 +315,30 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   dayDiffuseGamma: 1.0,
   
   // 大气效果参数
-  rimStrength: 1.25,           // 克制的地表弧光
-  rimWidth: 3.40,              // 提高幂次，将弧光集中于地平线
+  rimStrength: 2.00,           // 原有地缘弧光强度，两端保持一致
+  rimWidth: 1.86,              // 原有弧光宽度
   rimHeight: 0.01,             // 大气弧光高度
   rimRadius: 0.005,            // 弧光贴合半径差 (0.001-0.01)
   haloWidth: 0.01,             // 近表面halo宽度
   
   // 大气辉光增强参数
   enableAtmosphere: true,      // 启用大气辉光增强
-  atmoIntensity: 1.0,          // 大气辉光强度
-  atmoThickness: 0.055,        // 收窄外层辉光
+  atmoIntensity: 1.2,          // 保留原有大气辉光强度
+  atmoThickness: 0.14,         // 保留原有外层弧光厚度
   atmoColor: [0.43, 0.65, 1.0], // 大气颜色 RGB (蓝色)
   atmoFresnelPower: 3.0,       // Fresnel曲线幂次默认
-  atmoContrast: 0.85,          // 辉光以向光侧为主
+  atmoContrast: 0.48,          // 保留原有夜侧轮廓
   atmoSoftness: 1.00,          // 主层柔度默认（增加柔度，改善边缘过渡）
   atmoNearShell: true,         // 启用近地薄壳渐变
-  atmoNearStrength: 0.45,      // 近地薄壳强度
+  atmoNearStrength: 0.6,       // 原有近地薄壳强度
   atmoNearThickness: 0.30,     // 近地薄壳厚度默认（更新）
-  atmoNearContrast: 0.80,      // 保留少量夜侧轮廓
+  atmoNearContrast: 0.40,      // 原有近地昼夜对比
   atmoNearSoftness: 1.0,       // 近地渐变柔度默认（增加柔度，改善边缘过渡）
   // 大气外缘融合实验参数（默认启用，解决边界融合问题）
   atmoSoftBoundary: 0.008,      // 外半径软边比例，解决边界硬边
   atmoPerceptualFloor: 0.004,    // 感知地板，去除极低强度灰尾
   atmoBlendUseAlpha: true,       // Alpha加权加法混合
-  atmoScaleHeight: 0.010,        // 高空更快衰减，避免厚重光晕
+  atmoScaleHeight: 0.025,        // 保留原有高空辉光过渡
   atmoOffset: 0.001,             // 大气辉光起始偏移，填补高度贴图空隙
                                 // 当高度贴图调整产生地形凸起时，此参数让大气辉光从更内层开始发光
                                 // 避免大气层与凸起地形之间的视觉空隙

@@ -785,7 +785,7 @@ export function Earth({
           float rimEffect = (innerRim * 0.7 + outerRim * 0.3) * rimStrength;
           
           // 根据光照方向调整弧光强度（昼侧更亮，夜侧更柔和）
-          float dayNightRim = 0.04 + 0.96 * smoothstep(-0.08, 0.35, ndl);
+          float dayNightRim = 0.15 + 0.85 * max(ndl, 0.0);
           rimEffect *= dayNightRim;
           
           // 渐变颜色：从边缘的亮蓝到中心的深蓝
