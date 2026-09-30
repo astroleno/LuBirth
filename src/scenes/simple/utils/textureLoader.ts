@@ -37,7 +37,11 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
       t.needsUpdate = true;
     };
     const load = (list: string[], index = 0, onReady?: () => void) => {
-      if (canceled || index >= list.length) return;
+      if (canceled) return;
+      if (index >= list.length) {
+        window.dispatchEvent(new CustomEvent('lubirth:asset-error', { detail: { path: paths[0] } }));
+        return;
+      }
       loader.load(assetUrl(list[index]), t => {
         if (canceled) { t.dispose(); return; }
         configure(t);
@@ -96,10 +100,12 @@ export const TEXTURE_PATHS = {
   // 地球贴图
   earthDay: [
     '/textures/8k_earth_daymap.webp',
+    '/textures/2k_earth_daymap.webp',
     '/textures/2k_earth_daymap.jpg'
   ],
   earthNight: [
     '/textures/8k_earth_nightmap.webp',
+    '/textures/2k_earth_nightmap.webp',
     '/textures/2k_earth_nightmap.jpg'
   ],
   earthNormal: [
@@ -108,6 +114,7 @@ export const TEXTURE_PATHS = {
   ],
   earthSpecular: [
     '/textures/8k_earth_specular_map.webp',
+    '/textures/2k_earth_specular_map.webp',
     '/textures/2k_earth_specular_map.jpg'
   ],
   earthDisplacement: [
@@ -121,17 +128,20 @@ export const TEXTURE_PATHS = {
   ],
   earthClouds: [
     '/textures/8k_earth_clouds.webp',
+    '/textures/2k_earth_clouds.webp',
     '/textures/2k_earth_clouds.jpg'
   ],
   
   // 月球贴图
   moon: [
+    '/textures/2k_moon.webp',
     '/textures/2k_moon.jpg'
   ],
   moonNormal: [
     '/textures/2k_moon_normal.jpg'
   ],
   moonDisplacement: [
+    '/textures/2k_moon_displacement.webp',
     '/textures/2k_moon_displacement.jpg',
     '/textures/moon_height_2k.jpg',
     '/textures/moon_height_2048x1024.jpg',
@@ -153,23 +163,28 @@ export function useTextureLoader(config: {
   const enabled = !!config.useTextures;
   const options = { maxSize: config.maxSize, anisotropy: config.anisotropy, staged: config.stagedLowFirst };
   const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, options);
+  const moonEnabled = enabled && config.useMoon !== false;
+  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, options);
+  const baseReady = !!earthMap && (!moonEnabled || !!moonMap);
   const earthNight = useManagedTexture(TEXTURE_PATHS.earthNight, enabled, options);
   // Earth derives its surface normals from DEM; the normal-map shader branch is disabled.
   const earthNormal = null;
-  const earthSpecular = useManagedTexture(TEXTURE_PATHS.earthSpecular, enabled, options);
-  const earthDisplacement = useManagedTexture(TEXTURE_PATHS.earthDisplacement, enabled, options);
-  const earthClouds = useManagedTexture(TEXTURE_PATHS.earthClouds, enabled && !!config.useClouds, options);
-  const moonEnabled = enabled && config.useMoon !== false;
-  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, options);
-  const moonNormalMap = useManagedTexture(TEXTURE_PATHS.moonNormal, moonEnabled, options);
-  const moonDisplacementMap = useManagedTexture(TEXTURE_PATHS.moonDisplacement, moonEnabled, options);
+  const earthSpecular = useManagedTexture(TEXTURE_PATHS.earthSpecular, enabled && baseReady, options);
+  const earthDisplacement = useManagedTexture(TEXTURE_PATHS.earthDisplacement, enabled && baseReady, options);
+  const earthClouds = useManagedTexture(TEXTURE_PATHS.earthClouds, enabled && baseReady && !!config.useClouds, options);
+  const moonNormalMap = useManagedTexture(TEXTURE_PATHS.moonNormal, moonEnabled && baseReady, options);
+  const moonDisplacementMap = useManagedTexture(TEXTURE_PATHS.moonDisplacement, moonEnabled && baseReady, options);
   const starsMilky = useManagedTexture(TEXTURE_PATHS.starsMilky, enabled && !!config.useMilkyWay, options);
   React.useEffect(() => {
-    if (earthMap && (!moonEnabled || moonMap)) {
+    const progress = { loaded: Number(!!earthMap) + Number(moonEnabled && !!moonMap), total: moonEnabled ? 2 : 1 };
+    (window as any).__lubirthAssetProgress = progress;
+    (window as any).__lubirthAssetsReady = baseReady || !enabled;
+    window.dispatchEvent(new CustomEvent('lubirth:asset-progress', { detail: progress }));
+    if (baseReady || !enabled) {
       (window as any).__lubirthAssetsReady = true;
       window.dispatchEvent(new CustomEvent('lubirth:assets-ready'));
     }
-  }, [earthMap, moonMap, moonEnabled]);
+  }, [earthMap, moonMap, moonEnabled, baseReady, enabled]);
   return { earthMap, earthNight, earthNormal, earthSpecular, earthDisplacement, earthClouds,
     moonMap, moonNormalMap, moonDisplacementMap, starsMilky };
 }

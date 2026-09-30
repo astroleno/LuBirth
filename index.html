@@ -5,12 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>初见地月·天地人</title>
     <meta name="theme-color" content="#000000" />
+    <meta name="description" content="输入出生时间与地点，看看那一刻的地球、月相与阳光。LuBirth 用真实天文数据呈现属于你的天地一瞬。" />
+    <meta property="og:title" content="LuBirth · 初见地月" />
+    <meta property="og:description" content="看看你出生时的地球、月相与阳光。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aitoshuu.me/lubirth/" />
+    <meta property="og:image" content="%BASE_URL%favicon.png" />
+    <style>
+      html,body{margin:0;background:#02040a;color:#eaf2ff}
+      .boot{position:fixed;inset:0;display:grid;place-content:center;text-align:center;font-family:system-ui,sans-serif;padding:24px}
+      .boot h1{font-size:42px;letter-spacing:.05em;margin:0 0 12px}.boot p{color:#a9b8d0;line-height:1.7}.boot small{color:#7f92b3}
+    </style>
     <link rel="icon" type="image/png" sizes="128x128" href="%BASE_URL%favicon.png" />
     <link rel="stylesheet" href="%BASE_URL%fonts/inter.css" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" role="status"><h1>LuBirth</h1><p>初见地月 · 天地人</p><small>正在准备星空…</small><noscript><p>请开启 JavaScript，进入地月场景。</p></noscript></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
   </html>

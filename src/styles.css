@@ -79,7 +79,11 @@ body {
 .scene-viewport { position: absolute; inset: 0; }
 .motion-controls { margin-top: 10px; }
 .motion-controls small { color: var(--muted); }
-.moon-credit { display: inline-block; margin-top: 10px; color: var(--muted); font-size: 12px; text-underline-offset: 2px; }
+.moon-credit { display: inline-flex; align-items: center; min-height: 44px; margin-top: 10px; color: var(--muted); font-size: 12px; text-underline-offset: 2px; }
+.asset-status { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 100; max-width: calc(100vw - 40px); padding: 10px 14px; border-radius: 8px; background: #101b2deb; color: #eaf2ff; font-size: 13px; text-align: center; }
+.canvas-wrap.ui-hidden ~ .asset-status { display: none; }
+.loading-progress { width: min(280px, 70vw); accent-color: #b5d5ff; height: 4px; }
+.loading-caption { color: #a9b8d0; font-size: 13px; line-height: 1.7; margin-top: 24px; }
 .quality-control { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .quality-control select { min-width: 120px; }
 .panel-toggle { display: none; }

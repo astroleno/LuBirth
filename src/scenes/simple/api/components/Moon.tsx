@@ -198,6 +198,7 @@ export function Moon({
 
   React.useEffect(() => {
     if (!terrainEnabled) return;
+    window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'loading' }));
     let active = true;
     let resource: { geometry: THREE.BufferGeometry; map: THREE.Texture } | null = null;
     setTerrain(null);
@@ -221,11 +222,16 @@ export function Moon({
       geometry.scale(1 / bounds.radius, 1 / bounds.radius, 1 / bounds.radius);
       resource = { geometry, map: mesh.material.map };
       setTerrain(resource);
+      window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'ready' }));
     }).catch(error => {
-      if (active) console.warn('[Moon] Terrain model unavailable; using sphere', error);
+      if (active) {
+        console.warn('[Moon] Terrain model unavailable; using sphere', error);
+        window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'error' }));
+      }
     });
     return () => {
       active = false;
+      window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'idle' }));
       resource?.geometry.dispose();
       resource?.map.dispose();
       setTerrain(null);

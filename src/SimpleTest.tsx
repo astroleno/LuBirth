@@ -300,7 +300,7 @@ function SceneContent({
     useMoon: composition.showMoon ?? true,
     maxSize: Math.min(profile.maxTextureSize, gl.capabilities.maxTextureSize),
     anisotropy: Math.min(profile.anisotropy, gl.capabilities.getMaxAnisotropy()),
-    stagedLowFirst: false
+    stagedLowFirst: true
   };
   
   const {
@@ -1335,7 +1335,7 @@ export default function SimpleTest() {
   // 保持首屏：晨昏线居中（不自动对齐出生点；改为用户手动触发）
 
   return (
-    <div ref={fullscreenRootRef} className={`canvas-wrap glass-ui${mobile ? " mobile-layout" : ""}${panelExpanded && !uiHidden ? " panel-expanded" : ""}${fullscreenMode ? " fullscreen-mode" : ""}${quality === 'battery' ? ' glass-battery' : ''}`}>
+    <div ref={fullscreenRootRef} className={`canvas-wrap glass-ui${mobile ? " mobile-layout" : ""}${panelExpanded && !uiHidden ? " panel-expanded" : ""}${uiHidden ? " ui-hidden" : ""}${fullscreenMode ? " fullscreen-mode" : ""}${quality === 'battery' ? ' glass-battery' : ''}`}>
       {/* 音乐播放器 - 跟随UI隐藏状态做动画 */}
       <div className="music-player" data-liquid-glass hidden={uiHidden} style={{
         position: 'fixed', 

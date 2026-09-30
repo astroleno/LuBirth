@@ -41,6 +41,10 @@ npm run build
 
 ### 性能诊断
 
+均衡档统一以 30 FPS 为目标，细腻档为 60 FPS，省电档为 24 FPS。高 DPI 窗口受总像素预算约束，并按持续帧率缓慢调整实际 DPR；界面文字仍由浏览器按原生分辨率绘制。`getLuBirthPerformance()` 的 `frames`、`measuredFps`、`effectiveDpr` 可用于实测，目标帧率不等于实际帧率。运行 `node --experimental-strip-types scripts/test-adaptive-resolution.mjs` 可验证分辨率策略边界。
+
+地形 AO 与夜光模糊使用 UV 缓存，相关纹理/参数改变时重算；太阳方向、地形法线和边缘光保持实时。2K 资源先加载基础地月画面，再加载细节；`scripts/compress-textures.py` 可用 libwebp 重建优先 WebP，高度/高光/法线保持无损，压缩后更大则保留 JPEG。加载提示显示真实基础资源完成数，并提供慢连接重试及月球地形状态。
+
 普通访问不加载天文测试模块；需要时在控制台 `await runSolarFullTests()` 或 `await runMoonPhaseAutoTests()`，首次调用会按需加载。`?autotest=1`、`?fulltest=1` 仍可触发测试。`cloudLayersDebug.getPerformance()` 的 `reactRenders` 可检查体感运动是否触发云层重复更新；`getLuBirthPerformance()` 可观察纹理、几何与绘制次数。
 
 云层仅在相机跨越近远景阈值时更新 React 状态；月球逐帧计算复用向量与四元数。地球使用现有 DEM 法线，不再下载未启用的传统法线图。关闭云层时先解除阴影贴图引用再释放资源，避免反复开关后显存占用增长。

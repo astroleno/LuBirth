@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface LoadingOverlayProps {
-  // 最长等待时长（兜底）。到点仍未就绪也会淡出，防止卡死。
+  // 等待超过此时长后提供重试或手动进入，不假装资源已加载完成。
   durationMs?: number;
   // 最小展示时长（防止太快闪一下）。
   minShowMs?: number;
@@ -24,8 +24,20 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
 
   const [visible, setVisible] = React.useState(true);
   const [fading, setFading] = React.useState(false);
+  const [progress, setProgress] = React.useState(() => (window as any).__lubirthAssetProgress ?? { loaded: 0, total: 2 });
+  const [slow, setSlow] = React.useState(false);
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => {
+    const update = (event: Event) => setProgress((event as CustomEvent).detail);
+    const error = () => setFailed(true);
+    window.addEventListener('lubirth:asset-progress', update);
+    window.addEventListener('lubirth:asset-error', error);
+    return () => { window.removeEventListener('lubirth:asset-progress', update); window.removeEventListener('lubirth:asset-error', error); };
+  }, []);
   const mountedAtRef = React.useRef<number>(performance.now());
   const finishedRef = React.useRef<boolean>(false);
+  const fadeTimerRef = React.useRef<ReturnType<typeof setTimeout>>();
+  React.useEffect(() => () => clearTimeout(fadeTimerRef.current), []);
 
   // 触发淡出与卸载
   const startFadeOut = React.useCallback(() => {
@@ -37,8 +49,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
         window.dispatchEvent(new CustomEvent('lubirth:overlay-fade-start'));
       } catch {}
       setFading(true);
-      const t = setTimeout(() => setVisible(false), fadeMs);
-      return () => clearTimeout(t);
+      fadeTimerRef.current = setTimeout(() => setVisible(false), fadeMs);
     } catch (e) {
       console.error('[LoadingOverlay] fade out failed:', e);
       setVisible(false);
@@ -49,6 +60,8 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
   React.useEffect(() => {
     try {
       let rafId: number | null = null;
+      let readyTimer: ReturnType<typeof setTimeout>;
+      let scheduled = false;
       let prewarmCount = 0;
 
       const maybeFinish = () => {
@@ -65,10 +78,12 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
       };
 
       const onReady = () => {
+        if (scheduled) return;
+        scheduled = true;
         // 等待最小展示时长
         const elapsed = performance.now() - mountedAtRef.current;
         const wait = Math.max(0, minShowMs - elapsed);
-        setTimeout(maybeFinish, wait);
+        readyTimer = setTimeout(maybeFinish, wait);
       };
 
       window.addEventListener(readyEventName, onReady as EventListener, { once: true });
@@ -79,10 +94,9 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
         if (already) onReady();
       } catch {}
 
-      // 兜底：最长等待到点自动淡出
+      // 网络较慢时保持真实状态，同时提供退出加载层的入口。
       const maxTimer = setTimeout(() => {
-        console.warn('[LoadingOverlay] max wait reached, fading out without ready event');
-        startFadeOut();
+        setSlow(true);
       }, durationMs);
 
       return () => {
@@ -90,6 +104,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
           window.removeEventListener(readyEventName, onReady as EventListener);
           if (rafId) cancelAnimationFrame(rafId);
           clearTimeout(maxTimer);
+          clearTimeout(readyTimer);
         } catch {}
       };
     } catch (e) {
@@ -125,9 +140,13 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
       <div className="lubirth-loading-container">
         <div className="lubirth-loading-line line-1">{renderWord('LuBirth')}</div>
         <div className="lubirth-loading-line line-2">{renderWord('Moon Earth You')}</div>
+        <div className="loading-caption">
+          <p>输入出生时间与地点，看看那一刻的地球与月相。</p>
+          <progress className="loading-progress" value={progress.loaded} max={progress.total} aria-label="地月基础贴图加载进度" />
+          <p>{failed ? '部分画面未能加载' : slow ? '连接较慢，地月画面仍在加载…' : `正在准备地月画面 · ${progress.loaded}/${progress.total}`}</p>
+          {(failed || slow) && <div><button className="btn" onClick={() => window.location.reload()}>重新加载</button>{' '}<button className="btn" onClick={startFadeOut}>先进入场景</button></div>}
+        </div>
       </div>
     </div>
   );
 }
-
-
