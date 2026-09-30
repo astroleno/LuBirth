@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { useEarthSurfaceCache } from './useEarthSurfaceCache';
 
 // 共享的 1x1 纹理占位，避免 WebGL 报错（无图像数据）
 const SOLID = (() => {
@@ -188,6 +189,15 @@ export function Earth({
   // 纹理从父组件传入，不再在这里加载
 
   // Earth Day/Night 混合着色器 - 完整移植自原Scene.tsx
+  const surfaceCache = useEarthSurfaceCache({
+    heightMap: earthDisplacement ?? SOLID.zeroLinear,
+    nightMap: earthNight ?? SOLID.black,
+    enabled: !!useTextures && (!!earthNight || !!earthDisplacement),
+    aoEnabled: !!earthDisplacement && displacementScaleRel !== 0 && !!receiveShadows,
+    blur: nightGlowBlur,
+    heightThreshold: aoHeightThreshold, distanceAttenuation: aoDistanceAttenuation,
+    maxOcclusion: aoMaxOcclusion, smoothFactor: aoSmoothFactor,
+  });
   const earthDNMaterial = useMemo(() => {
     if (!earthMap) return null;
     
@@ -210,6 +220,8 @@ export function Earth({
         ...THREE.UniformsUtils.clone(THREE.UniformsLib.lights),
         dayMap: { value: earthMap ?? SOLID.white },
         nightMap: { value: earthNight ?? SOLID.black },
+        surfaceCache: { value: SOLID.black },
+        surfaceCacheReady: { value: false },
         specMap: { value: earthSpecular ?? SOLID.black },
         normalMap: { value: hasNormal ? earthNormal : SOLID.neutralNormal },
         displacementMap: { value: hasDisp ? earthDisplacement : SOLID.zeroLinear },
@@ -355,67 +367,7 @@ export function Earth({
         }
         
         // 地形阴影(AO)计算 - 环境光遮蔽，基于高度差
-        float calculateAO(vec2 uv, sampler2D heightMap, int steps, float stepDistance, float heightThreshold, float distanceAttenuation, float maxOcclusion, float smoothFactor) {
-          if (steps <= 0) return 1.0;
-          
-          // 使用8个方向进行采样，计算平均高度差
-          vec2 directions[8];
-          directions[0] = vec2(1.0, 0.0);
-          directions[1] = vec2(0.7071, 0.7071);
-          directions[2] = vec2(0.0, 1.0);
-          directions[3] = vec2(-0.7071, 0.7071);
-          directions[4] = vec2(-1.0, 0.0);
-          directions[5] = vec2(-0.7071, -0.7071);
-          directions[6] = vec2(0.0, -1.0);
-          directions[7] = vec2(0.7071, -0.7071);
-          
-          float currentHeight = texture2D(heightMap, uv).r;
-          float totalOcclusion = 0.0;
-          float validSamples = 0.0;
-          
-          // 对每个方向计算AO
-          for (int dir = 0; dir < 8; dir++) {
-            float dirOcclusion = 0.0;
-            float maxHeightDiff = 0.0;
-            
-            for (int i = 1; i <= steps; i++) {
-              if (i > steps) break;
-              
-              vec2 sampleUV = uv + directions[dir] * stepDistance * float(i);
-              float sampleHeight = texture2D(heightMap, sampleUV).r;
-              
-              // 计算高度差
-              float heightDiff = sampleHeight - currentHeight;
-              maxHeightDiff = max(maxHeightDiff, heightDiff);
-              
-              if (heightDiff > heightThreshold) {
-                // 距离衰减 - 使用更强的衰减
-                float distanceFactor = pow(1.0 - (float(i) / float(steps)), distanceAttenuation);
-                // 遮挡强度 - 增强效果
-                float occlusion = clamp(heightDiff * distanceFactor * maxOcclusion * 8.0, 0.0, maxOcclusion);
-                
-                // 平滑处理 - 更锐利的过渡
-                occlusion *= smoothstep(heightThreshold, heightThreshold * 1.5, heightDiff);
-                
-                dirOcclusion += occlusion;
-              }
-            }
-            
-            // 如果该方向有明显的地势升高，增加额外的遮挡
-            if (maxHeightDiff > heightThreshold * 2.0) {
-              dirOcclusion += maxHeightDiff * maxOcclusion * 2.0;
-            }
-            
-            totalOcclusion += dirOcclusion;
-            validSamples += 1.0;
-          }
-          
-          // 计算平均AO并应用平滑因子
-          float avgOcclusion = totalOcclusion / max(validSamples, 1.0);
-          float ao = 1.0 - smoothstep(0.0, smoothFactor, avgOcclusion);
-          return max(ao, 0.15); // 确保最小亮度
-        }
-        
+
         // 地形投影(方向性)计算 - 基于光照方向
         float calculateDirectionalShadow(vec2 uv, vec3 lightDir, vec3 normal, sampler2D heightMap, int steps, float stepDistance, float softness, float sharpness, float contrast) {
           if (steps <= 0) return 1.0;
@@ -465,7 +417,9 @@ export function Earth({
         }
         
         uniform sampler2D dayMap; 
-        uniform sampler2D nightMap; 
+        uniform sampler2D nightMap;
+        uniform sampler2D surfaceCache;
+        uniform bool surfaceCacheReady;
         uniform sampler2D specMap; 
         uniform sampler2D normalMap;
         uniform sampler2D displacementMap;
@@ -532,69 +486,7 @@ export function Earth({
         }
         
         // 高质量高斯模糊采样 - 自适应核大小
-        vec3 sampleNightGlow(sampler2D nightMap, vec2 uv, float blur) {
-          if (blur <= 0.0) return texture2D(nightMap, uv).rgb;
-          
-          vec3 color = vec3(0.0);
-          float totalWeight = 0.0;
-          
-          // 根据模糊强度动态选择核大小
-          if (blur < 0.003) {
-            // 小模糊：3x3核
-            float weights3x3[9];
-            weights3x3[0] = 0.0625; weights3x3[1] = 0.125; weights3x3[2] = 0.0625;
-            weights3x3[3] = 0.125;  weights3x3[4] = 0.25;  weights3x3[5] = 0.125;
-            weights3x3[6] = 0.0625; weights3x3[7] = 0.125; weights3x3[8] = 0.0625;
-            
-            float scale3 = blur * 0.1;
-            for (int i = 0; i < 9; i++) {
-              int x = i / 3 - 1;
-              int y = i % 3 - 1;
-              vec2 offset = vec2(float(x), float(y)) * scale3;
-              color += texture2D(nightMap, uv + offset).rgb * weights3x3[i];
-              totalWeight += weights3x3[i];
-            }
-          } else if (blur < 0.008) {
-            // 中等模糊：5x5核
-            float weights5x5[25];
-            weights5x5[0] = 0.003765; weights5x5[1] = 0.015019; weights5x5[2] = 0.023792; weights5x5[3] = 0.015019; weights5x5[4] = 0.003765;
-            weights5x5[5] = 0.015019; weights5x5[6] = 0.059912; weights5x5[7] = 0.094907; weights5x5[8] = 0.059912; weights5x5[9] = 0.015019;
-            weights5x5[10] = 0.023792; weights5x5[11] = 0.094907; weights5x5[12] = 0.150342; weights5x5[13] = 0.094907; weights5x5[14] = 0.023792;
-            weights5x5[15] = 0.015019; weights5x5[16] = 0.059912; weights5x5[17] = 0.094907; weights5x5[18] = 0.059912; weights5x5[19] = 0.015019;
-            weights5x5[20] = 0.003765; weights5x5[21] = 0.015019; weights5x5[22] = 0.023792; weights5x5[23] = 0.015019; weights5x5[24] = 0.003765;
-            
-            float scale5 = blur * 0.05;
-            for (int i = 0; i < 25; i++) {
-              int x = i / 5 - 2;
-              int y = i % 5 - 2;
-              vec2 offset = vec2(float(x), float(y)) * scale5;
-              color += texture2D(nightMap, uv + offset).rgb * weights5x5[i];
-              totalWeight += weights5x5[i];
-            }
-          } else {
-            // 大模糊：7x7核 (σ = 1.5)
-            float weights7x7[49];
-            // 7x7高斯权重 (σ = 1.5)
-            weights7x7[0] = 0.000843; weights7x7[1] = 0.003898; weights7x7[2] = 0.009949; weights7x7[3] = 0.013690; weights7x7[4] = 0.009949; weights7x7[5] = 0.003898; weights7x7[6] = 0.000843;
-            weights7x7[7] = 0.003898; weights7x7[8] = 0.018016; weights7x7[9] = 0.045991; weights7x7[10] = 0.063242; weights7x7[11] = 0.045991; weights7x7[12] = 0.018016; weights7x7[13] = 0.003898;
-            weights7x7[14] = 0.009949; weights7x7[15] = 0.045991; weights7x7[16] = 0.117380; weights7x7[17] = 0.161509; weights7x7[18] = 0.117380; weights7x7[19] = 0.045991; weights7x7[20] = 0.009949;
-            weights7x7[21] = 0.013690; weights7x7[22] = 0.063242; weights7x7[23] = 0.161509; weights7x7[24] = 0.222242; weights7x7[25] = 0.161509; weights7x7[26] = 0.063242; weights7x7[27] = 0.013690;
-            weights7x7[28] = 0.009949; weights7x7[29] = 0.045991; weights7x7[30] = 0.117380; weights7x7[31] = 0.161509; weights7x7[32] = 0.117380; weights7x7[33] = 0.045991; weights7x7[34] = 0.009949;
-            weights7x7[35] = 0.003898; weights7x7[36] = 0.018016; weights7x7[37] = 0.045991; weights7x7[38] = 0.063242; weights7x7[39] = 0.045991; weights7x7[40] = 0.018016; weights7x7[41] = 0.003898;
-            weights7x7[42] = 0.000843; weights7x7[43] = 0.003898; weights7x7[44] = 0.009949; weights7x7[45] = 0.013690; weights7x7[46] = 0.009949; weights7x7[47] = 0.003898; weights7x7[48] = 0.000843;
-            
-            float scale7 = blur * 0.03;
-            for (int i = 0; i < 49; i++) {
-              int x = i / 7 - 3;
-              int y = i % 7 - 3;
-              vec2 offset = vec2(float(x), float(y)) * scale7;
-              color += texture2D(nightMap, uv + offset).rgb * weights7x7[i];
-              totalWeight += weights7x7[i];
-            }
-          }
-          
-          return color / totalWeight;
-        } 
+
         uniform int hasSpec; 
         uniform int hasNormal;
         uniform float specStrength; 
@@ -673,7 +565,7 @@ export function Earth({
           
           // 地形阴影(AO) - 环境遮蔽，独立计算
           if (enableSelfShadow == 1) {
-            aoShadow = calculateAO(vUv, displacementMap, 16, 0.1, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor);
+            aoShadow = surfaceCacheReady ? texture2D(surfaceCache, vUv).a : 1.0;
             aoShadow = mix(1.0, aoShadow, 2.0);
           }
           
@@ -716,7 +608,7 @@ export function Earth({
             
             // 夜景发光层：高斯模糊的夜景贴图
             if (nightGlowBlur > 0.0 && nightGlowOpacity > 0.0) {
-              vec3 nightGlowTex = sampleNightGlow(nightMap, vUv, nightGlowBlur);
+              vec3 nightGlowTex = surfaceCacheReady ? texture2D(surfaceCache, vUv).rgb : vec3(0.0);
               nightGlowTex = pow(nightGlowTex, vec3(nightGamma));
               // 发光层使用更宽的权重，创造柔光效果
               float nightGlowW = pow(1.0 - f, max(nightFalloff * 0.3, 0.2));
@@ -813,7 +705,7 @@ export function Earth({
             // 显示地形阴影(AO)强度
             float shadowStrength = 1.0;
             if (enableSelfShadow == 1) {
-              float ao = calculateAO(vUv, displacementMap, 16, 0.1, aoHeightThreshold, aoDistanceAttenuation, aoMaxOcclusion, aoSmoothFactor);
+              float ao = surfaceCacheReady ? texture2D(surfaceCache, vUv).a : 1.0;
               shadowStrength = ao;
             }
             gl_FragColor = vec4(vec3(1.0 - shadowStrength), 1.0); // AO阴影强度（黑色表示强阴影）
@@ -900,6 +792,11 @@ export function Earth({
     return mat;
   }, [earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size]);
 
+  useFrame(() => {
+    if (!earthDNMaterial) return;
+    earthDNMaterial.uniforms.surfaceCache.value = surfaceCache?.target.texture ?? SOLID.black;
+    earthDNMaterial.uniforms.surfaceCacheReady.value = !!surfaceCache?.ready;
+  });
   useEffect(() => () => earthDNMaterial?.dispose(), [earthDNMaterial]);
   useEffect(() => () => depthMaterial.dispose(), [depthMaterial]);
 

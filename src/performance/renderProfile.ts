@@ -10,7 +10,7 @@ export function createRenderProfile(mobile: boolean, quality: Quality = 'balance
     mobile,
     quality,
     dpr: mobile ? (battery ? 1 : detail ? 1.75 : 1.5) : (battery ? 1 : 2),
-    fps: battery ? 24 : mobile && !detail ? 30 : 60,
+    fps: battery ? 24 : detail ? 60 : 30,
     maxTextureSize: mobile || battery ? 2048 : 8192,
     anisotropy: mobile || battery ? 4 : 16,
     earthSegments: battery ? 64 : mobile ? 96 : 144,
