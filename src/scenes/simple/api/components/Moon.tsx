@@ -414,7 +414,7 @@ export function Moon({
             float albedo = dot(moonColor, vec3(0.2126, 0.7152, 0.0722));
             moonColor = mix(vec3(albedo), moonColor, 0.15);
             
-            // 计算朗伯漫反射
+            // Regolith: a bounded Lunar-Lambert approximation, retaining crater normals.
             vec3 normal = normalize(vNormal);
             if (normalScale != 0.0 && hasNormalMap > 0.5) {
               normal = perturbNormal2Arb( vViewPosition, normal, vUvRotated );
@@ -424,7 +424,13 @@ export function Moon({
             float signedNdl = dot(normalize(vNormal), lightDir);
             float edge = clamp(terminatorSoftness + terminatorRadius, 0.001, 0.03);
             float terminator = smoothstep(-edge, edge, signedNdl);
-            float diffuse = pow(max(dot(normal, lightDir), 0.0), max(0.001, shadingGamma));
+            float incidence = max(dot(normal, lightDir), 0.0);
+            float emission = max(dot(normal, normalize(-vViewPosition)), 0.0);
+            // Lommel-Seeliger single scattering reduces the artificial dark rim at full moon.
+            // The geometric terminator above still owns which hemisphere is sunlit.
+            float singleScatter = 2.0 * incidence / max(incidence + emission, 0.001);
+            float reflectance = mix(incidence, singleScatter, 0.55);
+            float diffuse = pow(max(reflectance, 0.0), max(0.001, shadingGamma));
             float a = clamp(phaseAngleRad, 0.0, 3.14159265);
             float surge = 1.0 + surgeStrength * exp(-pow(a / max(1e-4, surgeSigmaRad), 2.0));
             float fullness = 0.5 + 0.5 * cos(phaseAngleRad);

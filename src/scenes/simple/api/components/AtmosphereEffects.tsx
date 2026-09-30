@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 
@@ -116,13 +116,13 @@ export function AtmosphereEffects({
 
         void main() {
           // 光照方向计算
-          float ndl = max(dot(normalize(vWorldNormal), normalize(lightDir)), 0.0);
+          float ndl = dot(normalize(vWorldNormal), normalize(lightDir));
           
           // 基础大气颜色
           vec3 baseColor = color;
           
           // 昼夜对比（主层）：0=均匀，1=仅昼侧
-          float day = smoothstep(0.0, 0.3, ndl);
+          float day = smoothstep(-0.08, 0.25, ndl);
           float dayNightFactor = mix(1.0 - mainContrast, 1.0, day);
           float baseIntensity = intensity * dayNightFactor;
           
@@ -284,10 +284,10 @@ export function AtmosphereEffects({
         
         void main() {
           // 光照方向计算
-          float ndl = max(dot(normalize(vWorldNormal), normalize(lightDir)), 0.0);
+          float ndl = dot(normalize(vWorldNormal), normalize(lightDir));
           
           // 昼夜对比（0=均匀，1=仅昼侧），在光照项基础上保留夜侧底亮
-          float day = smoothstep(0.0, 0.3, ndl);
+          float day = smoothstep(-0.08, 0.25, ndl);
           float dayNightFactor = mix(1.0 - nearContrast, 1.0, day);
           
           // 近地薄壳：使用视线最近高度，集中在offset位置
@@ -389,6 +389,9 @@ export function AtmosphereEffects({
     }
     return mat;
   }, [lightDirection, intensity, color, thickness, nearShell, radius, nearThicknessFactor, nearStrength, fresnelPower, nearContrast, nearSoftness, useAlphaWeightedAdditive]);
+
+  useEffect(() => () => atmosphereMaterial.dispose(), [atmosphereMaterial]);
+  useEffect(() => () => nearShellMaterial?.dispose(), [nearShellMaterial]);
 
   // 更新uniforms
   useFrame(() => {

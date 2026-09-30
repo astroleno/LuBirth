@@ -750,13 +750,14 @@ export function Earth({
             float s1 = pow(max(dot(R, V), 0.0), shininess);
             float s2 = pow(max(dot(R, V), 0.0), broadShiny);
             float mask = texture2D(specMap, vUv).r; // 取红通道当mask
-            float specLight = sunI * shadowMask * cloudShadow;
+            float specLight = sunI * shadowMask * cloudShadow * smoothstep(0.0, 0.06, dot(n, L));
             
             // 菲涅尔效果：高光随观察角增强
             float fresnel = 1.0;
             if (specFresnelK > 0.0) {
               float NdotV = max(dot(n, V), 0.0);
-              fresnel = pow(1.0 - NdotV, specFresnelK);
+              // Water retains a small reflection face-on; grazing angles reflect more sky/sun.
+              fresnel = 0.02 + 0.98 * pow(1.0 - NdotV, specFresnelK);
             }
             
             specCol = lightColor * (s1 * specStrength + s2 * broadStrength) * mask * specLight * fresnel;
@@ -784,7 +785,7 @@ export function Earth({
           float rimEffect = (innerRim * 0.7 + outerRim * 0.3) * rimStrength;
           
           // 根据光照方向调整弧光强度（昼侧更亮，夜侧更柔和）
-          float dayNightRim = 0.15 + 0.85 * max(ndl, 0.0);
+          float dayNightRim = 0.04 + 0.96 * smoothstep(-0.08, 0.35, ndl);
           rimEffect *= dayNightRim;
           
           // 渐变颜色：从边缘的亮蓝到中心的深蓝
