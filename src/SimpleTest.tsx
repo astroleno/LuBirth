@@ -1434,8 +1434,8 @@ export default function SimpleTest() {
         </div>
       )}
 
-      {!uiHidden && (
-        <>
+      {/* Preserve the form and its loaded location data while fullscreen hides controls. */}
+      <div hidden={uiHidden}>
           {isDevMode ? (
             <div className="panel">
           {/* 顶部控制栏 */}
@@ -3870,8 +3870,7 @@ export default function SimpleTest() {
               {/* 开发者模式入口：已按需求在客户端隐藏 */}
             </div>
           )}
-        </>
-      )}
+      </div>
 
       {/* 客户端模式底部说明文案已按需求移除 */}
     </div>
