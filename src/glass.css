@@ -15,7 +15,7 @@
   border: 1px solid var(--glass-line);
   border-top-color: rgba(245,250,255,.58);
   border-bottom-color: rgba(165,200,235,.3);
-  border-radius: 28px;
+  border-radius: 12px;
   background: linear-gradient(145deg, rgba(223,239,255,.13), rgba(255,255,255,.015) 34%, rgba(142,184,228,.07)), var(--glass-fill);
   box-shadow: inset 0 1px 1px rgba(255,255,255,.24), inset 0 -1px 1px rgba(208,231,255,.14), 0 16px 40px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18);
   backdrop-filter: none;
@@ -27,7 +27,7 @@
 .glass-ui .label { font-size: 12px; font-weight: 500; letter-spacing: .2px; }
 .glass-ui .btn {
   min-height: 44px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid rgba(232,243,255,.2);
   background: linear-gradient(180deg, rgba(255,255,255,.13), rgba(210,230,255,.045));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 5px rgba(0,0,0,.08);
@@ -49,7 +49,7 @@
   background: rgba(4,12,23,.38) !important;
   color: var(--fg) !important;
   border: 1px solid rgba(214,232,255,.2) !important;
-  border-radius: 15px !important;
+  border-radius: 8px !important;
   box-shadow: inset 0 1px 3px rgba(0,0,0,.12), 0 1px 0 rgba(255,255,255,.06);
   padding: 11px 13px !important;
   min-height: 44px;
@@ -59,16 +59,18 @@
 .glass-ui .time-zone-label { color: var(--muted); font-size: 12px; margin-top: 7px; }
 .glass-ui :focus-visible { outline: 2px solid #d9edff; outline-offset: 3px; }
 .glass-ui .search-result-item:focus-visible { outline-offset: -3px; }
-.glass-ui .search-results { background: #172334; border-radius: 17px; border-color: var(--glass-line); backdrop-filter: none; }
+.glass-ui .search-results { background: #172334; border-radius: 10px; border-color: var(--glass-line); backdrop-filter: none; }
 .glass-ui .location-divider { gap: 12px; margin: 3px 0; }
 .glass-ui .location-divider::before, .glass-ui .location-divider::after { position: static; content: ''; height: 1px; flex: 1; background: rgba(221,238,255,.12); }
 .glass-ui .location-divider span { background: transparent; padding: 0; }
-.glass-ui .selected-location { border-radius: 13px; background: rgba(159,201,244,.1); border-color: rgba(159,201,244,.18); }
-.glass-ui .music-player { border-radius: 27px; padding: 0 12px 0 4px; }
-.glass-ui .music-player button { border-radius: 50%; }
+.glass-ui .selected-location { border-radius: 8px; background: rgba(159,201,244,.1); border-color: rgba(159,201,244,.18); }
+.glass-ui .music-player { border-radius: 10px; padding: 0 12px 0 4px; }
+.glass-ui .music-player button { border-radius: 8px; }
+.glass-ui .music-player[hidden] { display: none !important; }
+.glass-ui .scene-actions .btn { padding-inline: 8px; }
 .glass-ui .music-player input[type='range'] { accent-color: #d4e7fa; opacity: .76; height: 44px; }
 .glass-ui input[type='checkbox'] { accent-color: #c9e5ff; filter: none !important; }
-.glass-ui .restore-ui { border-radius: 999px; padding: 5px; }
+.glass-ui .restore-ui { border-radius: 10px; padding: 5px; }
 .glass-ui .restore-ui .btn { border-color: transparent; background: rgba(230,243,255,.06); }
 .glass-ui .moon-credit { color: var(--muted); }
 .glass-ui .quality-control { gap: 12px; }
@@ -79,20 +81,20 @@
   bottom: max(12px, env(safe-area-inset-bottom)) !important;
   width: auto;
   padding: 0 16px;
-  border-radius: 28px;
+  border-radius: 12px;
 }
 .glass-ui.mobile-layout .panel-toggle {
   background: linear-gradient(180deg, #25303f, #1a2433);
   margin: 0 -15px;
   padding: 0 16px;
   width: calc(100% + 30px);
-  border-radius: 27px 27px 0 0;
+  border-radius: 11px 11px 0 0;
   font-weight: 600;
 }
-.glass-ui.mobile-layout:not(.panel-expanded) .panel-toggle { background: transparent; border-radius: 27px; }
+.glass-ui.mobile-layout:not(.panel-expanded) .panel-toggle { background: transparent; border-radius: 11px; }
 .glass-ui.mobile-layout .panel-toggle > span:last-child { font-weight: 400; }
 .glass-ui.mobile-layout #client-panel-content { padding-top: 4px; }
-.glass-ui.mobile-layout .music-player { border-radius: 27px; }
+.glass-ui.mobile-layout .music-player { border-radius: 10px; }
 .glass-ui.glass-battery [data-liquid-glass] { --glass-fill: rgba(22,32,47,.96); }
 @media (hover: hover) {
   .glass-ui .btn:hover { background-color: rgba(233,244,255,.12); }

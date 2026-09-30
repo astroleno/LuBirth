@@ -1337,7 +1337,7 @@ export default function SimpleTest() {
   return (
     <div ref={fullscreenRootRef} className={`canvas-wrap glass-ui${mobile ? " mobile-layout" : ""}${panelExpanded && !uiHidden ? " panel-expanded" : ""}${fullscreenMode ? " fullscreen-mode" : ""}${quality === 'battery' ? ' glass-battery' : ''}`}>
       {/* 音乐播放器 - 跟随UI隐藏状态做动画 */}
-      <div className="music-player" data-liquid-glass style={{
+      <div className="music-player" data-liquid-glass hidden={uiHidden} style={{
         position: 'fixed', 
         top: uiHidden ? '-60px' : '10px',  // 隐藏时向上移出屏幕，显示时移回原位
         right: '16px',  // 与panel对齐 
@@ -3796,8 +3796,9 @@ export default function SimpleTest() {
                   >
                     Xiu!!!
                   </button>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div className="scene-actions" style={{ display: 'flex', gap: '8px' }}>
                     <SceneScreenshot />
+                    <button className="btn" onClick={() => setUiHidden(true)} style={{ flex: 1 }}>隐藏 UI</button>
                     <button className="btn" onClick={enterFullscreen} style={{ flex: 1 }}>全屏查看</button>
                   </div>
                   {mobile && isAlignedAndZoomed && reducedMotion && <div className="row motion-controls"><small>已跟随系统减少动态效果</small></div>}
