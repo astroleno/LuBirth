@@ -55,6 +55,7 @@ async function main() {
   if (manifest.site !== 'LuBirth' || !/^lubirth-[0-9a-f]{16}$/.test(manifest.releaseId)) throw new Error('invalid release manifest');
   const entries = manifest.entries.filter(entry => ['assets', 'media'].includes(entry.channel));
   const problems = [];
+  let timingAllowed = 0;
   for (const entry of entries) {
     const host = entry.channel === 'media' ? 'media.aitoshuu.me' : 'assets.aitoshuu.me';
     const url = new URL(`https://${host}/${entry.objectKey}`);
@@ -67,6 +68,9 @@ async function main() {
       if (!cache.includes('immutable') || !cache.includes('max-age=31536000')) throw new Error(`invalid cache-control: ${cache}`);
       const cors = response.headers.get('access-control-allow-origin');
       if (cors !== '*' && cors !== 'https://aitoshuu.me') throw new Error(`invalid CORS: ${cors}`);
+      const timing = response.headers.get('timing-allow-origin');
+      if (timing === '*' || timing?.split(',').map(value => value.trim()).includes('https://aitoshuu.me')) timingAllowed++;
+      else if (process.argv.includes('--require-timing')) throw new Error('missing Timing-Allow-Origin');
     } catch (error) {
       problems.push(`${entry.objectKey}: ${error.message}`);
     }
@@ -82,7 +86,7 @@ async function main() {
     }
   }
   if (problems.length) throw new Error(problems.join('\n'));
-  console.log(JSON.stringify({ releaseId: manifest.releaseId, checked: entries.length, bytes: entries.reduce((sum, entry) => sum + entry.bytes, 0), range: Boolean(media), cors: 'passed', cache: 'passed' }));
+  console.log(JSON.stringify({ releaseId: manifest.releaseId, checked: entries.length, bytes: entries.reduce((sum, entry) => sum + entry.bytes, 0), range: Boolean(media), cors: 'passed', cache: 'passed', timingAllowed }));
 }
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; });
