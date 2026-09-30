@@ -27,6 +27,24 @@ npm run dev
 npm run build
 ```
 
+### 手机网页与发布
+
+手机竖屏使用上方场景和底部可收起的面板，横屏使用左右布局。地点、时间、对齐、截图及音乐均可在手机上使用。面板中的“画面品质”提供均衡、省电、细腻三档；手机默认均衡档使用 2K 贴图、最多 192 段地球网格、3 层云与 30 FPS 渲染目标。切到后台会暂停渲染。画质配置集中在 `src/performance/renderProfile.ts`，贴图加载策略在 `src/scenes/simple/utils/textureLoader.ts`。
+
+按“Xiu!!!”进入放大后的月地同框；手机可在折叠面板中点“开启体感”，允许浏览器访问设备姿态后用倾斜驱动视差。“重校准”以当前手持角度为中心；无法获取传感器时，画面保持静态。视差仅改变观察相机及月球的展示偏移，不修改天文位置、月相或太阳方向。近景按需加载 `public/models/nasa-moon-topo-128.glb`，普通视图仍使用原有球体。模型从 [NASA SVS 14959](https://svs.gsfc.nasa.gov/14959/) 的地形 GLB 重采样为 16,384 个三角面，并将内嵌彩色图降为 2K；生成脚本为 `scripts/build_nasa_moon.py`（需 numpy、scipy、Pillow）。模型署名：NASA's Goddard Space Flight Center；此署名不表示 NASA 对本站背书。
+
+本地构建产物位于 `dist/`，Vite 的 `base` 为 `/lubirth/`。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
+
+界面玻璃通过当前帧的 GPU 纹理副本实现局部折射，文字保持独立清晰，控件保留小圆角矩形。每帧不重复渲染地月场景；省电、减少透明度及增强对比设置会跳过折射并释放副本。“隐藏 UI”与“全屏查看”是独立操作，恢复设置会保留地点和时间输入。截图调用 `captureLuBirth()`，只输出干净场景。`getLuBirthPerformance()` 可检查玻璃绘制次数、纹理字节数与场景资源。
+
+海面反光包含正视角的低反射底值，并保留原有菲涅尔高光铺展；地缘 rim 与大气弧光沿用原有强度和厚度，手机与桌面使用同一套效果参数。月面结合 Lambert 与 Lommel–Seeliger 近似保留地形层次；这属于视觉材质近似，不是辐射标定模型，几何月相仍由原天文算法确定。
+
+### 性能诊断
+
+普通访问不加载天文测试模块；需要时在控制台 `await runSolarFullTests()` 或 `await runMoonPhaseAutoTests()`，首次调用会按需加载。`?autotest=1`、`?fulltest=1` 仍可触发测试。`cloudLayersDebug.getPerformance()` 的 `reactRenders` 可检查体感运动是否触发云层重复更新；`getLuBirthPerformance()` 可观察纹理、几何与绘制次数。
+
+云层仅在相机跨越近远景阈值时更新 React 状态；月球逐帧计算复用向量与四元数。地球使用现有 DEM 法线，不再下载未启用的传统法线图。关闭云层时先解除阴影贴图引用再释放资源，避免反复开关后显存占用增长。
+
 ## 📁 项目结构
 
 ```
@@ -203,7 +221,10 @@ function getMoonPhase(localISO: string, latDeg: number, lonDeg: number): MoonPha
 ```
 
 说明：
-- 基于 `astronomy-engine` 的太阳/月球几何关系计算得到月相；明亮比例与相位角可直接驱动 UI 或材质参数。
+- 月相统一使用 `astronomy-engine` 的 `Illumination` 与 `MoonPhase`：物理相位角为满月 0°、新月 180°；月相周期角为新月 0°、上弦 90°、满月 180°、下弦 270°。UI 与材质共用同一结果。
+- 相机锁定展示采用盈月右亮、亏月左亮的固定图示方向，明亮比例按地心月相计算；不模拟当地地平线倾角、天平动或月食。输入时间仍按现有经度时区规则转换为 UTC。
+- 月面使用中性光色，NASA 贴图保留少量原始色差，并经过标准色彩空间输出；夜面仅保留极弱轮廓，避免将新月显示成亮球。
+- `runMoonPhaseAutoTests()` 包含 [USNO 2026 年月相时刻](https://aa.usno.navy.mil/api/moon/phases/year?year=2026) 的独立日期对照、明亮面积、盈亏方向及本地时间转换回归。
 
 使用示例：
 

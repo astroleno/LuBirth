@@ -1,0 +1,13 @@
+# LuBirth fullscreen screenshot public release — 2026-09-28
+
+- Public URL: https://aitoshuu.me/lubirth/
+- Final release ID: `lubirth-cbcc8ae651ebc36b`. Built from the current worktree (`sourceMode: worktree`); the package manifest records `gitHead` and `sourceDigest`. No Git commit was created.
+- Fullscreen behavior: a full-screen entry is available in the client panel and development panel. The 3D scene fills the viewport, with screenshot and exit controls retained. Native Fullscreen API is used when available; otherwise the page uses a viewport-filling mode. The screenshot preview is mounted inside the fullscreen element when native fullscreen is active. Screenshot capture waits for the WebGL canvas to resize so an immediate tap does not save the prior half-height frame.
+- Local validation: `npx tsc --noEmit`, `npm run build`, and `git diff --check` passed. Browser checks passed for native fullscreen, viewport fallback, screenshot preview/save, exit/restore, and immediate capture after entering fullscreen at 390×844. The saved PNG matched the full 844 CSS-pixel canvas height (1266 pixels at device scale 1.5).
+- COS/CDN: 34 create-only objects uploaded through `deploy/upload-cos-release.py` to `tongye-1327162705` (`ap-shanghai`) under `releases/aitoshuu-me/lubirth-cbcc8ae651ebc36b/`. `deploy/verify-cdn-release.mjs` passed for 33 delivery files, including hashes, CORS, immutable caching, and media Range. Two initial verification attempts hit transient CDN timeouts; a full retry passed. The affected MP3 hash also matched over HTTPS during diagnosis.
+- Origin: `deploy/stage-origin.mjs` checked the two-file staging plan. `deploy/apply-origin-release.mjs` staged both files with matching hashes and switched `/www/wwwroot/lubirth-current` to `/www/wwwroot/lubirth-releases/lubirth-cbcc8ae651ebc36b/web`.
+- Public: `deploy/verify-public-release.mjs` passed for HTML and health-marker hashes, TLS, `/lubirth` redirect, missing-asset 404, and preservation of the home page. Browser verification on the public route confirmed the final release ID and a complete-height PNG captured immediately after entering native fullscreen.
+
+The intermediate release `lubirth-3a28a19db2fbebb1` was published during QA but superseded after finding the immediate-capture resize issue. The last stable pre-fullscreen rollback target is `lubirth-ae45b9692b770f8c`; rollback switches only the `lubirth-current` symlink after verifying its release directory and public response. Immutable COS objects remain untouched.
+
+Physical iPhone Safari behavior remains untested. The viewport fallback cannot remove browser chrome where the platform disallows native fullscreen.

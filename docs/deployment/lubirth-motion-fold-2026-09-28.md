@@ -1,0 +1,11 @@
+# LuBirth motion and folded UI public release — 2026-09-28
+
+- Public URL: https://aitoshuu.me/lubirth/
+- Release ID: `lubirth-29e8697c0e0c09c3`, packaged from the current worktree without creating a Git commit. The package manifest records `gitHead` and `sourceDigest`.
+- Removed the floating “拖动看视差” strip and pointer-driven parallax. The near-view parallax now follows device orientation only when the user enables it in the existing collapsible client panel. Without sensor data the camera returns to its neutral position. The NASA model credit is available in that panel.
+- The fullscreen action now reuses `uiHidden`: entering fullscreen hides the existing panel and music UI; the existing `restore-ui` area provides screenshot and “显示 UI” actions. Exiting native fullscreen also restores the panel.
+- Local validation: TypeScript, Vite build, and `git diff --check` passed. At 390×844, browser QA confirmed that dragging did not change the camera, the floating prompt was absent, motion controls were in the collapsible panel, native fullscreen and viewport fallback both produced full-height PNGs, and the panel returned after exit.
+- COS/CDN: 34 create-only objects uploaded through `deploy/upload-cos-release.py` to `tongye-1327162705` (`ap-shanghai`) under `releases/aitoshuu-me/lubirth-29e8697c0e0c09c3/`. Full `deploy/verify-cdn-release.mjs` passed for 33 delivery files, including hashes, CORS, immutable caching, and media Range. The first two runs met intermittent CDN fetch errors; the third full run passed.
+- Origin/public: `deploy/stage-origin.mjs` checked the two-file plan. `deploy/apply-origin-release.mjs` staged files with matching hashes and switched `/www/wwwroot/lubirth-current` to `/www/wwwroot/lubirth-releases/lubirth-29e8697c0e0c09c3/web`. `deploy/verify-public-release.mjs` passed for TLS, HTML and health hashes, redirect, missing-asset 404, and home-page preservation. Public browser QA confirmed this release ID, the revised controls, complete-height PNG, and UI restoration.
+
+Prior release `lubirth-cbcc8ae651ebc36b` remains available as a rollback target through the LuBirth symlink. Immutable COS objects remain untouched. Physical-phone sensor behavior remains untested.
