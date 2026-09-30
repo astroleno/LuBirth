@@ -158,7 +158,7 @@ export function IntegratedCloudSystem({
             displacementBias={composition.cloudDisplacementBias || 0.02}
             scrollSpeedU={composition.cloudScrollSpeedU || 0.0003}
             scrollSpeedV={composition.cloudScrollSpeedV || 0.00015}
-            numLayers={lodConfig.nearClose.numLayers}
+            numLayers={lodConfig.nearClose?.numLayers ?? 1}
             layerSpacing={composition.cloudLayerSpacing || 0.00025}
             useTriplanar={composition.cloudUseTriplanar || true}
             triplanarScale={0.1}
@@ -167,7 +167,7 @@ export function IntegratedCloudSystem({
           />
           
           {/* 体积渲染 - 暂时禁用 */}
-          {false && lodConfig.nearClose.useVolume && (
+          {false && lodConfig.nearClose?.useVolume && (
             <div>
               {/* 体积渲染组件将在第二阶段实现 */}
               <mesh>

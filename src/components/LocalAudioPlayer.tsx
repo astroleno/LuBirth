@@ -119,7 +119,7 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
         onEnded={onEnd}
         onLoadedMetadata={onLoadedMetadata}
         onTimeUpdate={onTimeUpdate}
-        preload="metadata"
+        preload="none"
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 400, justifyContent: 'center', height: 52 }}>
@@ -130,8 +130,9 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
             background: 'transparent',
             color: '#fff',
             border: 'none',
-            width: 28,
-            height: 28,
+            width: 44,
+            height: 44,
+            flexShrink: 0,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -157,12 +158,13 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
 
         <input
           type="range"
+          aria-label="音乐播放进度"
           min={0}
           max={Math.floor(duration || 0)}
           step={1}
           value={Math.min(Math.floor(progress), Math.floor(duration || 0))}
           onChange={(e) => handleSeek(Number(e.target.value))}
-          style={{ flex: '0 1 340px', maxWidth: '100%', opacity: 0.15, margin: 0, alignSelf: 'center' }}
+          style={{ flex: '0 1 340px', maxWidth: '100%', margin: 0, alignSelf: 'center' }}
         />
       </div>
     </div>

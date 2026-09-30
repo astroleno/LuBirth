@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 
 // 相机控制工具 - 移除分层渲染逻辑
-export function useCameraControl(composition: any) {
+export function useCameraControl(composition: any, frame?: { width: number; height: number }) {
   const { camera, size, gl } = useThree();
   
   React.useEffect(() => {
@@ -47,13 +47,14 @@ export function useCameraControl(composition: any) {
       // 视口偏移（主点纵向偏移，-5..+5，上为正）
       const offsetY = composition?.viewOffsetY ?? 0;
       if (camera instanceof THREE.PerspectiveCamera) {
-        if (Math.abs(offsetY) > 1e-6) {
-          const fullW = size?.width ?? gl?.domElement?.width ?? 0;
-          const fullH = size?.height ?? gl?.domElement?.height ?? 0;
+        const fullW = frame?.width ?? size.width;
+        const fullH = frame?.height ?? size.height;
+        camera.aspect = fullW / fullH;
+        if (Math.abs(offsetY) > 1e-6 || fullW !== size.width || fullH !== size.height) {
           // 将 [-5,+5] 映射为像素偏移，正向上。PerspectiveCamera.setViewOffset 的 y 向下为正，因此取反。
           const yPx = Math.round((offsetY * 0.1) * fullH);
           const yParam = -yPx;
-          camera.setViewOffset(fullW, fullH, 0, yParam, fullW, fullH);
+          camera.setViewOffset(fullW, fullH, 0, yParam, size.width, size.height);
         } else if ((camera as THREE.PerspectiveCamera).view !== null) {
           camera.clearViewOffset();
         }
@@ -76,7 +77,7 @@ export function useCameraControl(composition: any) {
           position: camera.position.toArray(),
           target: [lookAtX, lookAtY, lookAtZ],
           actualDistance: camera.position.length(),
-          fov: camera.fov,
+          fov: camera instanceof THREE.PerspectiveCamera ? camera.fov : null,
           near: camera.near,
           far: camera.far,
           mode: 'position-then-orient',
@@ -91,7 +92,7 @@ export function useCameraControl(composition: any) {
     } catch (error) {
       console.error('[SimpleCamera] Error:', error);
     }
-  }, [camera, gl, size?.width, size?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY]);
+  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY]);
 }
 
 // 地球位置计算
@@ -200,7 +201,8 @@ export function getScreenAnchoredPosition(
   screenX: number, 
   screenY: number, 
   distance: number,
-  camera: THREE.Camera
+  camera: THREE.Camera,
+  target = new THREE.Vector3(),
 ): THREE.Vector3 {
   try {
     // 确保相机矩阵是最新的
@@ -212,20 +214,20 @@ export function getScreenAnchoredPosition(
     const ndcZ = 0.5; // 中间深度
     
     // 创建NDC空间的点并反投影到世界空间
-    const ndcPoint = new THREE.Vector3(ndcX, ndcY, ndcZ);
+    const ndcPoint = target.set(ndcX, ndcY, ndcZ);
     const worldPoint = ndcPoint.unproject(camera);
     
     // 计算从相机到屏幕点的方向
     const direction = worldPoint.sub(camera.position).normalize();
     
     // 沿方向移动指定距离得到最终位置
-    const finalPosition = camera.position.clone().add(direction.multiplyScalar(distance));
+    const finalPosition = direction.multiplyScalar(distance).add(camera.position);
     
     return finalPosition;
   } catch (error) {
     console.error('[ScreenAnchoredPosition] Error:', error);
     // 兜底：相机前方固定位置
-    return camera.position.clone().add(new THREE.Vector3(0, 0, -distance));
+    return target.copy(camera.position).setZ(camera.position.z - distance);
   }
 }
 

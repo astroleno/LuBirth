@@ -1,4 +1,4 @@
-import { AstroTime, Body, Observer, Equator as EquatorFn, Horizon as HorizonFn, Illumination as IlluminationFn, Search } from 'astronomy-engine';
+import { AstroTime, Body, Observer, SiderealTime, Equator as EquatorFn, Horizon as HorizonFn, Illumination as IlluminationFn, Search } from 'astronomy-engine';
 import { logger } from '../utils/logger';
 
 // 导入验证函数
@@ -482,8 +482,8 @@ export function calculateTerminatorLongitude(dateUtc: Date, latDeg: number, lonD
     // 但这是近似值，准确的计算需要考虑地球曲率和大气折射
     
     // 将太阳赤经赤经转换为经度（简化计算）
-    const sunGst = time.gst; // 格林威治恒星时
-    let sunLongitude = ((sunRa - sunGst * 15) % 360 + 360) % 360; // 太阳地理经度
+    const sunGst = SiderealTime(time); // 格林威治恒星时，单位为小时
+    let sunLongitude = (((sunRa - sunGst) * 15) % 360 + 360) % 360;
     if (sunLongitude > 180) sunLongitude -= 360;
     
     // 黄昏点在太阳西侧90°

@@ -1,4 +1,4 @@
-import { AstroTime, Body, Illumination } from 'astronomy-engine';
+import { getMoonPhaseAtTime } from '../scenes/simple/api/moonPhase';
 
 export type RenderDay = { iso: string; fraction: number; angleDeg: number; brightSide: 'LEFT' | 'RIGHT' };
 export type RenderMonthReport = {
@@ -14,10 +14,10 @@ export function runMoonPhaseRenderValidation(year: number, month1to12: number): 
   const daysInMonth = new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(Date.UTC(year, month1to12 - 1, d, 12, 0, 0));
-    const info = Illumination(Body.Moon, new AstroTime(dt));
-    const frac = Math.max(0, Math.min(1, info.phase_fraction));
-    const angleDeg = info.phase_angle; // 0≈满月, 180≈新月
-    const brightSide = Math.sin((angleDeg * Math.PI) / 180) >= 0 ? 'RIGHT' : 'LEFT';
+    const info = getMoonPhaseAtTime(dt);
+    const frac = info.illumination;
+    const angleDeg = info.phaseAngleRad * 180 / Math.PI;
+    const brightSide = info.cycleAngleDeg < 180 ? 'RIGHT' : 'LEFT';
     rows.push({ iso: dt.toISOString(), fraction: +frac.toFixed(6), angleDeg: +angleDeg.toFixed(3), brightSide });
   }
   let iFull = 0, iNew = 0;
@@ -35,4 +35,3 @@ export function runMoonPhaseRenderValidation(year: number, month1to12: number): 
   console.log('[MoonPhaseRenderValidation:JSON]', JSON.stringify(report, null, 2));
   return report;
 }
-

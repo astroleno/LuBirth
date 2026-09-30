@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 
 // 性能监控工具
 class PerformanceMonitor {
+  reactRenders = 0;
   private frameCount = 0;
   private lastTime = 0;
   private fps = 0;
@@ -37,7 +38,7 @@ class PerformanceMonitor {
     const avgMemory = this.memoryUsage.length > 0 
       ? this.memoryUsage.reduce((a, b) => a + b, 0) / this.memoryUsage.length 
       : 0;
-    return { fps: this.fps, avgMemory };
+    return { fps: this.fps, avgMemory, reactRenders: this.reactRenders };
   }
 }
 
@@ -761,6 +762,8 @@ export function Clouds({
     }
   }, [texture, lightDir, lightColor, strength, sunI, cloudGamma, cloudBlack, cloudWhite, cloudContrast, displacementScale, displacementBias, scrollSpeedU, scrollSpeedV, useTriplanar, triplanarScale, useVolumeScattering, volumeDensity, scatteringStrength, scatteringG, useFresnel, fresnelPower, fresnelStrength, opacity]);
 
+  useEffect(() => () => cloudMaterial?.dispose(), [cloudMaterial]);
+
   // 更新着色器uniforms
   useEffect(() => {
     if (cloudMaterial) {
@@ -914,8 +917,7 @@ export function Clouds({
     try {
       // 同步相机位置（菲涅尔效果需要）
       if (state.camera && cloudMaterial.uniforms.camPos) {
-        const cameraPos = state.camera.getWorldPosition(new THREE.Vector3());
-        (cloudMaterial.uniforms.camPos.value as THREE.Vector3).copy(cameraPos);
+        state.camera.getWorldPosition(cloudMaterial.uniforms.camPos.value as THREE.Vector3);
       }
       
       // 同步球心位置（支持球体移动）
@@ -1087,17 +1089,21 @@ export function CloudsWithLayers({
   onUvUpdate?: (offset: THREE.Vector2) => void;
 }) {
   // 共享的UV滚动值，确保所有层同步
+  perfMonitor.reactRenders++;
   const sharedUvOffset = useRef({ u: 0, v: 0 });
   
   // 相机距离检测（用于近距离优化）
-  const cameraRef = useRef<THREE.Camera>();
-  const [cameraDistance, setCameraDistance] = React.useState(15);
+  const [isCloseView, setIsCloseView] = React.useState(false);
+  const closeViewRef = useRef(false);
   
   useFrame((state, delta) => {
     if (state.camera) {
-      cameraRef.current = state.camera;
-      const distance = state.camera.position.length();
-      setCameraDistance(distance);
+      const close = state.camera.position.lengthSq() < 64;
+      // Only the near/far boundary affects JSX. Sensor motion stays outside React.
+      if (close !== closeViewRef.current) {
+        closeViewRef.current = close;
+        setIsCloseView(close);
+      }
     }
     
     // 更新共享的UV滚动值
@@ -1115,8 +1121,6 @@ export function CloudsWithLayers({
 
   // 根据相机距离调整参数 - 修复Z轴叠加问题
   const getOptimizedParams = (layerIndex: number) => {
-    const isCloseView = cameraDistance < 8; // 近距离观察阈值
-    
     if (isCloseView) {
       // 近距离观察：真正的Z轴叠加，避免XY平面位移
       return {

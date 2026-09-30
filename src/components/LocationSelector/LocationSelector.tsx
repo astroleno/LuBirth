@@ -12,6 +12,7 @@ import {
   getCitiesByProvinceName
 } from './dataProcessor';
 import { provinces } from './administrativeData';
+import { assetUrl } from '../../utils/assetUrl';
 
 interface LocationSelectorProps {
   onLocationChange: (location: SelectedLocation) => void;
@@ -37,12 +38,21 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const onLocationChangeRef = React.useRef(onLocationChange);
+  onLocationChangeRef.current = onLocationChange;
 
   // 加载数据
   useEffect(() => {
+    const controller = new AbortController();
+    setIsLoading(true);
+    setLoadError(false);
     const loadData = async () => {
       try {
-        const response = await fetch('/data/全国各地方省市经纬度及地方行政区号simple.csv');
+        const response = await fetch(assetUrl('data/全国各地方省市经纬度及地方行政区号simple.csv'), { signal: controller.signal });
+        if (!response.ok) throw new Error(`Location data: ${response.status}`);
         const csvText = await response.text();
         
         const data = parseCSVData(csvText);
@@ -57,7 +67,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
         if (initialLocation?.province && initialLocation?.city && initialLocation?.district) {
           const coords = getLocationCoords(tree, initialLocation.province, initialLocation.city, initialLocation.district);
           if (coords) {
-            onLocationChange({
+            onLocationChangeRef.current({
               province: initialLocation.province,
               city: initialLocation.city,
               district: initialLocation.district,
@@ -66,13 +76,16 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
           }
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('Failed to load location data:', error);
+        setLoadError(true);
         setIsLoading(false);
       }
     };
     
     loadData();
-  }, [onLocationChange, initialLocation]);
+    return () => controller.abort();
+  }, [initialLocation?.province, initialLocation?.city, initialLocation?.district, loadAttempt]);
 
   // 省份选择
   const handleProvinceChange = useCallback((province: string) => {
@@ -119,6 +132,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
 
   // 搜索结果选择
   const handleSearchResultSelect = useCallback((result: any) => {
+    // Focus can reopen suggestions through onFocus; close them after restoring it.
+    searchInputRef.current?.focus();
     setSelectedProvince(result.province);
     setSelectedCity(result.city);
     setSelectedDistrict(result.district);
@@ -137,10 +152,15 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   if (isLoading) {
     return (
       <div className={`location-selector loading ${className}`}>
-        <div>加载位置数据...</div>
+        <div role="status">加载地点…</div>
       </div>
     );
   }
+
+  if (loadError) return <div className={`location-selector ${className}`}>
+    <p role="alert">地点加载失败，请检查网络后重试。</p>
+    <button type="button" className="btn" onClick={() => setLoadAttempt(value => value + 1)}>重新加载地点</button>
+  </div>;
 
   // 使用固定的省份数据，确保层级正确
   const provinceList = provinces.map(p => p.name).sort();
@@ -150,31 +170,41 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   return (
     <div className={`location-selector ${className}`}>
       {/* 搜索框 */}
-      <div className="location-search">
+      <div className="location-search" onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowSearchResults(false);
+      }} onKeyDown={event => {
+        if (event.key === 'Escape') {
+          searchInputRef.current?.focus();
+          setShowSearchResults(false);
+        }
+      }}>
         <input
+          ref={searchInputRef}
           type="text"
+          aria-label="搜索出生地点"
           placeholder="搜索城市或地区..."
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => searchQuery && setShowSearchResults(true)}
-          onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
           className="search-input"
         />
-        {showSearchResults && searchResults.length > 0 && (
+        {showSearchResults && (
           <div className="search-results">
+            {searchResults.length === 0 && <div className="search-empty" role="status">没有找到地点，试试城市或区县名。</div>}
             {searchResults.map((result, index) => (
-              <div
+              <button
+                type="button"
                 key={index}
                 className="search-result-item"
                 onClick={() => handleSearchResultSelect(result)}
               >
-                <div className="result-name">
+                <span className="result-name">
                   {result.province} {result.city} {result.district}
-                </div>
-                <div className="result-coords">
+                </span>
+                <span className="result-coords">
                   {result.lon.toFixed(4)}, {result.lat.toFixed(4)}
-                </div>
-              </div>
+                </span>
+              </button>
             ))}
           </div>
         )}
@@ -189,6 +219,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
       <div className="location-cascader">
         <div className="cascader-row">
           <select
+            aria-label="出生省份"
             value={selectedProvince}
             onChange={(e) => handleProvinceChange(e.target.value)}
             className="cascader-select"
@@ -202,6 +233,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
           </select>
 
           <select
+            aria-label="出生城市"
             value={selectedCity}
             onChange={(e) => handleCityChange(e.target.value)}
             disabled={!selectedProvince}
@@ -216,6 +248,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
           </select>
 
           <select
+            aria-label="出生区县"
             value={selectedDistrict}
             onChange={(e) => handleDistrictChange(e.target.value)}
             disabled={!selectedCity}

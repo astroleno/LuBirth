@@ -1,8 +1,10 @@
 import React from 'react';
 import SimpleTest from './SimpleTest';
 import LoadingOverlay from './components/LoadingOverlay';
+import { useMobileLayout } from './performance/renderProfile';
 
 export default function App() {
+  const mobile = useMobileLayout();
   React.useEffect(() => {
     try { 
       console.log('[App] mounted - using SimpleTest scene'); 
@@ -13,7 +15,12 @@ export default function App() {
   return (
     <>
       {/* 载入 3s，淡出更柔和 */}
-      <LoadingOverlay durationMs={4000} fadeMs={2000} />
+      <LoadingOverlay
+        durationMs={mobile ? 6000 : 4000}
+        minShowMs={mobile ? 300 : 1200}
+        fadeMs={mobile ? 450 : 2000}
+        prewarmFrames={mobile ? 1 : 3}
+      />
       <SimpleTest />
     </>
   );

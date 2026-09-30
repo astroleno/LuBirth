@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 
 // 共享的 1x1 纹理占位，避免 WebGL 报错（无图像数据）
 const SOLID = (() => {
@@ -25,6 +26,7 @@ export function Earth({
   lightDirection, 
   tiltDeg, 
   yawDeg,
+  autoRotate = false,
   segments = 144,
   useTextures,
   lightColor,
@@ -103,6 +105,7 @@ export function Earth({
   lightDirection: THREE.Vector3;
   tiltDeg: number;
   yawDeg: number;
+  autoRotate?: boolean;
   segments?: number;
   useTextures: boolean;
   lightColor: THREE.Color;
@@ -176,6 +179,12 @@ export function Earth({
   earthSpecular?: THREE.Texture;
   earthDisplacement?: THREE.Texture;
 }) {
+  const rotationRef = React.useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (autoRotate && rotationRef.current) {
+      rotationRef.current.rotation.y += Math.min(delta, 0.1) * Math.PI * 2 / 225;
+    }
+  });
   // 纹理从父组件传入，不再在这里加载
 
   // Earth Day/Night 混合着色器 - 完整移植自原Scene.tsx
@@ -196,9 +205,9 @@ export function Earth({
     
     const material = new THREE.ShaderMaterial({
       lights: true,
-      uniforms: THREE.UniformsUtils.merge([
-        THREE.UniformsLib[ 'lights' ],
-        {
+      uniforms: {
+        // Clone mutable light uniforms, but keep textures owned by the loader.
+        ...THREE.UniformsUtils.clone(THREE.UniformsLib.lights),
         dayMap: { value: earthMap ?? SOLID.white },
         nightMap: { value: earthNight ?? SOLID.black },
         specMap: { value: earthSpecular ?? SOLID.black },
@@ -248,7 +257,7 @@ export function Earth({
         enableShadow: { value: receiveShadows ? 1 : 0 },
         cloudShadowMap: { value: cloudShadowMap ?? SOLID.white },
         cloudShadowStrength: { value: cloudShadowStrength ?? 0.4 },
-        enableCloudShadow: { value: enableCloudShadow ? 1 : 0 },
+        enableCloudShadow: { value: enableCloudShadow && !!cloudShadowMap ? 1 : 0 },
         // cloudUvOffset: { value: cloudUvOffset ?? new THREE.Vector2(0, 0) }, // 不再使用UV偏移方式
         // DEM地形参数 - 只要有高度贴图就启用DEM法线计算
         enableDEMNormal: { value: earthDisplacement ? 1 : 0 },
@@ -268,8 +277,7 @@ export function Earth({
         directionalShadowSoftness: { value: directionalShadowSoftness },
         directionalShadowSharpness: { value: directionalShadowSharpness },
         directionalShadowContrast: { value: directionalShadowContrast },
-        }
-      ]),
+      },
       vertexShader: `
         #include <common>
         varying vec2 vUv; 
@@ -822,7 +830,7 @@ export function Earth({
         }
       `,
       // 在 WebGL1 下启用导数扩展；WebGL2 不需要
-      extensions: { derivatives: true },
+      extensions: { derivatives: true } as any,
       transparent: false,
       depthWrite: true,
       depthTest: true,
@@ -891,6 +899,9 @@ export function Earth({
     return mat;
   }, [earthDisplacement, displacementScaleRel, displacementMid, displacementContrast, size]);
 
+  useEffect(() => () => earthDNMaterial?.dispose(), [earthDNMaterial]);
+  useEffect(() => () => depthMaterial.dispose(), [depthMaterial]);
+
   // 更新着色器uniforms
   useEffect(() => {
     if (earthDNMaterial) {
@@ -927,15 +938,15 @@ export function Earth({
         if (earthDNMaterial.uniforms.hasNormal) {
           earthDNMaterial.uniforms.hasNormal.value = 0; // 禁用传统法线贴图
         }
-        if (earthDNMaterial.uniforms.normalMap && earthNormal) {
-          earthDNMaterial.uniforms.normalMap.value = earthNormal;
+        if (earthDNMaterial.uniforms.normalMap) {
+          earthDNMaterial.uniforms.normalMap.value = earthNormal ?? SOLID.neutralNormal;
         }
         if (earthDNMaterial.uniforms.normalFlip) {
           earthDNMaterial.uniforms.normalFlip.value.set(normalFlipX ? -1 : 1, normalFlipY ? -1 : 1);
         }
         // 置换相关
-        if (earthDNMaterial.uniforms.displacementMap && earthDisplacement) {
-          earthDNMaterial.uniforms.displacementMap.value = earthDisplacement;
+        if (earthDNMaterial.uniforms.displacementMap) {
+          earthDNMaterial.uniforms.displacementMap.value = earthDisplacement ?? SOLID.zeroLinear;
         }
         if (earthDNMaterial.uniforms.dispScale) {
           earthDNMaterial.uniforms.dispScale.value = (displacementScaleRel ?? 0) * size;
@@ -955,14 +966,14 @@ export function Earth({
         if ((earthDNMaterial.uniforms as any).enableShadow !== undefined) {
           (earthDNMaterial.uniforms as any).enableShadow.value = receiveShadows ? 1 : 0;
         }
-        if ((earthDNMaterial.uniforms as any).cloudShadowMap && cloudShadowMap) {
-          (earthDNMaterial.uniforms as any).cloudShadowMap.value = cloudShadowMap;
+        if ((earthDNMaterial.uniforms as any).cloudShadowMap) {
+          (earthDNMaterial.uniforms as any).cloudShadowMap.value = cloudShadowMap ?? SOLID.white;
         }
         if ((earthDNMaterial.uniforms as any).cloudShadowStrength) {
           (earthDNMaterial.uniforms as any).cloudShadowStrength.value = cloudShadowStrength ?? 0.4;
         }
         if ((earthDNMaterial.uniforms as any).enableCloudShadow !== undefined) {
-          (earthDNMaterial.uniforms as any).enableCloudShadow.value = enableCloudShadow ? 1 : 0;
+          (earthDNMaterial.uniforms as any).enableCloudShadow.value = enableCloudShadow && !!cloudShadowMap ? 1 : 0;
         }
         // if ((earthDNMaterial.uniforms as any).cloudUvOffset !== undefined) {
         //   (earthDNMaterial.uniforms as any).cloudUvOffset.value = cloudUvOffset ?? new THREE.Vector2(0, 0);
@@ -1063,6 +1074,7 @@ export function Earth({
 
   return (
     <group 
+      ref={rotationRef}
       position={position}
       rotation={[0, THREE.MathUtils.degToRad(yawDeg), 0]}
       // 🔧 关键修复：应用yawDeg参数控制地球自转，确保沿地轴（Y轴）旋转

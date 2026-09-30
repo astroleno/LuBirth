@@ -410,7 +410,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   terminatorRadius: 0.02,
   phaseCoupleStrength: 0.0,
   displacementMid: 0.5,
-  nightLift: 0.12,
+  nightLift: 0.002,
   
   // 云层参数
   cloudStrength: 0.20,          // 云层强度

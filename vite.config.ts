@@ -4,11 +4,10 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: "./", // 使用相对路径，适合子目录部署
+  base: process.env.LUBIRTH_ASSET_BASE || '/lubirth/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
 });
-

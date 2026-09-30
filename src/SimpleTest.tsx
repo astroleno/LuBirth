@@ -2,6 +2,12 @@ import React, { useMemo, useState, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { createRenderProfile, useMobileLayout, useReducedMotion, type Quality, type RenderProfile } from './performance/renderProfile';
+import { RenderRuntime } from './performance/RenderRuntime';
+import { useParallaxInput, type ParallaxOffset } from './performance/useParallaxInput';
+import { useParallaxCamera } from './performance/useParallaxCamera';
+import { SceneScreenshot } from './components/SceneScreenshot';
+import { assetUrl } from './utils/assetUrl';
 
 // 统一的黄昏点计算函数
 function calculateDuskLongitude(sunWorld: {x: number, y: number, z: number}, dateISO: string, latDeg: number, lonDeg: number): number {
@@ -10,8 +16,24 @@ function calculateDuskLongitude(sunWorld: {x: number, y: number, z: number}, dat
   const currentTime = toUTCFromLocal(dateISO, lonDeg || 121.4737);
   const observerLat = latDeg || 31.2304; // 上海纬度作为默认
   const observerLon = lonDeg || 121.4737; // 上海经度作为默认
-  
+
   return calculateTerminatorLongitude(currentTime, observerLat, observerLon);
+}
+
+// 基于同一绝对 UTC 计算自转角，避免跨日别名。
+function calculateEarthRotationFromDateISO(dateISOStr: string, longitude: number) {
+    try {
+      // 统一将本地民用时间解析为“绝对UTC”
+      const utc = toUTCFromLocal(dateISOStr, longitude);
+      // 当日UTC小时（含小数），包含日期信息，避免 23:xx 与次日 00:xx 折返为同一时刻
+      const hoursFloat = ((utc.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
+      const earthRotation = (hoursFloat * 15) % 360; // 24小时=360°
+      // console.log(`[EarthRotation] local='${dateISOStr}', lon=${longitude} -> UTC=${utc.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
+      return earthRotation;
+    } catch (error) {
+      // console.warn('[EarthRotation] 计算失败，使用默认值:', error);
+      return 0;
+    }
 }
 
 // 统一的时间更新处理函数
@@ -183,7 +205,11 @@ function SceneContent({
   lonDeg,
   isAlignedAndZoomed,
   demParams,
-  debugMode
+  debugMode,
+  profile,
+  parallaxTarget,
+  panelExpanded,
+  uiHidden,
 }: { 
   composition: SimpleComposition;
   mode: 'debug' | 'celestial';
@@ -207,8 +233,26 @@ function SceneContent({
     directionalShadowContrast: number;
   };
   debugMode: number;
+  profile: RenderProfile;
+  parallaxTarget: React.MutableRefObject<ParallaxOffset>;
+  panelExpanded: boolean;
+  uiHidden: boolean;
 }): JSX.Element {
-  const { camera, scene } = useThree();
+  const { camera, scene, size, gl } = useThree();
+  const reducedMotion = useReducedMotion();
+  const landscapePanel = profile.mobile && size.width > size.height && size.height <= 600;
+  const frame = {
+    width: profile.mobile && !uiHidden && landscapePanel && panelExpanded ? Math.max(1, size.width - 324) : size.width,
+    height: profile.mobile && !uiHidden && !landscapePanel
+      ? Math.max(1, size.height - (panelExpanded ? Math.min(size.height * 0.5, 440) : 64) - 24) : size.height,
+  };
+  const presentedComposition = profile.mobile && !isAlignedAndZoomed
+    ? { ...composition, earthSize: composition.earthSize * Math.min(1, frame.width / frame.height) }
+    : composition;
+  const moonRadiusPixels = composition.moonRadius * (isAlignedAndZoomed ? 1.35 : 1)
+    * frame.height / (2 * composition.moonDistance * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2));
+  const moonTop = Math.max((1 - (composition.moonScreenY ?? 0.75)) * frame.height,
+    profile.mobile && !uiHidden && !landscapePanel ? 76 + moonRadiusPixels : 0);
   
   // 云层UV偏移状态 - 不再需要，因为云层阴影改为基于世界坐标
   // const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
@@ -230,23 +274,33 @@ function SceneContent({
   // 光照系统 - 单光照，与日期时间计算耦合
   const lightDirection = useLightDirection(mode, sunWorld, composition, altDeg);
   const lightColor = useLightColor(composition);
+  const moonLightColor = useMemo(() => new THREE.Color(0xffffff), []);
   const lightIntensity = useLightIntensity(composition);
   const ambientIntensity = useAmbientIntensity(composition);
   
   // 相机控制
-  useCameraControl(composition);
+  useCameraControl(composition, frame);
+  const parallaxOffset = useParallaxCamera(
+    isAlignedAndZoomed && !reducedMotion,
+    parallaxTarget,
+    [composition.cameraDistance, composition.cameraAzimuthDeg, composition.cameraElevationDeg,
+      composition.lookAtDistanceRatio, composition.viewOffsetY, size.width, size.height, frame.width, frame.height].join(':'),
+  );
   useExposureControl(composition);
   
   // 位置计算
-  const earthInfo = useEarthPosition(composition, composition.cameraDistance);
+  const earthInfo = useEarthPosition(presentedComposition, composition.cameraDistance);
   const moonInfo = useMoonPosition(composition, camera);
   
   // 纹理加载 - 统一在顶层获取，传递给子组件
   const textureConfig = {
     useTextures: composition.useTextures,
     useClouds: composition.useClouds,
-    useMilkyWay: composition.useMilkyWay,
-    stagedLowFirst: false  // 直接加载8k，避免热替换卡顿
+    useMilkyWay: composition.useMilkyWay && composition.showStars,
+    useMoon: composition.showMoon ?? true,
+    maxSize: Math.min(profile.maxTextureSize, gl.capabilities.maxTextureSize),
+    anisotropy: Math.min(profile.anisotropy, gl.capabilities.getMaxAnisotropy()),
+    stagedLowFirst: false
   };
   
   const {
@@ -366,7 +420,7 @@ function SceneContent({
         ]}
         intensity={finalIntensity}
         color={lightColor}
-        castShadow={composition.enableTerrainShadow || composition.enableCloudShadow}
+        castShadow={profile.terrainShadows && !!composition.enableTerrainShadow}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-near={0.1}
         shadow-camera-far={100}
@@ -392,7 +446,8 @@ function SceneContent({
         <Earth 
           position={[0, 0, 0]}
           size={earthInfo.size}
-          segments={(composition.useSegLOD && (isAlignedAndZoomed || earthInfo.size >= (composition.segLODTriggerSize ?? 1.0))) ? (composition.earthSegmentsHigh ?? 288) : (composition.earthSegmentsBase ?? 144)}
+          segments={(composition.useSegLOD && (isAlignedAndZoomed || earthInfo.size >= (composition.segLODTriggerSize ?? 1.0))) ? Math.min(composition.earthSegmentsHigh ?? 288, profile.earthSegmentsHigh) : Math.min(composition.earthSegmentsBase ?? 144, profile.earthSegments)}
+          autoRotate={!reducedMotion && mode === 'celestial' && composition.viewOffsetY === 2 && !isAlignedAndZoomed}
           lightDirection={lightDirection}
           tiltDeg={0}
           yawDeg={composition.earthYawDeg}
@@ -413,7 +468,6 @@ function SceneContent({
           nightHemisphereBrightness={composition.nightHemisphereBrightness}
           nightGlowBlur={composition.nightGlowBlur}
           nightGlowOpacity={composition.nightGlowOpacity}
-          nightEarthLightInfluence={composition.nightEarthLightInfluence}
           shininess={composition.shininess}
           specStrength={composition.specStrength}
           broadStrength={composition.broadStrength}
@@ -429,7 +483,7 @@ function SceneContent({
           rimRadius={composition.rimRadius}
           haloWidth={composition.haloWidth}
           // 阴影与云影
-          receiveShadows={composition.enableTerrainShadow ?? false}
+          receiveShadows={profile.terrainShadows && !!composition.enableTerrainShadow}
           cloudShadowMap={(composition.enableCloudShadow ?? false) ? earthClouds : undefined}
           cloudShadowStrength={composition.cloudShadowStrength ?? 0.4}
           enableCloudShadow={composition.enableCloudShadow ?? false}
@@ -440,18 +494,18 @@ function SceneContent({
           // Debug参数
           debugMode={debugMode}
           // 纹理参数
-          earthMap={earthMap}
-          earthNight={earthNight}
-          earthNormal={earthNormal}
-          earthSpecular={earthSpecular}
-          earthDisplacement={earthDisplacement}
+          earthMap={earthMap ?? undefined}
+          earthNight={earthNight ?? undefined}
+          earthNormal={earthNormal ?? undefined}
+          earthSpecular={earthSpecular ?? undefined}
+          earthDisplacement={earthDisplacement ?? undefined}
           // 地形阴影(AO)参数
           aoHeightThreshold={demParams.shadowHeightThreshold}
           aoDistanceAttenuation={demParams.shadowDistanceAttenuation}
           aoMaxOcclusion={demParams.shadowMaxOcclusion}
           aoSmoothFactor={demParams.shadowSmoothFactor}
           // 地形投影(方向性)参数
-          enableDirectionalShadow={true}
+          enableDirectionalShadow={profile.terrainShadows}
           directionalShadowStrength={demParams.directionalShadowStrength}
           directionalShadowSoftness={demParams.directionalShadowSoftness}
           directionalShadowSharpness={demParams.directionalShadowSharpness}
@@ -479,10 +533,10 @@ function SceneContent({
             displacementScale={composition.cloudDisplacementScale ?? 0.05}
             displacementBias={composition.cloudDisplacementBias ?? 0.02}
             // UV滚动速度参数 - client模式下调整速度
-              scrollSpeedU={composition.cloudScrollSpeedU ?? 0.0001}
-              scrollSpeedV={composition.cloudScrollSpeedV ?? 0.0002}
+              scrollSpeedU={reducedMotion ? 0 : composition.cloudScrollSpeedU ?? 0.0001}
+              scrollSpeedV={reducedMotion ? 0 : composition.cloudScrollSpeedV ?? 0.0002}
             // 多层参数 - 直接使用配置的层数
-            numLayers={composition.cloudNumLayers ?? 3}
+            numLayers={Math.min(composition.cloudNumLayers ?? 3, profile.cloudLayers)}
             layerSpacing={composition.cloudLayerSpacing ?? 0.002}
             // 禁用Triplanar避免性能问题
             useTriplanar={false}
@@ -552,10 +606,10 @@ function SceneContent({
       {(composition.showMoon ?? true) && (
       <Moon
         position={moonInfo.position}
-        radius={composition.moonRadius}
+        radius={composition.moonRadius * (isAlignedAndZoomed ? 1.35 : 1)}
         lightDirection={lightDirection}
         useTextures={composition.useTextures}
-        lightColor={lightColor}
+        lightColor={moonLightColor}
         sunIntensity={lightIntensity}
         // 月球光照强度极值控制
         moonLightMinRatio={composition.moonLightMinRatio}
@@ -574,8 +628,8 @@ function SceneContent({
         renderLayer={0}
         // 🌙 启用屏幕锚定系统
         enableScreenAnchor={true}
-        screenX={composition.moonScreenX}
-        screenY={composition.moonScreenY}
+        screenX={(composition.moonScreenX ?? 0.5) * frame.width / size.width}
+        screenY={1 - moonTop / size.height}
         anchorDistance={composition.moonDistance}
         currentDate={dateISO}
         observerLat={latDeg}
@@ -596,11 +650,13 @@ function SceneContent({
         terminatorRadius={composition.terminatorRadius ?? 0.02}
         phaseCoupleStrength={composition.phaseCoupleStrength ?? 0}
         displacementMid={composition.displacementMid ?? 0.5}
-        nightLift={composition.nightLift ?? 0.12}
+        nightLift={composition.nightLift ?? 0.002}
         // 传入纹理参数
-        moonMap={moonMap}
-        moonNormalMap={moonNormalMap}
-        moonDisplacementMap={moonDisplacementMap}
+        moonMap={moonMap ?? undefined}
+        moonNormalMap={moonNormalMap ?? undefined}
+        moonDisplacementMap={moonDisplacementMap ?? undefined}
+        terrainEnabled={isAlignedAndZoomed}
+        parallaxOffset={isAlignedAndZoomed ? parallaxOffset : undefined}
       />)}
       
       {/* 星空背景 */}
@@ -612,7 +668,7 @@ function SceneContent({
             bgYawDeg={composition.bgYawDeg}
             bgPitchDeg={composition.bgPitchDeg}
             autoRotateDegPerSec={composition.bgAutoRotateDegPerSec ?? 0}
-            paused={!!isAlignedAndZoomed}
+            paused={!!isAlignedAndZoomed || reducedMotion}
           />
         ) : null
       )}
@@ -669,6 +725,10 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
 
 // 主测试组件
 export default function SimpleTest() {
+  const mobile = useMobileLayout();
+  const [quality, setQuality] = useState<Quality>('balanced');
+  const profile = useMemo(() => createRenderProfile(mobile, quality), [mobile, quality]);
+  const [panelExpanded, setPanelExpanded] = useState(true);
   
   const initialComp = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -727,7 +787,54 @@ export default function SimpleTest() {
   }, []);
 
   const [uiHidden, setUiHidden] = useState(false);
+  const [fullscreenMode, setFullscreenMode] = useState(false);
+  const fullscreenRootRef = useRef<HTMLDivElement>(null);
+  const nativeFullscreenRef = useRef(false);
+  const enterFullscreen = React.useCallback(() => {
+    const root = fullscreenRootRef.current;
+    if (!root) return;
+    setUiHidden(true);
+    setFullscreenMode(true);
+    if (typeof root.requestFullscreen !== 'function' || !document.fullscreenEnabled) return;
+    nativeFullscreenRef.current = true;
+    try {
+      void root.requestFullscreen().catch(() => {
+        nativeFullscreenRef.current = false;
+        // Keep the viewport-only mode when the browser declines native fullscreen.
+      });
+    } catch {
+      nativeFullscreenRef.current = false;
+    }
+  }, []);
+  const exitFullscreen = React.useCallback(() => {
+    setFullscreenMode(false);
+    setUiHidden(false);
+    nativeFullscreenRef.current = false;
+    if (document.fullscreenElement === fullscreenRootRef.current) {
+      void document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+  React.useEffect(() => {
+    const onFullscreenChange = () => {
+      if (nativeFullscreenRef.current && document.fullscreenElement !== fullscreenRootRef.current) {
+        nativeFullscreenRef.current = false;
+        setFullscreenMode(false);
+        setUiHidden(false);
+      }
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.querySelector('.screenshot-preview')) exitFullscreen();
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [exitFullscreen]);
   const [isAlignedAndZoomed, setIsAlignedAndZoomed] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const parallax = useParallaxInput(isAlignedAndZoomed && !reducedMotion);
   // 首帧后再挂载音频播放器，避免首屏竞争带宽/CPU
   const [showAudioLocal, setShowAudioLocal] = React.useState(false);
   React.useEffect(() => {
@@ -792,22 +899,6 @@ export default function SimpleTest() {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
-  // 🔧 关键修复：基于“同一绝对UTC”计算地球自转角，避免跨日别名与凌晨重复
-  const calculateEarthRotationFromDateISO = (dateISOStr: string, longitude: number) => {
-    try {
-      // 统一将本地民用时间解析为“绝对UTC”
-      const utc = toUTCFromLocal(dateISOStr, longitude);
-      // 当日UTC小时（含小数），包含日期信息，避免 23:xx 与次日 00:xx 折返为同一时刻
-      const hoursFloat = ((utc.getTime() % (24 * 3600_000)) + (24 * 3600_000)) % (24 * 3600_000) / 3600_000;
-      const earthRotation = (hoursFloat * 15) % 360; // 24小时=360°
-      // console.log(`[EarthRotation] local='${dateISOStr}', lon=${longitude} -> UTC=${utc.toISOString()}, hours=${hoursFloat.toFixed(3)}, yaw=${earthRotation.toFixed(1)}°`);
-      return earthRotation;
-    } catch (error) {
-      // console.warn('[EarthRotation] 计算失败，使用默认值:', error);
-      return 0;
-    }
-  };
-  
   // 获取指定地点的当前本地时间（考虑时区）
   const getCurrentLocalTimeForLocation = (longitude: number) => {
     const now = new Date();
@@ -898,7 +989,7 @@ export default function SimpleTest() {
   const [timeMode, setTimeMode] = useState<TimeInterpretation>('byLongitude');
   const [userModifiedTime, setUserModifiedTime] = useState<boolean>(false); // 用户是否手动修改了时间
   const userModifiedTimeRef = React.useRef<boolean>(false); // 🔧 关键修复：使用ref存储用户修改状态，立即生效
-  const testIntervalRef = React.useRef<NodeJS.Timeout | null>(null); // 🔧 修复：存储测试定时器引用，避免内存泄漏
+  const testIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null); // 🔧 修复：存储测试定时器引用，避免内存泄漏
   
   // 天文数据状态
   const [sunWorld, setSunWorld] = useState<{ x:number; y:number; z:number }>({ x: 1, y: 0, z: 0 });
@@ -1038,7 +1129,7 @@ export default function SimpleTest() {
         
         // 计算月相信息
         try {
-          const moonPhase = calculateMoonPhase(new Date(dateISO), bLat, bLon);
+          const moonPhase = calculateMoonPhase(toUTCFromLocal(dateISO, bLon), bLat, bLon);
           setMoonPhaseInfo(`${moonPhase.phaseName} (${moonPhase.phaseAngle.toFixed(1)}°)`);
         } catch (err) {
           setMoonPhaseInfo('计算失败');
@@ -1146,7 +1237,7 @@ export default function SimpleTest() {
 
   // 轻量平滑自转：在实时模式且未手动修改时间时，每250ms用UTC毫秒推导 yaw（24h=360°）
   React.useEffect(() => {
-    if (!realTimeUpdate) return;
+    if (!realTimeUpdate || reducedMotion) return;
     let timer: any = null;
     const step = 250; // ms
     const lastYawRef = { v: composition.earthYawDeg ?? 0 };
@@ -1175,40 +1266,7 @@ export default function SimpleTest() {
       } catch {}
     }, step);
     return () => { if (timer) clearInterval(timer); };
-  }, [realTimeUpdate, updateValue, composition.earthYawDeg, mode, composition.viewOffsetY]);
-
-  // client全景模式独立自转逻辑：使用requestAnimationFrame获得极致平滑动画
-  React.useEffect(() => {
-    if (mode !== 'celestial' || composition.viewOffsetY !== 2.0) return;
-    
-    let animationId: number | null = null;
-    const startTime = Date.now();
-    const lastYawRef = { v: composition.earthYawDeg ?? 0 };
-    
-    const animate = () => {
-      try {
-        const elapsedMs = Date.now() - startTime;
-        const rotationPeriodMs = 225 * 1000; // 225秒一圈（2倍速）
-        const yaw = ((elapsedMs % rotationPeriodMs) / rotationPeriodMs * 360) % 360;
-        
-        // 每帧都更新以确保极致平滑
-        updateValue('earthYawDeg', yaw);
-        lastYawRef.v = yaw;
-        
-        animationId = requestAnimationFrame(animate);
-      } catch (error) {
-        console.error('[EarthRotation] Client panorama rotation error:', error);
-      }
-    };
-    
-    animationId = requestAnimationFrame(animate);
-    
-    return () => { 
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [mode, composition.viewOffsetY, updateValue]);
+  }, [realTimeUpdate, reducedMotion, updateValue, composition.earthYawDeg, mode, composition.viewOffsetY]);
 
   // 清理定时器
   React.useEffect(() => {
@@ -1277,9 +1335,9 @@ export default function SimpleTest() {
   // 保持首屏：晨昏线居中（不自动对齐出生点；改为用户手动触发）
 
   return (
-    <div className="canvas-wrap">
+    <div ref={fullscreenRootRef} className={`canvas-wrap glass-ui${mobile ? " mobile-layout" : ""}${panelExpanded && !uiHidden ? " panel-expanded" : ""}${fullscreenMode ? " fullscreen-mode" : ""}${quality === 'battery' ? ' glass-battery' : ''}`}>
       {/* 音乐播放器 - 跟随UI隐藏状态做动画 */}
-      <div style={{ 
+      <div className="music-player" data-liquid-glass style={{
         position: 'fixed', 
         top: uiHidden ? '-60px' : '10px',  // 隐藏时向上移出屏幕，显示时移回原位
         right: '16px',  // 与panel对齐 
@@ -1287,33 +1345,32 @@ export default function SimpleTest() {
         width: '400px',  // 与panel等宽
         height: '52px',
         overflow: 'hidden',
-        borderRadius: '10px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(0,0,0,0.35)',
-        filter: 'grayscale(100%) brightness(0.8)',
-        transition: 'top 0.3s ease',  // 添加平滑过渡动画
       }}
         title="音乐播放器"
       >
         {/** 使用本地播放器替代网易云 iframe，资源来自 @bgm/ */}
         {showAudioLocal ? (
           <LocalAudioPlayer 
-            basePath="/bgm/"
+            basePath={assetUrl("bgm/")}
             tracks={[
               { title: 'Epic Mountain - The Egg', file: 'Epic Mountain - The Egg.mp3', artist: 'Epic Mountain' }
             ]}
             autoPlay={false}
+            playOnFirstInteraction={!mobile}
           />
         ) : null}
       </div>
       
+      <div className="scene-viewport">
       <Canvas
+        dpr={[1, profile.dpr]}
+        frameloop="demand"
         gl={{ 
-          preserveDrawingBuffer: true, 
+          preserveDrawingBuffer: false,
           alpha: false, 
           premultipliedAlpha: true, 
-          powerPreference: 'high-performance',
-          antialias: true,
+          powerPreference: mobile ? 'default' : 'high-performance',
+          antialias: profile.antialias,
           depth: true,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: composition.exposure 
@@ -1333,73 +1390,11 @@ export default function SimpleTest() {
           fov: 45 
         }}
         style={{ background: '#000011' }}
-        shadows={composition.enableTerrainShadow || composition.enableCloudShadow}
+        shadows={profile.terrainShadows && !!composition.enableTerrainShadow}
         // 在 Overlay 淡出前冻结自转：监听 overlay 事件解锁
         onPointerMissed={() => {}}
       >
-        {
-          (() => {
-            // 局部 hook：基于事件控制运动解锁
-            const [motionEnabled, setMotionEnabled] = React.useState(false);
-            React.useEffect(() => {
-              let unlocked = false;
-              let fallbackTimer: NodeJS.Timeout | null = null;
-
-              const unlock = () => {
-                if (!unlocked) {
-                  unlocked = true;
-                  setMotionEnabled(true);
-                  // 解锁后立即清除兜底定时器
-                  if (fallbackTimer) {
-                    clearTimeout(fallbackTimer);
-                    fallbackTimer = null;
-                  }
-                }
-              };
-
-              // 优先监听资源就绪事件
-              const onReady = () => {
-                console.log('[MotionUnlock] Assets ready, unlocking earth rotation');
-                unlock();
-              };
-
-              // 兜底：防死锁机制，10秒后强制解锁
-              fallbackTimer = setTimeout(() => {
-                if (!unlocked) {
-                  console.warn('[MotionUnlock] Fallback timeout reached, force unlocking earth rotation');
-                  unlock();
-                }
-              }, 10000);
-
-              try {
-                window.addEventListener('lubirth:assets-ready', onReady as EventListener, { once: true });
-
-                // 检查是否已经就绪（处理事件在监听前就触发的情况）
-                const already = (window as any).__lubirthAssetsReady;
-                if (already) {
-                  console.log('[MotionUnlock] Assets already ready, immediate unlock');
-                  onReady();
-                }
-              } catch {}
-
-              return () => {
-                try {
-                  window.removeEventListener('lubirth:assets-ready', onReady as EventListener);
-                  if (fallbackTimer) {
-                    clearTimeout(fallbackTimer);
-                  }
-                } catch {}
-              };
-            }, []);
-            // 将解锁状态反映到 composition 上（安全：仅在运行期使用）
-            if (!motionEnabled && composition.earthYawDeg !== 0) {
-              // 冻结：就绪前强制用初始 yaw（避免加载后一瞬间大跳）
-              composition.earthYawDeg = composition.earthYawDeg; // 保持现值
-            }
-            // 通过上下文返回 null，不渲染任何东西
-            return null as any;
-          })()
-        }
+        <RenderRuntime profile={profile} />
         <SceneContent 
           composition={composition} 
           mode={mode}
@@ -1412,6 +1407,10 @@ export default function SimpleTest() {
           isAlignedAndZoomed={isAlignedAndZoomed}
           demParams={demParams}
           debugMode={debugMode}
+          profile={profile}
+          parallaxTarget={parallax.target}
+          panelExpanded={panelExpanded}
+          uiHidden={uiHidden}
         />
         <NoTiltProbe />
         <AlignOnDemand 
@@ -1424,25 +1423,14 @@ export default function SimpleTest() {
           birthPointMode={composition.enableBirthPointAlignment}
         />
       </Canvas>
+      </div>
       
         
       {/* 控制面板 - 使用与原版本一致的样式 */}
       {uiHidden && (
-        <div style={{ position:'absolute', top: 10, right: 10, zIndex: 40 }}>
-          <button className="btn" onClick={() => {
-            setUiHidden(false);
-            setTimeout(() => {
-              const panel = document.querySelector('.panel') as HTMLElement | null;
-              if (panel) {
-                panel.style.opacity = '0';
-                panel.style.transform = 'translateY(-6px)';
-                requestAnimationFrame(() => {
-                  panel.style.opacity = '1';
-                  panel.style.transform = 'translateY(0)';
-                });
-              }
-            }, 0);
-          }}>显示 UI</button>
+        <div className="restore-ui" data-liquid-glass style={{ position:'absolute', top: 10, right: 10, zIndex: 40 }}>
+          <SceneScreenshot />
+          <button className="btn" onClick={exitFullscreen}>显示设置</button>
         </div>
       )}
 
@@ -1465,7 +1453,7 @@ export default function SimpleTest() {
             </div>
             <div className="row" style={{ gap: 8 }}>
               <button className="btn" onClick={() => setComposition(DEFAULT_SIMPLE_COMPOSITION)}>重置默认</button>
-              <button className="btn" onClick={() => setUiHidden(true)}>隐藏 UI</button>
+              <button className="btn" onClick={enterFullscreen}>全屏查看</button>
               <button 
                 className="btn" 
                 onClick={() => {
@@ -3515,7 +3503,7 @@ export default function SimpleTest() {
         </div>
           ) : (
             // 客户端模式 - 简洁UI
-            <div className="panel" style={{ 
+            <div className="panel client-panel" data-liquid-glass style={{
               maxWidth: '400px', 
               position: 'absolute', 
               right: 16, 
@@ -3525,7 +3513,11 @@ export default function SimpleTest() {
               opacity: 1,
               transform: 'translateY(0)'
             }}>
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              {mobile && <button className="panel-toggle" aria-expanded={panelExpanded} aria-controls="client-panel-content" onClick={() => setPanelExpanded(value => !value)}>
+                <span>LuBirth <small>天 地 你</small></span><span>{panelExpanded ? '收起 ▾' : '设置出生时刻 ▴'}</span>
+              </button>}
+              <div id="client-panel-content" hidden={mobile && !panelExpanded}>
+              <div className="client-heading" style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <h2 style={{ margin: '0', color: '#fff' }}>LuBirth</h2>
                 <p style={{ margin: '5px 0 0 0', color: '#aaa', fontSize: '14px' }}>天 地 你</p>
               </div>
@@ -3534,36 +3526,12 @@ export default function SimpleTest() {
               {/* 地点选择区域 */}
               <div style={{ marginBottom: '20px' }}>
                 <div className="label" style={{ marginBottom: '8px' }}>出生地点</div>
-                <LocationSelector
-                  lat={latDeg}
-                  lon={lonDeg}
-                  onLocationChange={(newLat, newLon) => {
-                    // 确保参数是数字类型并处理对象输入
-                    let lat, lon;
-                    
-                    if (typeof newLat === 'object' && newLat !== null) {
-                      // 处理对象输入
-                      lat = parseFloat(newLat.lat) || parseFloat(newLat.longitude) || 31.2;
-                      lon = parseFloat(newLat.lon) || parseFloat(newLat.lng) || parseFloat(newLat.longitude) || 121.5;
-                    } else {
-                      // 处理数字或字符串输入
-                      lat = typeof newLat === 'number' ? newLat : parseFloat(newLat);
-                      lon = typeof newLon === 'number' ? newLon : parseFloat(newLon);
-                    }
-                    
-                    if (!isNaN(lat) && !isNaN(lon)) {
-                      setLatDeg(lat);
-                      setLonDeg(lon);
-                      // 客户端模式：地点选择同时更新出生点
-                      updateValue('birthPointLatitudeDeg', lat);
-                      updateValue('birthPointLongitudeDeg', lon);
-                      
-                      console.log(`[ClientLocation] 地点变更: ${lat.toFixed(1)}°N, ${lon.toFixed(1)}°E`);
-                    } else {
-                      console.error('[ClientLocation] 无效的经纬度:', { newLat, newLon, lat, lon });
-                    }
-                  }}
-                />
+                <LocationSelector onLocationChange={({ lat, lon }) => {
+                  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+                  setLatDeg(lat);
+                  setLonDeg(lon);
+                  setComposition(previous => ({ ...previous, birthPointLatitudeDeg: lat, birthPointLongitudeDeg: lon }));
+                }} />
               </div>
               
               {/* 时间设置区域 */}
@@ -3571,6 +3539,8 @@ export default function SimpleTest() {
                 <div className="label" style={{ marginBottom: '8px' }}>出生时间</div>
                 <input
                   type="datetime-local"
+                  aria-label="出生时间"
+                  className="birth-time-input"
                   value={clientTimeInput != null ? clientTimeInput : toLocalInputValue(new Date(dateISO))}
                   onChange={(e) => {
                     try {
@@ -3595,7 +3565,7 @@ export default function SimpleTest() {
                       // 使用函数式更新获取最新composition状态
                       setComposition(prev => {
                         // 优先使用birthPointLongitudeDeg，然后使用当前lonDeg状态
-                        const bLon = prev.birthPointLongitudeDeg || lonDeg || 121.5;
+                        const bLon = prev.birthPointLongitudeDeg ?? lonDeg ?? 121.5;
                         
                         // 安全计算地球自转
                         let newEarthRotation;
@@ -3636,9 +3606,8 @@ export default function SimpleTest() {
                       e.currentTarget.blur();
                     }
                   }}
-                  style={{ width: '100%', padding: '8px', background: '#1a1a1a', border: '1px solid #444', color: '#fff', borderRadius: '4px' }}
                 />
-                <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                <div className="time-zone-label">
                   时区: UTC{lonDeg > 0 ? '+' : ''}{Math.round(lonDeg / 15)}
                 </div>
               </div>
@@ -3648,7 +3617,8 @@ export default function SimpleTest() {
                 <div className="label" style={{ marginBottom: '8px' }}>主要操作</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
-                    className="btn"
+                    className="btn btn-primary"
+                    aria-label="Xiu!!! 查看出生时刻的地月"
                     onClick={() => {
                       // 对齐到出生点并放大
                       console.log('[ClientAlignButton] 对齐按钮被点击');
@@ -3799,6 +3769,7 @@ export default function SimpleTest() {
 
                         // 与参数更新同一批次设置标志，减少中间态
                         setIsAlignedAndZoomed(true);
+                        if (mobile) setPanelExpanded(false);
                         
                         // 4. 设置对齐状态（已在开始时设置，此处仅需设置其他状态）
                         setRealTimeUpdate(false);
@@ -3826,87 +3797,25 @@ export default function SimpleTest() {
                     Xiu!!!
                   </button>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className="btn"
-                      onClick={() => {
-                      try {
-                        const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-                        if (!canvas) { alert('未找到画布'); return; }
-                        // 等待两帧，确保最新一帧完成并已落入绘图缓冲
-                        requestAnimationFrame(() => {
-                          requestAnimationFrame(() => {
-                            try {
-                              const openComposited = (srcUrl: string) => {
-                                const img = new Image();
-                                img.crossOrigin = 'anonymous';
-                                img.onload = () => {
-                                  try {
-                                    const w = canvas.width, h = canvas.height;
-                                    const temp = document.createElement('canvas');
-                                    temp.width = w; temp.height = h;
-                                    const ctx = temp.getContext('2d');
-                                    if (!ctx) { window.open(srcUrl, '_blank'); return; }
-                                    // 用纯黑底合成，避免任何透明与预乘导致的偏灰
-                                    ctx.fillStyle = '#000';
-                                    ctx.fillRect(0, 0, w, h);
-                                    ctx.drawImage(img, 0, 0, w, h);
-                                    const out = temp.toDataURL('image/png');
-                                    const win = window.open('', '_blank');
-                                    if (win) {
-                                      win.document.body.style.margin = '0';
-                                      const i = new Image(); i.src = out; win.document.body.appendChild(i);
-                                    }
-                                  } catch (e) {
-                                    console.error('[Screenshot] 合成失败:', e);
-                                    window.open(srcUrl, '_blank');
-                                  }
-                                };
-                                img.src = srcUrl;
-                              };
-
-                              canvas.toBlob((blob) => {
-                                try {
-                                  if (blob) {
-                                    const url = URL.createObjectURL(blob);
-                                    openComposited(url);
-                                    setTimeout(() => URL.revokeObjectURL(url), 30000);
-                                    return;
-                                  }
-                                  const dataUrl = canvas.toDataURL('image/png');
-                                  if (dataUrl && dataUrl.startsWith('data:image/png')) {
-                                    openComposited(dataUrl);
-                                  } else {
-                                    alert('截图失败，可能是跨域纹理导致。');
-                                  }
-                                } catch (err) {
-                                  console.error('[Screenshot] 预览失败:', err);
-                                }
-                              }, 'image/png');
-                            } catch (err2) {
-                              console.error('[Screenshot] toBlob失败:', err2);
-                            }
-                          });
-                        });
-                      } catch (e) {
-                        console.error('[Screenshot] 截图失败:', e);
-                      }
-                    }}
-                    style={{ flex: 1 }}
-                  >
-                    截图
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      const panel = document.querySelector('.panel') as HTMLElement | null;
-                      if (panel) { panel.style.opacity = '0'; panel.style.transform = 'translateY(-6px)'; }
-                      setTimeout(() => setUiHidden(true), 160);
-                    }}
-                    style={{ flex: 1 }}
-                  >
-                    隐藏 UI
-                  </button>
+                    <SceneScreenshot />
+                    <button className="btn" onClick={enterFullscreen} style={{ flex: 1 }}>全屏查看</button>
                   </div>
+                  {mobile && isAlignedAndZoomed && reducedMotion && <div className="row motion-controls"><small>已跟随系统减少动态效果</small></div>}
+                  {mobile && isAlignedAndZoomed && !reducedMotion && <div className="row motion-controls" aria-live="polite">
+                    <span className="label">体感视差</span>
+                    {parallax.supported && parallax.mode !== 'motion' && <button className="btn" type="button" onClick={parallax.startMotion} disabled={parallax.mode === 'waiting'}>
+                      {parallax.mode === 'waiting' ? '连接感应中…' : parallax.mode === 'idle' ? '开启体感' : '重试体感'}
+                    </button>}
+                    {parallax.mode === 'motion' && <>
+                      <button className="btn" type="button" onClick={parallax.recenter}>重校准</button>
+                      <button className="btn" type="button" onClick={parallax.stopMotion}>关闭体感</button>
+                    </>}
+                    {!parallax.supported && <small>此设备不支持体感</small>}
+                    {parallax.mode === 'denied' && <small>未获得体感权限</small>}
+                    {parallax.mode === 'unavailable' && <small>未收到感应数据</small>}
+                  </div>}
+                  <a className="moon-credit" href="https://svs.gsfc.nasa.gov/14959/" target="_blank" rel="noopener noreferrer"
+                    title="月球模型来源：NASA's Goddard Space Flight Center">月球模型：NASA Goddard ↗</a>
                 </div>
               </div>
 
@@ -3949,6 +3858,15 @@ export default function SimpleTest() {
                 </div>
               </div>
               
+              <label className="quality-control">
+                <span className="label">画面品质</span>
+                <select className="input" value={quality} onChange={event => setQuality(event.target.value as Quality)}>
+                  <option value="balanced">均衡</option>
+                  <option value="battery">省电</option>
+                  <option value="detail">细腻</option>
+                </select>
+              </label>
+              </div>
               {/* 开发者模式入口：已按需求在客户端隐藏 */}
             </div>
           )}
@@ -3960,211 +3878,27 @@ export default function SimpleTest() {
   );
 }
 
-// 在渲染上下文中提供一个自动化"无倾斜"检测脚本
+// Sample the actual world transform, with cleanup when the scene unmounts.
 function NoTiltProbe(): JSX.Element | null {
   const { scene } = useThree();
   React.useEffect(() => {
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).runNoTiltAutoTest = async (frames: number = 120) => {
-    //   const worldUp = new THREE.Vector3(0,1,0);
-    //   let maxDeg = 0;
-    //   let samples = 0;
-    //   const getTiltDeg = () => {
-    //     const earth = scene.getObjectByName('earthRoot') as THREE.Object3D | undefined;
-    //     if (!earth) return null;
-    //     const up = new THREE.Vector3(0,1,0).applyQuaternion(earth.quaternion).normalize();
-    //     const dot = THREE.MathUtils.clamp(up.dot(worldUp), -1, 1);
-    //     const ang = Math.acos(dot) * 180 / Math.PI; // 与世界Y的夹角
-    //     return ang;
-    //   };
-    //   await new Promise<void>((resolve) => {
-    //     let count = 0;
-    //     const step = () => {
-    //       const deg = getTiltDeg();
-    //       if (deg != null) {
-    //         maxDeg = Math.max(maxDeg, deg);
-    //         samples++;
-    //       }
-    //       count++;
-    //       if (count >= frames) return resolve();
-    //       requestAnimationFrame(step);
-    //     };
-    //     requestAnimationFrame(step);
-    //   });
-    //   const ok = maxDeg <= 0.5; // 容差0.5°以内视为无倾斜
-    //   const payload = { when: new Date().toISOString(), ok, maxTiltDeg: +maxDeg.toFixed(3), samples };
-    //   console[ok?'log':'error']('[NoTiltTest] ' + (ok?'✅ PASS':'❌ FAIL'), payload);
-    //   console.log('[NoTiltTest:JSON]', JSON.stringify(payload, null, 2));
-    //   return payload;
-    // };
-
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).diagnoseBirthPointCoords = (lat: number, lon: number) => {
-    //   try {
-    //     console.log(`\n=== 出生点坐标诊断: ${lat}°N, ${lon}°E ===`);
-    //     
-    //     // 1. 基础球面坐标转换
-    //     const latRad = THREE.MathUtils.degToRad(lat);
-    //     const lonRad = THREE.MathUtils.degToRad(lon);
-    //     const p = new THREE.Vector3(
-    //       Math.cos(latRad) * Math.sin(lonRad),  // x = 东西方向
-    //       Math.sin(latRad),                     // y = 上下方向
-    //       -Math.cos(latRad) * Math.cos(lonRad)  // z = 南北方向（负号）
-    //     );
-    //     
-    //     console.log('1. 出生点局部坐标 p:', { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) });
-    //     
-    //     // 2. 读取地球当前旋转
-    //     const scene = (window as any).__R3F_Scene;
-    //     const earthRoot = scene?.getObjectByName?.('earthRoot');
-    //     let worldP = p.clone();
-    //     if (earthRoot && earthRoot.quaternion) {
-    //       worldP = p.clone().applyQuaternion(earthRoot.quaternion);
-    //       console.log('2. 地球四元数:', { 
-    //         x: +earthRoot.quaternion.x.toFixed(4), 
-    //         y: +earthRoot.quaternion.y.toFixed(4), 
-    //         z: +earthRoot.quaternion.z.toFixed(4), 
-    //         w: +earthRoot.quaternion.w.toFixed(4) 
-    //       });
-    //       console.log('3. 世界坐标 worldP:', { x: +worldP.x.toFixed(4), y: +worldP.y.toFixed(4), z: +worldP.z.toFixed(4) });
-    //     }
-    //     
-    //     // 3. 相机角度计算  
-    //     const rawYaw = THREE.MathUtils.radToDeg(Math.atan2(worldP.x, -worldP.z));
-    //     const yaw = rawYaw + 180; // 🔧 关键修复：相机从出生点向地心看，加180°
-    //     const pitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(worldP.y, -1, 1)));
-    //     
-    //     console.log('4. 相机角度计算:');
-    //     console.log('   - 原始atan2(x, -z) = atan2(' + worldP.x.toFixed(4) + ', ' + (-worldP.z).toFixed(4) + ') = ' + rawYaw.toFixed(2) + '°');
-    //     console.log('   - 修正yaw = ' + rawYaw.toFixed(2) + '° + 180° = ' + yaw.toFixed(2) + '°');
-    //     console.log('   - asin(y) = asin(' + worldP.y.toFixed(4) + ') = ' + pitch.toFixed(2) + '°');
-    //     
-    //     // 4. 预期结果验证
-    //     console.log('5. 预期验证:');
-    //     console.log('   - 经度' + lon + '°应该对应相机yaw约' + lon + '° (如果地球未旋转)');
-    //     console.log('   - 纬度' + lat + '°应该对应相机pitch约' + lat + '°');
-    //     console.log('   - 实际yaw: ' + yaw.toFixed(2) + '°, pitch: ' + pitch.toFixed(2) + '°');
-    //     
-    //     return { p, worldP, yaw, pitch };
-    //   } catch (e) {
-    //     console.error('[CoordsDiagnosis] 诊断失败:', e);
-    //     return null;
-    //   }
-    // };
-    
-    // 🔧 新增：验证修复后的对齐精度
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).verifyAlignment = (lat: number, lon: number, cityName: string = `${lat}°N,${lon}°E`) => {
-      try {
-        console.log(`[VerifyAlignment] 开始验证 ${cityName} 的对齐精度...`);
-        
-        // 模拟点击经线对齐按钮的逻辑
-        const L0 = lon;
-        let L = L0;
-        while (L > 180) L -= 360;
-        while (L < -180) L += 360;
-        const textureLon = L; // 直接映射，无偏移
-        
-        console.log(`[VerifyAlignment] ${cityName}:`, {
-          输入经度: L0,
-          标准化经度: L.toFixed(2),
-          贴图经度: textureLon.toFixed(2),
-          预期偏移: '0.00° (修复后应该为零)',
-          修复状态: textureLon === L ? '✅ 正确' : '❌ 仍有偏移'
-        });
-        
-        return { 
-          city: cityName,
-          inputLon: L0,
-          textureLon,
-          offset: Math.abs(textureLon - L),
-          isFixed: Math.abs(textureLon - L) < 0.01
-        };
-      } catch (e) {
-        console.error('[VerifyAlignment] 验证失败:', e);
-        return null;
+    let active = true;
+    (window as any).runNoTiltAutoTest = async (frames = 120) => {
+      const worldUp = new THREE.Vector3(0, 1, 0);
+      const rotation = new THREE.Quaternion();
+      let maxTiltDeg = 0, samples = 0;
+      for (let i = 0; i < frames && active; i++) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        const earth = scene.getObjectByName('earthRoot');
+        if (!earth) continue;
+        earth.getWorldQuaternion(rotation);
+        const up = worldUp.clone().applyQuaternion(rotation);
+        maxTiltDeg = Math.max(maxTiltDeg, THREE.MathUtils.radToDeg(up.angleTo(worldUp)));
+        samples++;
       }
-    // };
-    
-    // 🔧 测试不同偏移量找到正确值
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).testOffsets = (lon: number) => {
-    //   console.log(`[TestOffsets] 测试不同偏移量对经度 ${lon}° 的影响:`);
-    //   const offsets = [0, 90, 180, -90, 52.5, -52.5, 127.5, -127.5];
-    //   const results = [];
-    //   
-    //   for (const offset of offsets) {
-    //     const textureLon = lon + offset;
-    //     const lonRad = THREE.MathUtils.degToRad(textureLon);
-    //     const vLocal = new THREE.Vector3(Math.sin(lonRad), 0, Math.cos(lonRad));
-    //     const gammaDeg = THREE.MathUtils.radToDeg(Math.atan2(vLocal.x, vLocal.z));
-    //     
-    //     results.push({
-    //       偏移量: offset,
-    //       贴图经度: textureLon.toFixed(1),
-    //       伽马角: gammaDeg.toFixed(1),
-    //       说明: offset === 90 ? '基础偏移' : offset === 0 ? '无偏移' : offset === 52.5 ? '原错误值' : ''
-    //     });
-    //   }
-    //   
-    //   console.table(results);
-    //   return results;
-    // };
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).runFixedSunAzimuthLockTest = async () => {
-    //   try {
-    //     (window as any).setUseFixedSun?.(true);
-    //     const yawOf = (arr:any) => {
-    //       try {
-    //         if (!arr || !Array.isArray(arr) || arr.length < 3) return NaN;
-    //         const [x,,z] = arr as number[];
-    //         return Math.atan2(x, z) * 180/Math.PI;
-    //       } catch { return NaN; }
-    //     };
-    //     const waitFrames = (n:number)=> new Promise<void>(res=>{ let c=0; const step=()=>{ if(++c>=n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); });
-    //     (window as any).setSceneTime?.('2024-03-21T06:00'); await waitFrames(30);
-    //     const d1 = (window as any).getFixedSunDir?.() || (window as any).__LightDir;
-    //     (window as any).setSceneTime?.('2024-03-21T18:00'); await waitFrames(30);
-    //     const d2 = (window as any).getFixedSunDir?.() || (window as any).__LightDir;
-    //     const y1 = yawOf(d1), y2 = yawOf(d2);
-    //     const diff = Math.abs(((y2 - y1 + 540)%360)-180); // shortest diff
-    //     const ok = diff <= 1.0;
-    //     const payload = { when:new Date().toISOString(), ok, yaw06:+y1.toFixed(2), yaw18:+y2.toFixed(2), diff:+diff.toFixed(2) };
-    //     console[ok?'log':'error']('[FixedSunAzTest] ' + (ok?'✅ PASS':'❌ FAIL'), payload);
-    //     console.log('[FixedSunAzTest:JSON]', JSON.stringify(payload, null, 2));
-    //     return payload;
-    //   } catch (e) {
-    //     console.error('[FixedSunAzTest] failed:', e);
-    //     return null;
-    //   }
-    // };
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).runSeasonalAutoTest = async () => {
-    //   try {
-    //     // 使用最新的 composition 值，而不是闭包快照
-    //     const getComp = () => (window as any).__getComposition?.() ?? {};
-    //     const comp = getComp();
-    //     const utc = new Date('2024-06-21T12:00:00Z');
-    //     const dSum = seasonalSunDirWorldYUp(utc, 0, (comp.obliquityDeg ?? 23.44), (comp.seasonOffsetDays ?? 0));
-    //     const eps = comp.obliquityDeg ?? 23.44;
-    //     const altSum = Math.asin(dSum.y) * 180/Math.PI;
-    //     const ok1 = Math.abs(altSum - eps) < 3.0;
-    //     const utc2 = new Date('2024-12-21T12:00:00Z');
-    //     const dWin = seasonalSunDirWorldYUp(utc2, 0, (comp.obliquityDeg ?? 23.44), (comp.seasonOffsetDays ?? 0));
-    //     const altWin = Math.asin(dWin.y) * 180/Math.PI;
-    //     const ok2 = Math.abs(altWin + eps) < 3.0;
-    //     const payload = { when: new Date().toISOString(), ok: ok1 && ok2, altSummer: +altSum.toFixed(2), altWinter: +altWin.toFixed(2), eps };
-    //     console[payload.ok?'log':'error']('[SeasonalTest] ' + (payload.ok?'✅ PASS':'❌ FAIL'), payload);
-    //     console.log('[SeasonalTest:JSON]', JSON.stringify(payload, null, 2));
-    //     return payload;
-    //   } catch (e) {
-    //     console.error('[SeasonalTest] failed:', e);
-    //     return null;
-    //   }
-    // };
-    // 只读 composition getter，避免闭包旧值
-    // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
-    // (window as any).__getComposition = () => { try { return {}; } catch { return null; } };
+      return { ok: samples === frames && maxTiltDeg <= 0.5, maxTiltDeg, samples };
+    };
+    return () => { active = false; delete (window as any).runNoTiltAutoTest; };
   }, [scene]);
   return null;
 }

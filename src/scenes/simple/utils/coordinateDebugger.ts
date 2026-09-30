@@ -267,7 +267,7 @@ export class CoordinateSystemDebugger {
     const fixedPitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(fixedFormula.y, -1, 1)));
     console.log('修复后相机朝向:', { yaw: fixedYaw.toFixed(2) + '°', pitch: fixedPitch.toFixed(2) + '°' });
     
-    offsets.forEach(offset => {
+    [0, 90, 180, -90, 52.5, -52.5, 127.5, -127.5].forEach(offset => {
       const adjustedLon = THREE.MathUtils.degToRad(shanghai.lon + offset);
       const adjusted = new THREE.Vector3(
         Math.cos(lat) * Math.sin(adjustedLon),
