@@ -446,7 +446,7 @@ function SceneContent({
         <Earth 
           position={[0, 0, 0]}
           size={earthInfo.size}
-          segments={(composition.useSegLOD && (isAlignedAndZoomed || earthInfo.size >= (composition.segLODTriggerSize ?? 1.0))) ? Math.min(composition.earthSegmentsHigh ?? 288, profile.earthSegmentsHigh) : Math.min(composition.earthSegmentsBase ?? 144, profile.earthSegments)}
+          segments={(composition.useSegLOD && (isAlignedAndZoomed || earthInfo.screenSize >= (composition.segLODTriggerSize ?? 1.0))) ? Math.min(composition.earthSegmentsHigh ?? 288, profile.earthSegmentsHigh) : Math.min(composition.earthSegmentsBase ?? 144, profile.earthSegments)}
           autoRotate={!reducedMotion && mode === 'celestial' && composition.viewOffsetY === 2 && !isAlignedAndZoomed}
           lightDirection={lightDirection}
           tiltDeg={0}
@@ -1363,7 +1363,7 @@ export default function SimpleTest() {
       
       <div className="scene-viewport">
       <Canvas
-        dpr={[1, profile.dpr]}
+        dpr={1}
         frameloop="demand"
         gl={{ 
           preserveDrawingBuffer: false,
@@ -2701,7 +2701,7 @@ export default function SimpleTest() {
                 </div>
               </div>
               <div className="col">
-                <label className="label">LOD触发阈值（地球半径 size ≥）: {(composition.segLODTriggerSize ?? 1.0).toFixed(2)}</label>
+                <label className="label">LOD触发阈值（地球屏幕半径 ≥）: {(composition.segLODTriggerSize ?? 1.0).toFixed(2)}</label>
                 <input className="input" type="range" min={0.5} max={2.0} step={0.05}
                        value={composition.segLODTriggerSize ?? 1.0}
                        onChange={(e) => updateValue('segLODTriggerSize', parseFloat(e.target.value))} />

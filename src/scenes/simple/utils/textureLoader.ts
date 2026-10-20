@@ -2,18 +2,81 @@ import React from 'react';
 import * as THREE from 'three';
 import { assetUrl } from '../../../utils/assetUrl';
 
-type TextureOptions = { maxSize?: number; anisotropy?: number; staged?: boolean; delayMs?: number };
+type TextureOptions = {
+  maxSize?: number;
+  anisotropy?: number;
+  staged?: boolean;
+  delayMs?: number;
+  priority?: number;
+  upgradePriority?: number;
+};
+
+type TextureJob = {
+  priority: number;
+  order: number;
+  exclusive: boolean;
+  canceled: boolean;
+  run: (finish: () => void) => void;
+};
+
+// Image decode callbacks and the following GPU upload both contend with the
+// render thread. Keep only two requests in flight and let critical base maps
+// finish before decorative/detail resources start.
+const textureQueue: TextureJob[] = [];
+let activeTextureJobs = 0;
+let exclusiveTextureJob = false;
+let textureJobOrder = 0;
+const MAX_TEXTURE_JOBS = 2;
+
+function pumpTextureQueue() {
+  textureQueue.sort((a, b) => a.priority - b.priority || a.order - b.order);
+  while (!exclusiveTextureJob && activeTextureJobs < MAX_TEXTURE_JOBS && textureQueue.length) {
+    const job = textureQueue[0];
+    if (job.exclusive && activeTextureJobs > 0) return;
+    textureQueue.shift();
+    if (job.canceled) continue;
+    activeTextureJobs++;
+    exclusiveTextureJob = job.exclusive;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      activeTextureJobs--;
+      if (job.exclusive) exclusiveTextureJob = false;
+      queueMicrotask(pumpTextureQueue);
+    };
+    try { job.run(finish); } catch { finish(); }
+  }
+}
+
+function enqueueTextureJob(priority: number, run: TextureJob['run'], exclusive = false) {
+  const job: TextureJob = { priority, order: textureJobOrder++, exclusive, canceled: false, run };
+  textureQueue.push(job);
+  queueMicrotask(pumpTextureQueue);
+  return () => { job.canceled = true; };
+}
 
 // Each hook owns its textures. Requests finishing after unmount are disposed too.
 function useManagedTexture(paths: string[], enabled = true, options: TextureOptions = {}) {
   const [texture, setTexture] = React.useState<THREE.Texture | null>(null);
-  const { maxSize = 8192, anisotropy = 16, staged = false, delayMs = 5000 } = options;
+  const currentTexture = React.useRef<THREE.Texture | null>(null);
+  const {
+    maxSize = 8192,
+    anisotropy = 16,
+    staged = false,
+    delayMs = 5000,
+    priority = 2,
+    upgradePriority = priority + 10,
+  } = options;
   React.useEffect(() => {
     setTexture(null);
     if (!enabled) return;
     let canceled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const owned = new Set<THREE.Texture>();
+    const retired = new Set<THREE.Texture>();
+    const retireFrames = new Set<number>();
+    const queued = new Set<() => void>();
     const loader = new THREE.TextureLoader();
     const candidates = maxSize <= 2048 ? paths.filter(p => !p.includes('8k')) : paths;
     const low = candidates.filter(p => !p.includes('8k'));
@@ -36,29 +99,65 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
       t.anisotropy = anisotropy;
       t.needsUpdate = true;
     };
-    const load = (list: string[], index = 0, onReady?: () => void) => {
+    const load = (list: string[], index = 0, onReady?: () => void, requestPriority = priority, exclusive = false) => {
       if (canceled) return;
       if (index >= list.length) {
         window.dispatchEvent(new CustomEvent('lubirth:asset-error', { detail: { path: paths[0] } }));
         return;
       }
-      loader.load(assetUrl(list[index]), t => {
-        if (canceled) { t.dispose(); return; }
-        configure(t);
-        owned.add(t);
-        setTexture(t);
-        onReady?.();
-      }, undefined, () => load(list, index + 1, onReady));
+      let cancel = () => {};
+      cancel = enqueueTextureJob(requestPriority, finish => {
+        queued.delete(cancel);
+        if (canceled) { finish(); return; }
+        try {
+          loader.load(assetUrl(list[index]), t => {
+            finish();
+            if (canceled) { t.dispose(); return; }
+            configure(t);
+            owned.add(t);
+            const previous = currentTexture.current;
+            currentTexture.current = t;
+            setTexture(t);
+            if (previous && previous !== t) {
+              owned.delete(previous);
+              retired.add(previous);
+              const frame = requestAnimationFrame(() => {
+                retireFrames.delete(frame);
+                retired.delete(previous);
+                previous.dispose();
+              });
+              retireFrames.add(frame);
+            }
+            onReady?.();
+          }, undefined, () => {
+            finish();
+            load(list, index + 1, onReady, requestPriority, exclusive);
+          });
+        } catch {
+          finish();
+          load(list, index + 1, onReady, requestPriority, exclusive);
+        }
+      }, exclusive);
+      queued.add(cancel);
     };
     if (staged && low.length && high.length) {
-      load(low, 0, () => { timer = setTimeout(() => load(high), delayMs); });
+      load(low, 0, () => { timer = setTimeout(() => load(high, 0, undefined, upgradePriority, true), delayMs); });
     } else load(candidates);
     return () => {
       canceled = true;
       clearTimeout(timer);
+      queued.forEach(cancel => cancel());
+      retireFrames.forEach(frame => cancelAnimationFrame(frame));
       owned.forEach(t => t.dispose());
+      retired.forEach(t => t.dispose());
+      currentTexture.current = null;
     };
-  }, [paths, enabled, maxSize, anisotropy, staged, delayMs]);
+  }, [paths, enabled, maxSize, staged, delayMs, priority, upgradePriority]);
+  React.useEffect(() => {
+    if (!texture || texture.anisotropy === anisotropy) return;
+    texture.anisotropy = anisotropy;
+    texture.needsUpdate = true;
+  }, [texture, anisotropy]);
   // Detach consumers in the same commit before effect cleanup disposes GPU resources.
   return enabled ? texture : null;
 }
@@ -162,19 +261,19 @@ export function useTextureLoader(config: {
 }) {
   const enabled = !!config.useTextures;
   const options = { maxSize: config.maxSize, anisotropy: config.anisotropy, staged: config.stagedLowFirst };
-  const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, options);
+  const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, { ...options, priority: 0 });
   const moonEnabled = enabled && config.useMoon !== false;
-  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, options);
+  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, { ...options, priority: 0 });
   const baseReady = !!earthMap && (!moonEnabled || !!moonMap);
-  const earthNight = useManagedTexture(TEXTURE_PATHS.earthNight, enabled, options);
+  const earthNight = useManagedTexture(TEXTURE_PATHS.earthNight, enabled, { ...options, priority: 1 });
   // Earth derives its surface normals from DEM; the normal-map shader branch is disabled.
   const earthNormal = null;
-  const earthSpecular = useManagedTexture(TEXTURE_PATHS.earthSpecular, enabled && baseReady, options);
-  const earthDisplacement = useManagedTexture(TEXTURE_PATHS.earthDisplacement, enabled && baseReady, options);
-  const earthClouds = useManagedTexture(TEXTURE_PATHS.earthClouds, enabled && baseReady && !!config.useClouds, options);
-  const moonNormalMap = useManagedTexture(TEXTURE_PATHS.moonNormal, moonEnabled && baseReady, options);
-  const moonDisplacementMap = useManagedTexture(TEXTURE_PATHS.moonDisplacement, moonEnabled && baseReady, options);
-  const starsMilky = useManagedTexture(TEXTURE_PATHS.starsMilky, enabled && !!config.useMilkyWay, options);
+  const earthSpecular = useManagedTexture(TEXTURE_PATHS.earthSpecular, enabled && baseReady, { ...options, priority: 2 });
+  const earthDisplacement = useManagedTexture(TEXTURE_PATHS.earthDisplacement, enabled && baseReady, { ...options, priority: 1 });
+  const earthClouds = useManagedTexture(TEXTURE_PATHS.earthClouds, enabled && baseReady && !!config.useClouds, { ...options, priority: 2 });
+  const moonNormalMap = useManagedTexture(TEXTURE_PATHS.moonNormal, moonEnabled && baseReady, { ...options, priority: 3 });
+  const moonDisplacementMap = useManagedTexture(TEXTURE_PATHS.moonDisplacement, moonEnabled && baseReady, { ...options, priority: 2 });
+  const starsMilky = useManagedTexture(TEXTURE_PATHS.starsMilky, enabled && !!config.useMilkyWay, { ...options, priority: 3 });
   React.useEffect(() => {
     const progress = { loaded: Number(!!earthMap) + Number(moonEnabled && !!moonMap), total: moonEnabled ? 2 : 1 };
     (window as any).__lubirthAssetProgress = progress;

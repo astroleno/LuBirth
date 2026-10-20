@@ -238,7 +238,7 @@ export interface SimpleComposition {
   useSegLOD?: boolean;           // 启用细分段数LOD
   earthSegmentsBase?: number;    // 基础段数（默认144）
   earthSegmentsHigh?: number;    // 放大/近景段数（默认288）
-  segLODTriggerSize?: number;    // 当地球半径size>=此值或对齐放大时使用高段数
+  segLODTriggerSize?: number;    // 当地球屏幕半径>=此值或对齐放大时使用高段数
   
   // 地形投影参数扩展
   directionalShadowSharpness?: number;  // 投影锐利度（控制边缘清晰度）

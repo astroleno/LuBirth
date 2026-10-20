@@ -189,11 +189,13 @@ export function Earth({
   // 纹理从父组件传入，不再在这里加载
 
   // Earth Day/Night 混合着色器 - 完整移植自原Scene.tsx
+  const surfaceCacheNeedsHeight = displacementScaleRel !== 0 && !!receiveShadows;
+  const surfaceCacheInputsReady = !!earthNight && (!surfaceCacheNeedsHeight || !!earthDisplacement);
   const surfaceCache = useEarthSurfaceCache({
     heightMap: earthDisplacement ?? SOLID.zeroLinear,
     nightMap: earthNight ?? SOLID.black,
-    enabled: !!useTextures && (!!earthNight || !!earthDisplacement),
-    aoEnabled: !!earthDisplacement && displacementScaleRel !== 0 && !!receiveShadows,
+    enabled: !!useTextures && surfaceCacheInputsReady,
+    aoEnabled: surfaceCacheNeedsHeight && !!earthDisplacement,
     blur: nightGlowBlur,
     heightThreshold: aoHeightThreshold, distanceAttenuation: aoDistanceAttenuation,
     maxOcclusion: aoMaxOcclusion, smoothFactor: aoSmoothFactor,

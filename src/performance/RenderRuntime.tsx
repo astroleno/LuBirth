@@ -13,18 +13,34 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
   const frames = useRef(0);
   const resolution = useRef<ResolutionState>({ dpr: 1, slow: 0, fast: 0 });
   const sample = useRef({ since: 0, frames: 0, fps: 0 });
+  const booting = useRef(!(window as any).__lubirthOverlayFading);
   const ceiling = resolutionCeiling(size.width, size.height, window.devicePixelRatio || 1, profile.dpr,
     profile.quality === 'battery' ? 1_000_000 : profile.quality === 'detail' ? 3_500_000 : profile.mobile ? 1_500_000 : 2_500_000);
   useEffect(() => {
     resolution.current = { dpr: ceiling, slow: 0, fast: 0 };
-    sample.current = { since: performance.now() + 5000, frames: 0, fps: 0 };
+    sample.current = { since: performance.now(), frames: 0, fps: 0 };
     setDpr(ceiling);
   }, [ceiling, profile, setDpr]);
+  useEffect(() => {
+    const finishBoot = () => {
+      booting.current = false;
+      sample.current = { since: performance.now(), frames: 0, fps: sample.current.fps };
+      resolution.current.slow = resolution.current.fast = 0;
+    };
+    window.addEventListener('lubirth:overlay-fade-start', finishBoot);
+    return () => window.removeEventListener('lubirth:overlay-fade-start', finishBoot);
+  }, []);
   useEffect(() => {
     glass.current = new LiquidGlassRenderer(gl.domElement);
     return () => { glass.current?.dispose(); glass.current = null; };
   }, [gl]);
   useFrame(() => {
+    // Canvas resize/layout updates can reapply its declarative DPR. Restore the
+    // adaptive value before drawing so mode transitions never jump back to the
+    // full device DPR for an expensive frame.
+    if (Math.abs(gl.getPixelRatio() - resolution.current.dpr) > 0.001) {
+      setDpr(resolution.current.dpr);
+    }
     gl.render(scene, camera);
     frames.current++;
     sceneStats.current.triangles = gl.info.render.triangles;
@@ -34,7 +50,9 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     if (now < sample.current.since) return;
     sample.current.frames++;
     const elapsed = now - sample.current.since;
-    if (elapsed < 2000) return;
+    // Calibrate aggressively while the opaque loading layer is still present,
+    // then use long windows so visible resolution changes remain infrequent.
+    if (elapsed < (booting.current ? 500 : 2000)) return;
     sample.current.fps = sample.current.frames * 1000 / elapsed;
     const next = adaptResolution(resolution.current, sample.current.fps, profile.fps, ceiling);
     if (Math.abs(next.dpr - resolution.current.dpr) > 0.001) setDpr(next.dpr);
@@ -47,7 +65,7 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     const update = () => {
       clearInterval(timer);
       setFrameloop(document.hidden ? 'never' : 'demand');
-      sample.current = { since: performance.now() + 5000, frames: 0, fps: 0 };
+      sample.current = { since: performance.now(), frames: 0, fps: 0 };
       resolution.current.slow = resolution.current.fast = 0;
       if (!document.hidden) {
         invalidate();

@@ -46,6 +46,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
       finishedRef.current = true;
       try {
         // 通知场景：Overlay 开始淡出（可用于解锁自转）
+        (window as any).__lubirthOverlayFading = true;
         window.dispatchEvent(new CustomEvent('lubirth:overlay-fade-start'));
       } catch {}
       setFading(true);

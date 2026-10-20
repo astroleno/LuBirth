@@ -11,10 +11,13 @@ export function createRenderProfile(mobile: boolean, quality: Quality = 'balance
     quality,
     dpr: mobile ? (battery ? 1 : detail ? 1.75 : 1.5) : (battery ? 1 : 2),
     fps: battery ? 24 : detail ? 60 : 30,
-    maxTextureSize: mobile || battery ? 2048 : 8192,
+    // Start and remain on the compact texture set unless the user explicitly
+    // asks for detail. Automatic 8K swaps caused multi-second decode/upload
+    // stalls after the loading overlay had already disappeared.
+    maxTextureSize: detail && !mobile ? 8192 : 2048,
     anisotropy: mobile || battery ? 4 : 16,
     earthSegments: battery ? 64 : mobile ? 96 : 144,
-    earthSegmentsHigh: battery ? 96 : mobile ? (detail ? 256 : 192) : 512,
+    earthSegmentsHigh: battery ? 96 : mobile ? (detail ? 256 : 192) : detail ? 512 : 192,
     cloudLayers: battery ? 2 : mobile ? (detail ? 4 : 3) : 12,
     terrainShadows: !mobile && !battery,
     antialias: !battery,

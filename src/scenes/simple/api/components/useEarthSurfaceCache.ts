@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { terrainAOGLSL, nightGlowGLSL } from './earthSurfaceKernels';
@@ -18,8 +18,21 @@ type SurfaceInputs = {
 /** Cache view-independent AO and night glow; sunlight, terrain normals and rim remain live. */
 export function useEarthSurfaceCache(inputs: SurfaceInputs) {
   const { gl } = useThree();
+  // Secondary textures can finish within the same short loading burst. Keep
+  // the previous cache until that burst settles instead of compiling and
+  // rendering the expensive surface pass once per arriving image.
+  const [stable, setStable] = useState(inputs);
+  useEffect(() => {
+    if (!inputs.enabled) {
+      setStable(current => current.enabled ? inputs : current);
+      return;
+    }
+    const timer = window.setTimeout(() => setStable(inputs), 600);
+    return () => window.clearTimeout(timer);
+  }, [inputs.heightMap, inputs.nightMap, inputs.enabled, inputs.aoEnabled, inputs.blur,
+    inputs.heightThreshold, inputs.distanceAttenuation, inputs.maxOcclusion, inputs.smoothFactor]);
   const { heightMap, nightMap, enabled, aoEnabled, blur, heightThreshold,
-    distanceAttenuation, maxOcclusion, smoothFactor } = inputs;
+    distanceAttenuation, maxOcclusion, smoothFactor } = stable;
   const cache = useMemo(() => {
     if (!enabled) return null;
     const target = new THREE.WebGLRenderTarget(1024, 512, {
