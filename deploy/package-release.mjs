@@ -11,6 +11,10 @@ const sourceInputs = ['src', 'public', 'index.html', 'vite.config.ts', 'package.
 // Unreferenced sound prototypes are local authoring material, not site resources.
 const sourceExclusions = [':(exclude)public/sfx'];
 const isPrototype = path => path === 'sfx' || path.startsWith('sfx/');
+const originStaticFiles = new Map([
+  ['llms.txt', 'text/plain; charset=utf-8'],
+  ['sitemap.xml', 'application/xml; charset=utf-8'],
+]);
 const deployableExtensions = new Set([
   '.avif', '.css', '.csv', '.gif', '.glb', '.ico', '.jpeg', '.jpg', '.js', '.json', '.mjs',
   '.mp3', '.mp4', '.ogg', '.png', '.svg', '.vtt', '.wav', '.webm', '.webp', '.woff', '.woff2',
@@ -83,7 +87,7 @@ async function main() {
   const entries = [];
   for (const file of await walk(buildDir)) {
     const path = relative(buildDir, file).split(sep).join('/');
-    if (path === 'index.html') continue;
+    if (path === 'index.html' || originStaticFiles.has(path)) continue;
     if (isPrototype(path)) continue;
     if (!deployableExtensions.has(ext(path))) continue;
     const channel = /^(?:bgm|sfx)\//.test(path) ? 'media' : 'assets';
@@ -96,7 +100,10 @@ async function main() {
       sha256: sha(bytes), mime: mime[ext(path)], cacheControl: 'public, max-age=31536000, immutable' });
   }
   const html = await readFile(join(buildDir, 'index.html'));
-  if (!html.toString().includes(assetsBase)) fail('HTML does not reference the CDN release');
+  const htmlText = html.toString();
+  if (!htmlText.includes(assetsBase)) fail('HTML does not reference the CDN release');
+  if (!htmlText.includes('<link rel="canonical" href="https://aitoshuu.me/lubirth/"')) fail('HTML canonical URL is missing');
+  if (!htmlText.includes('type="application/ld+json"') || !htmlText.includes('"@type": "WebApplication"')) fail('HTML structured data is missing');
   await mkdir(join(output, 'web'), { recursive: true });
   await writeFile(join(output, 'web/index.html'), html);
   entries.push({ channel: 'origin', packagePath: 'web/index.html', bytes: html.length,
@@ -105,6 +112,13 @@ async function main() {
   await writeFile(join(output, 'web/release-health.json'), health);
   entries.push({ channel: 'origin', packagePath: 'web/release-health.json', bytes: health.length,
     sha256: sha(health), mime: 'application/json; charset=utf-8', cacheControl: 'no-store' });
+  for (const [name, contentType] of originStaticFiles) {
+    const bytes = await readFile(join(buildDir, name));
+    if (!bytes.length) fail(`empty origin discovery file: ${name}`);
+    await writeFile(join(output, 'web', name), bytes);
+    entries.push({ channel: 'origin', packagePath: `web/${name}`, bytes: bytes.length,
+      sha256: sha(bytes), mime: contentType, cacheControl: 'no-cache' });
+  }
   const manifest = { schemaVersion: 1, site: 'LuBirth', releaseId, gitHead: head,
     sourceMode: options['source-ref'] ? 'commit' : 'worktree', sourceDigest,
     assetsBase, mediaBase, objectPrefix, entries: entries.sort((a,b) => a.packagePath.localeCompare(b.packagePath)) };

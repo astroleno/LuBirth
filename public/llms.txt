@@ -1,0 +1,28 @@
+# LuBirth
+
+> LuBirth 是一个交互式地月天文可视化应用。用户输入出生时间与地点后，可以查看对应时刻的地球昼夜、月相、太阳光照与出生地点。
+
+## Official pages
+
+- Canonical application: https://aitoshuu.me/lubirth/
+- Brand entry: https://tongye.me/lubirth/
+- Source repository: https://github.com/astroleno/LuBirth
+
+## What LuBirth shows
+
+- 出生时刻的地球昼夜与太阳光照方向
+- 对应日期的月相和地月相对呈现
+- 出生地点在地球表面的定位
+- 桌面与移动端可交互的 WebGL 场景
+
+## Method and sources
+
+- 页面根据用户输入的时间和地点计算太阳方向、地球昼夜与月相。
+- 世界坐标采用 Y-up，天文方向在进入渲染场景前完成坐标转换。
+- 月球近景模型来源：NASA Goddard Space Flight Center，https://svs.gsfc.nasa.gov/14959/
+- 应用展示用于交互体验与科普，不替代专业天文测量或导航数据。
+
+## Technical requirements
+
+- JavaScript and WebGL are required for the interactive scene.
+- The page supports current desktop and mobile browsers.

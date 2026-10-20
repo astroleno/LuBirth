@@ -11,8 +11,17 @@ const USER = 'codex_audit';
 const HOST_FINGERPRINT = 'SHA256:u8+4eQijiilG5YF1F80YnTJjSrmTkVejVpHDPoGl2q0';
 const RELEASE_ROOT = '/www/wwwroot/lubirth-releases';
 const CURRENT_LINK = '/www/wwwroot/lubirth-current';
+const LEGACY_ORIGIN_PATHS = ['web/index.html', 'web/release-health.json'];
+const DISCOVERY_ORIGIN_PATHS = [
+  'web/index.html',
+  'web/llms.txt',
+  'web/release-health.json',
+  'web/sitemap.xml',
+];
 const sha = data => createHash('sha256').update(data).digest('hex');
 const fail = message => { throw new Error(message); };
+const samePaths = (actual, expected) => actual.length === expected.length
+  && actual.every((path, index) => path === expected[index]);
 
 function run(command, args, input) {
   const result = spawnSync(command, args, { input, encoding: 'utf8', timeout: 15000 });
@@ -23,7 +32,8 @@ async function checkedPackage(root) {
   const manifest = JSON.parse(await readFile(join(root, 'manifests/release-manifest.json'), 'utf8'));
   if (manifest.site !== 'LuBirth' || !/^lubirth-[0-9a-f]{16}$/.test(manifest.releaseId)) fail('invalid LuBirth release');
   const files = manifest.entries.filter(entry => entry.channel === 'origin');
-  if (files.length !== 2 || files.some(entry => !['web/index.html', 'web/release-health.json'].includes(entry.packagePath))) fail('invalid origin package');
+  const paths = files.map(entry => entry.packagePath).sort();
+  if (!samePaths(paths, DISCOVERY_ORIGIN_PATHS) && !samePaths(paths, LEGACY_ORIGIN_PATHS)) fail('invalid origin package');
   for (const entry of files) {
     const bytes = await readFile(join(root, entry.packagePath));
     if (bytes.length !== entry.bytes || sha(bytes) !== entry.sha256) fail('origin package hash mismatch');
@@ -51,7 +61,8 @@ async function main() {
   const options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=yes',
     '-o', `UserKnownHostsFile=${knownHosts}`];
   const ssh = command => run('ssh', [...options, `${USER}@${HOST}`, command]);
-  const remoteHashes = () => ssh(`sudo -n sha256sum -- '${destination}/index.html' '${destination}/release-health.json'`);
+  const remoteFileArgs = files.map(entry => `'${destination}/${entry.packagePath.slice(4)}'`).join(' ');
+  const remoteHashes = () => ssh(`sudo -n sha256sum -- ${remoteFileArgs}`);
   try {
     const access = ssh('true');
     if (access.status !== 0) fail('origin SSH access is unavailable');
