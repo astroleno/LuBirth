@@ -443,7 +443,11 @@ export function Moon({
             float coupleL = mix(1.0, fullness, clamp(phaseCoupleStrength, 0.0, 1.0));
             vec3 finalColor = moonColor * lightColor * sunIntensity * moonIntensityRatio
               * diffuse * terminator * surge * coupleL;
-            finalColor += moonColor * nightLift * (1.0 - terminator);
+            // Faint Earthshine keeps a new Moon readable without changing its sunlit fraction.
+            // It is strongest near new Moon, when Earth appears fullest from the lunar surface.
+            float earthshinePhase = 0.2 + 0.8 * pow(clamp(1.0 - fullness, 0.0, 1.0), 1.35);
+            vec3 earthshineTint = vec3(0.82, 0.88, 1.0);
+            finalColor += moonColor * earthshineTint * nightLift * earthshinePhase * (1.0 - terminator);
             finalColor = mix(finalColor, finalColor * tintColor, clamp(tintStrength, 0.0, 1.0));
 
             gl_FragColor = vec4(finalColor, 1.0);

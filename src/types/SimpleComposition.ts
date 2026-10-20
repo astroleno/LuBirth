@@ -109,7 +109,7 @@ export interface SimpleComposition {
   terminatorRadius?: number;     // 晨昏线软半径（附加宽度）
   phaseCoupleStrength?: number;  // 相位耦合强度（0-1）
   displacementMid?: number;      // 位移中点（通常0.5，决定正负起伏平衡）
-  nightLift?: number;            // 夜面抬升（0-0.2），避免新月过亮
+  nightLift?: number;            // 地照强度（0-0.2），让新月暗面保持微弱可见
   
   // 云层参数
   cloudStrength: number;       // 云层强度
@@ -410,7 +410,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   terminatorRadius: 0.02,
   phaseCoupleStrength: 0.0,
   displacementMid: 0.5,
-  nightLift: 0.002,
+  nightLift: 0.012,
   
   // 云层参数
   cloudStrength: 0.20,          // 云层强度
@@ -500,10 +500,10 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   strongAltitudeConsistency: false,
   seasonalUpdateIntervalMin: 1,
 
-  // 出生点对齐默认（关闭，仅显示标记用于调试可选）
+  // 出生点对齐默认关闭；出生地标记可独立显示
   enableBirthPointAlignment: false,
   birthPointAlignmentMode: false,     // 🔧 新增：默认关闭出生点对齐模式
-  showBirthPointMarker: false,
+  showBirthPointMarker: true,
   birthPointLongitudeDeg: 121.5,
   birthPointLatitudeDeg: 31.2,
   birthPointMarkerSize: 0.06,

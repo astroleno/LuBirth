@@ -100,6 +100,7 @@ export function Earth({
   earthNormal,
   earthSpecular,
   earthDisplacement,
+  children,
 }: {
   position: [number, number, number];
   size: number;
@@ -179,6 +180,7 @@ export function Earth({
   earthNormal?: THREE.Texture;
   earthSpecular?: THREE.Texture;
   earthDisplacement?: THREE.Texture;
+  children?: React.ReactNode;
 }) {
   const rotationRef = React.useRef<THREE.Group>(null);
   useFrame((_, delta) => {
@@ -1001,6 +1003,7 @@ export function Earth({
           emissiveIntensity={0.6}
         />
       </mesh>
+      {children}
     </group>
   );
 }

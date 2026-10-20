@@ -1,6 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
 import { SimpleComposition } from '../../../../types/SimpleComposition';
 import { calculateBirthPointLocalFrame } from '../../utils/birthPointAlignment';
 
@@ -9,50 +8,76 @@ interface BirthPointMarkerProps {
   earthSize: number;
 }
 
-/**
- * 出生点标记组件
- * 在测试阶段显示红色标记，指示出生点位置
- */
+function createMarkerTexture(color: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Unable to create birth-point marker texture');
+
+  const center = 64;
+  const glow = context.createRadialGradient(center, center, 5, center, center, 52);
+  glow.addColorStop(0, 'rgba(255,255,255,0.32)');
+  glow.addColorStop(0.45, 'rgba(255,255,255,0.10)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, 128, 128);
+
+  context.beginPath();
+  context.arc(center, center, 36, 0, Math.PI * 2);
+  context.strokeStyle = 'rgba(255,255,255,0.92)';
+  context.lineWidth = 7;
+  context.stroke();
+
+  context.beginPath();
+  context.arc(center, center, 22, 0, Math.PI * 2);
+  context.fillStyle = color;
+  context.fill();
+  context.strokeStyle = 'rgba(255,255,255,0.95)';
+  context.lineWidth = 5;
+  context.stroke();
+
+  context.beginPath();
+  context.arc(center, center, 6, 0, Math.PI * 2);
+  context.fillStyle = '#ffffff';
+  context.fill();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** A camera-facing locator anchored to the selected birthplace on the globe. */
 export function BirthPointMarker({ composition, earthSize }: BirthPointMarkerProps) {
-  const markerRef = useRef<THREE.Mesh>(null);
-  
-  // 检查是否显示标记
-  if (!composition?.enableBirthPointAlignment || !composition?.showBirthPointMarker) {
-    return null;
-  }
-  
   const longitudeDeg = composition.birthPointLongitudeDeg ?? 0;
   const latitudeDeg = composition.birthPointLatitudeDeg ?? 0;
   const markerSize = composition.birthPointMarkerSize ?? 0.1;
   const markerColor = composition.birthPointMarkerColor ?? '#ff0000';
-  
-  // 计算出生点位置
-  const localFrame = calculateBirthPointLocalFrame(longitudeDeg, latitudeDeg);
-  // 让标记跟随地球自转：绕世界+Y按 composition.earthYawDeg 旋转
-  const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(composition.earthYawDeg ?? 0));
-  const birthPointPosition = localFrame.p.clone().applyQuaternion(qYaw).multiplyScalar(earthSize * 1.01); // 稍微高出地球表面
-  
-  // 创建标记几何体（椭圆形状）
-  const markerGeometry = new THREE.SphereGeometry(markerSize, 16, 8);
-  const markerMaterial = new THREE.MeshBasicMaterial({ 
-    color: markerColor,
-    transparent: true,
-    opacity: 0.8
-  });
-  
-  // 更新标记位置
-  useFrame(() => {
-    if (markerRef.current) {
-      markerRef.current.position.copy(birthPointPosition);
-      
-      // 让标记始终面向相机
-      markerRef.current.lookAt(0, 0, 0);
-    }
-  });
-  
+
+  const markerTexture = useMemo(() => createMarkerTexture(markerColor), [markerColor]);
+  useEffect(() => () => markerTexture.dispose(), [markerTexture]);
+
+  const birthPointPosition = useMemo(() => {
+    const localFrame = calculateBirthPointLocalFrame(longitudeDeg, latitudeDeg);
+    return localFrame.p.multiplyScalar(earthSize * 1.018);
+  }, [earthSize, latitudeDeg, longitudeDeg]);
+
+  if (!composition.showBirthPointMarker) return null;
+
+  const iconSize = Math.max(markerSize * 4, earthSize * 0.09);
   return (
-    <mesh ref={markerRef} geometry={markerGeometry} material={markerMaterial}>
-      {/* 可以添加额外的视觉效果，比如发光效果 */}
-    </mesh>
+    <group position={birthPointPosition}>
+      <sprite scale={[iconSize, iconSize, 1]} renderOrder={30}>
+        <spriteMaterial
+          map={markerTexture}
+          transparent
+          alphaTest={0.02}
+          depthTest
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </sprite>
+    </group>
   );
 }

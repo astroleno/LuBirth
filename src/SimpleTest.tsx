@@ -510,7 +510,9 @@ function SceneContent({
           directionalShadowSoftness={demParams.directionalShadowSoftness}
           directionalShadowSharpness={demParams.directionalShadowSharpness}
           directionalShadowContrast={demParams.directionalShadowContrast}
-        />
+        >
+          <BirthPointMarker composition={composition} earthSize={earthInfo.size} />
+        </Earth>
         
         
         {/* 云层 - 根据earthSize自动调整层数 */}
@@ -598,8 +600,6 @@ function SceneContent({
           />
         )}
 
-        {/* 出生点标记（可选） */}
-        <BirthPointMarker composition={composition} earthSize={earthInfo.size} />
       </group>
 
       {/* 月球 */}
@@ -2034,9 +2034,9 @@ export default function SimpleTest() {
                      onChange={(e)=>updateValue('displacementMid', parseFloat(e.target.value))} />
             </div>
             <div className="col">
-              <label className="label">夜面抬升: {(composition.nightLift ?? 0.02).toFixed(2)}</label>
-              <input className="input" type="range" min={0} max={0.2} step={0.005}
-                     value={composition.nightLift ?? 0.02}
+              <label className="label">月面地照: {(composition.nightLift ?? 0.012).toFixed(3)}</label>
+              <input className="input" type="range" min={0} max={0.05} step={0.001}
+                     value={composition.nightLift ?? 0.012}
                      onChange={(e)=>updateValue('nightLift', parseFloat(e.target.value))} />
             </div>
           </div>
@@ -3855,6 +3855,15 @@ export default function SimpleTest() {
                       style={{ filter: 'grayscale(100%) brightness(0.8)' }}
                     />
                     月球
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!composition.showBirthPointMarker}
+                      onChange={(e) => updateValue('showBirthPointMarker', e.target.checked)}
+                      style={{ filter: 'grayscale(100%) brightness(0.8)' }}
+                    />
+                    出生地标记
                   </label>
                 </div>
               </div>
