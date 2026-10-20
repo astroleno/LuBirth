@@ -38,12 +38,12 @@ export default function App() {
   // 使用 SimpleTest 组件作为主场景
   return (
     <>
-      {/* 载入 3s，淡出更柔和 */}
+      {/* 基础地月画面稳定后尽快露出场景。 */}
       <LoadingOverlay
         durationMs={mobile ? 6000 : 4000}
-        minShowMs={mobile ? 300 : 1200}
-        fadeMs={mobile ? 450 : 2000}
-        prewarmFrames={mobile ? 1 : 3}
+        minShowMs={mobile ? 300 : 650}
+        fadeMs={mobile ? 380 : 600}
+        prewarmFrames={1}
       />
       <SimpleTest />
       {assetStatus && <div className="asset-status" role="status">{assetStatus}</div>}

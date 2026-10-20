@@ -12,16 +12,17 @@
     <meta property="og:url" content="https://aitoshuu.me/lubirth/" />
     <meta property="og:image" content="%BASE_URL%favicon.png" />
     <style>
-      html,body{margin:0;background:#02040a;color:#eaf2ff}
-      .boot{position:fixed;inset:0;display:grid;place-content:center;text-align:center;font-family:system-ui,sans-serif;padding:24px}
-      .boot h1{font-size:42px;letter-spacing:.05em;margin:0 0 12px}.boot p{color:#a9b8d0;line-height:1.7}.boot small{color:#7f92b3}
+      html,body{margin:0;background:#000;color:#eaf2ff}
+      .boot{position:fixed;inset:0;display:grid;place-content:center;text-align:center;font-family:system-ui,sans-serif;padding:24px;background:#000}
+      .boot h1{font-size:42px;letter-spacing:.08em;margin:0 0 10px;color:#fff;text-shadow:0 0 10px rgba(255,255,255,.3),0 0 22px rgba(160,200,255,.24)}.boot p{margin:0;color:#fff;font-size:20px;letter-spacing:.08em;opacity:.9;text-shadow:0 0 10px rgba(255,255,255,.3),0 0 22px rgba(160,200,255,.24)}
     </style>
     <link rel="icon" type="image/png" sizes="128x128" href="%BASE_URL%favicon.png" />
-    <link rel="stylesheet" href="%BASE_URL%fonts/inter.css" />
+    <link rel="preload" as="image" href="%BASE_URL%textures/1k_earth_daymap.webp" crossorigin="anonymous" fetchpriority="high" />
+    <link rel="preload" as="image" href="%BASE_URL%textures/1k_moon.webp" crossorigin="anonymous" fetchpriority="high" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="root"><div class="boot" role="status"><h1>LuBirth</h1><p>初见地月 · 天地人</p><small>正在准备星空…</small><noscript><p>请开启 JavaScript，进入地月场景。</p></noscript></div></div>
+    <div id="root"><div class="boot" role="status"><h1>LuBirth</h1><p>Moon Earth You</p><noscript><p>请开启 JavaScript，进入地月场景。</p></noscript></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
   </html>

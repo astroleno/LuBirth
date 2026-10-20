@@ -164,10 +164,8 @@ import { useCameraControl, useEarthPosition, useMoonPosition, useExposureControl
 import { useTextureLoader } from './scenes/simple/utils/textureLoader';
 import { Earth } from './scenes/simple/api/components/Earth';
 import { BirthPointMarker } from './scenes/simple/api/components/BirthPointMarker';
-import LocalAudioPlayer from './components/LocalAudioPlayer';
 import { calculateCameraOrientationForBirthPoint, calculateBirthPointLocalFrame, alphaToScreenY, validateBirthPointAlignment } from './scenes/simple/utils/birthPointAlignment';
-import { LocationSelector } from './components/LocationSelector';
-import { Moon } from './scenes/simple/api/components/Moon';
+import { Moon, type MoonTerrainStatus } from './scenes/simple/api/components/Moon';
 import { Clouds, CloudsWithLayers } from './scenes/simple/api/components/Clouds';
 import { IntegratedCloudSystem } from './scenes/simple/api/components/IntegratedCloudSystem';
 import { AtmosphereEffects, setupAtmosphereConsoleCommands } from './scenes/simple/api/components/AtmosphereEffects';
@@ -177,6 +175,28 @@ import { logger } from './utils/logger';
 import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
 import { calculateMoonPhase } from './scenes/simple/utils/moonPhaseCalculator';
+
+const LocalAudioPlayer = React.lazy(() => import('./components/LocalAudioPlayer'));
+const LazyLocationSelector = React.lazy(() => import('./components/LocationSelector')
+  .then(module => ({ default: module.LocationSelector })));
+
+function LocationSelector(props: React.ComponentProps<typeof LazyLocationSelector>) {
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const reveal = () => { timer = setTimeout(() => setReady(true), 450); };
+    if ((window as any).__lubirthAssetsReady) reveal();
+    else window.addEventListener('lubirth:assets-ready', reveal, { once: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('lubirth:assets-ready', reveal);
+    };
+  }, []);
+  if (!ready) return <div className="location-selector loading" role="status">画面就绪后载入地点…</div>;
+  return <React.Suspense fallback={<div className="location-selector loading" role="status">加载地点…</div>}>
+    <LazyLocationSelector {...props} />
+  </React.Suspense>;
+}
 
 // 带UV offset输出的云层包装组件 - 不再需要，因为云层阴影改为基于世界坐标
 // function CloudsWithOffset({ 
@@ -240,6 +260,10 @@ function SceneContent({
 }): JSX.Element {
   const { camera, scene, size, gl } = useThree();
   const reducedMotion = useReducedMotion();
+  const [moonTerrainStatus, setMoonTerrainStatus] = React.useState<MoonTerrainStatus>('idle');
+  const handleMoonTerrainStatus = React.useCallback((status: MoonTerrainStatus) => {
+    setMoonTerrainStatus(status);
+  }, []);
   const landscapePanel = profile.mobile && size.width > size.height && size.height <= 600;
   const frame = {
     width: profile.mobile && !uiHidden && landscapePanel && panelExpanded ? Math.max(1, size.width - 324) : size.width,
@@ -298,6 +322,9 @@ function SceneContent({
     useClouds: composition.useClouds,
     useMilkyWay: composition.useMilkyWay && composition.showStars,
     useMoon: composition.showMoon ?? true,
+    // The NASA terrain is the preferred close-up path. Heavy normal and
+    // displacement maps are loaded only if that model fails.
+    loadMoonFallbackDetails: isAlignedAndZoomed && moonTerrainStatus === 'error',
     maxSize: Math.min(profile.maxTextureSize, gl.capabilities.maxTextureSize),
     anisotropy: Math.min(profile.anisotropy, gl.capabilities.getMaxAnisotropy()),
     stagedLowFirst: true
@@ -316,15 +343,6 @@ function SceneContent({
     starsMilky
   } = useTextureLoader(textureConfig);
   
-  // 音频延迟挂载：首帧稳定后再加载播放器，避免与首屏资源竞争
-  const [showAudioLocal, setShowAudioLocal] = React.useState(false);
-  React.useEffect(() => {
-    let canceled = false;
-    const t = setTimeout(() => { if (!canceled) setShowAudioLocal(true); }, 1200);
-    return () => { canceled = true; clearTimeout(t); };
-  }, []);
-  // 不使用中间变量，直接在 JSX 内按需渲染，避免命名冲突
-
   // 调试信息（统一经 logger 输出）
   React.useEffect(() => {
     if (!logger.isEnabled()) return;
@@ -656,6 +674,7 @@ function SceneContent({
         moonNormalMap={moonNormalMap ?? undefined}
         moonDisplacementMap={moonDisplacementMap ?? undefined}
         terrainEnabled={isAlignedAndZoomed}
+        onTerrainStatusChange={handleMoonTerrainStatus}
         parallaxOffset={isAlignedAndZoomed ? parallaxOffset : undefined}
       />)}
       
@@ -835,12 +854,19 @@ export default function SimpleTest() {
   const [isAlignedAndZoomed, setIsAlignedAndZoomed] = useState(false);
   const reducedMotion = useReducedMotion();
   const parallax = useParallaxInput(isAlignedAndZoomed && !reducedMotion);
-  // 首帧后再挂载音频播放器，避免首屏竞争带宽/CPU
+  // 基础地月贴图就绪后再挂载音频播放器，避免首屏竞争带宽/CPU。
   const [showAudioLocal, setShowAudioLocal] = React.useState(false);
   React.useEffect(() => {
     let canceled = false;
-    const t = setTimeout(() => { if (!canceled) setShowAudioLocal(true); }, 1200);
-    return () => { canceled = true; clearTimeout(t); };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const reveal = () => { timer = setTimeout(() => { if (!canceled) setShowAudioLocal(true); }, 1200); };
+    if ((window as any).__lubirthAssetsReady) reveal();
+    else window.addEventListener('lubirth:assets-ready', reveal, { once: true });
+    return () => {
+      canceled = true;
+      clearTimeout(timer);
+      window.removeEventListener('lubirth:assets-ready', reveal);
+    };
   }, []);
   
   // DEM地形参数控制状态
@@ -1350,14 +1376,16 @@ export default function SimpleTest() {
       >
         {/** 使用本地播放器替代网易云 iframe，资源来自 @bgm/ */}
         {showAudioLocal ? (
-          <LocalAudioPlayer 
-            basePath={assetUrl("bgm/")}
-            tracks={[
-              { title: 'Epic Mountain - The Egg', file: 'Epic Mountain - The Egg.mp3', artist: 'Epic Mountain' }
-            ]}
-            autoPlay={false}
-            playOnFirstInteraction={!mobile}
-          />
+          <React.Suspense fallback={null}>
+            <LocalAudioPlayer
+              basePath={assetUrl("bgm/")}
+              tracks={[
+                { title: 'Epic Mountain - The Egg', file: 'Epic Mountain - The Egg.mp3', artist: 'Epic Mountain' }
+              ]}
+              autoPlay={false}
+              playOnFirstInteraction={!mobile}
+            />
+          </React.Suspense>
         ) : null}
       </div>
       

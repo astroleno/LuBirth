@@ -56,6 +56,13 @@ function enqueueTextureJob(priority: number, run: TextureJob['run'], exclusive =
   return () => { job.canceled = true; };
 }
 
+function textureTier(path: string) {
+  if (path.includes('8k')) return 8192;
+  if (path.includes('2k') || path.includes('2048')) return 2048;
+  if (path.includes('1k') || path.includes('1024')) return 1024;
+  return 2048;
+}
+
 // Each hook owns its textures. Requests finishing after unmount are disposed too.
 function useManagedTexture(paths: string[], enabled = true, options: TextureOptions = {}) {
   const [texture, setTexture] = React.useState<THREE.Texture | null>(null);
@@ -78,9 +85,15 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
     const retireFrames = new Set<number>();
     const queued = new Set<() => void>();
     const loader = new THREE.TextureLoader();
-    const candidates = maxSize <= 2048 ? paths.filter(p => !p.includes('8k')) : paths;
-    const low = candidates.filter(p => !p.includes('8k'));
-    const high = candidates.filter(p => p.includes('8k'));
+    const sizeMatchedCandidates = paths.filter(path => textureTier(path) <= maxSize);
+    const candidates = sizeMatchedCandidates.length ? sizeMatchedCandidates : paths;
+    const availableTiers = candidates.map(textureTier);
+    const starterTier = Math.min(...availableTiers);
+    const targetTier = Math.max(...availableTiers);
+    const starter = candidates.filter(path => textureTier(path) === starterTier);
+    const upgrades = candidates
+      .filter(path => textureTier(path) > starterTier)
+      .sort((a, b) => textureTier(b) - textureTier(a));
     const configure = (t: THREE.Texture) => {
       const img = t.image;
       if (Math.max(img.width, img.height) > maxSize) {
@@ -140,8 +153,8 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
       }, exclusive);
       queued.add(cancel);
     };
-    if (staged && low.length && high.length) {
-      load(low, 0, () => { timer = setTimeout(() => load(high, 0, undefined, upgradePriority, true), delayMs); });
+    if (staged && starter.length && starterTier < targetTier) {
+      load(starter, 0, () => { timer = setTimeout(() => load(upgrades, 0, undefined, upgradePriority, true), delayMs); });
     } else load(candidates);
     return () => {
       canceled = true;
@@ -198,6 +211,7 @@ export function kelvinToRGB(k: number): THREE.Color {
 export const TEXTURE_PATHS = {
   // 地球贴图
   earthDay: [
+    '/textures/1k_earth_daymap.webp',
     '/textures/8k_earth_daymap.webp',
     '/textures/2k_earth_daymap.webp',
     '/textures/2k_earth_daymap.jpg'
@@ -233,6 +247,7 @@ export const TEXTURE_PATHS = {
   
   // 月球贴图
   moon: [
+    '/textures/1k_moon.webp',
     '/textures/2k_moon.webp',
     '/textures/2k_moon.jpg'
   ],
@@ -257,13 +272,14 @@ export const TEXTURE_PATHS = {
 // Shared resource policy: mobile never requests the 8K candidates.
 export function useTextureLoader(config: {
   useTextures: boolean; useClouds?: boolean; useMilkyWay?: boolean; useMoon?: boolean;
-  stagedLowFirst?: boolean; maxSize?: number; anisotropy?: number;
+  loadMoonFallbackDetails?: boolean; stagedLowFirst?: boolean; maxSize?: number; anisotropy?: number;
 }) {
   const enabled = !!config.useTextures;
   const options = { maxSize: config.maxSize, anisotropy: config.anisotropy, staged: config.stagedLowFirst };
-  const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, { ...options, priority: 0 });
+  const baseOptions = { ...options, delayMs: 5000 };
+  const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, { ...baseOptions, priority: 0 });
   const moonEnabled = enabled && config.useMoon !== false;
-  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, { ...options, priority: 0 });
+  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, { ...baseOptions, priority: 0 });
   const baseReady = !!earthMap && (!moonEnabled || !!moonMap);
   const earthNight = useManagedTexture(TEXTURE_PATHS.earthNight, enabled, { ...options, priority: 1 });
   // Earth derives its surface normals from DEM; the normal-map shader branch is disabled.
@@ -271,8 +287,9 @@ export function useTextureLoader(config: {
   const earthSpecular = useManagedTexture(TEXTURE_PATHS.earthSpecular, enabled && baseReady, { ...options, priority: 2 });
   const earthDisplacement = useManagedTexture(TEXTURE_PATHS.earthDisplacement, enabled && baseReady, { ...options, priority: 1 });
   const earthClouds = useManagedTexture(TEXTURE_PATHS.earthClouds, enabled && baseReady && !!config.useClouds, { ...options, priority: 2 });
-  const moonNormalMap = useManagedTexture(TEXTURE_PATHS.moonNormal, moonEnabled && baseReady, { ...options, priority: 3 });
-  const moonDisplacementMap = useManagedTexture(TEXTURE_PATHS.moonDisplacement, moonEnabled && baseReady, { ...options, priority: 2 });
+  const moonDetailsEnabled = moonEnabled && baseReady && !!config.loadMoonFallbackDetails;
+  const moonNormalMap = useManagedTexture(TEXTURE_PATHS.moonNormal, moonDetailsEnabled, { ...options, priority: 3 });
+  const moonDisplacementMap = useManagedTexture(TEXTURE_PATHS.moonDisplacement, moonDetailsEnabled, { ...options, priority: 2 });
   const starsMilky = useManagedTexture(TEXTURE_PATHS.starsMilky, enabled && !!config.useMilkyWay, { ...options, priority: 3 });
   React.useEffect(() => {
     const progress = { loaded: Number(!!earthMap) + Number(moonEnabled && !!moonMap), total: moonEnabled ? 2 : 1 };

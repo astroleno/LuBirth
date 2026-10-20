@@ -124,7 +124,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
             data-index={idx}
             key={`${text}-${idx}`}
           >
-            {ch}
+            {ch === ' ' ? '\u00a0' : ch}
           </span>
         ))}
       </span>
@@ -141,12 +141,11 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
       <div className="lubirth-loading-container">
         <div className="lubirth-loading-line line-1">{renderWord('LuBirth')}</div>
         <div className="lubirth-loading-line line-2">{renderWord('Moon Earth You')}</div>
-        <div className="loading-caption">
-          <p>输入出生时间与地点，看看那一刻的地球与月相。</p>
-          <progress className="loading-progress" value={progress.loaded} max={progress.total} aria-label="地月基础贴图加载进度" />
-          <p>{failed ? '部分画面未能加载' : slow ? '连接较慢，地月画面仍在加载…' : `正在准备地月画面 · ${progress.loaded}/${progress.total}`}</p>
-          {(failed || slow) && <div><button className="btn" onClick={() => window.location.reload()}>重新加载</button>{' '}<button className="btn" onClick={startFadeOut}>先进入场景</button></div>}
-        </div>
+        <span className="sr-only">地月基础画面已加载 {progress.loaded} / {progress.total}。</span>
+        {(failed || slow) && <div className="loading-caption">
+          <p>{failed ? '部分画面未能加载' : '连接较慢，地月画面仍在加载…'}</p>
+          <div className="loading-actions"><button className="btn" onClick={() => window.location.reload()}>重新加载</button>{' '}<button className="btn" onClick={startFadeOut}>先进入场景</button></div>
+        </div>}
       </div>
     </div>
   );

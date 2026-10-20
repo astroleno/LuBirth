@@ -61,6 +61,8 @@ function calculateUVRotation(moonYawDeg: number, lonDeg: number, latDeg: number)
   return testS;
 };
 
+export type MoonTerrainStatus = 'idle' | 'loading' | 'ready' | 'error';
+
 // 月球组件 - 支持潮汐锁定和Uniform照明
 export function Moon({ 
   position, 
@@ -115,6 +117,7 @@ export function Moon({
   moonNormalMap = undefined,
   moonDisplacementMap = undefined,
   terrainEnabled = false,
+  onTerrainStatusChange,
   parallaxOffset,
 }: {
   position: [number, number, number];
@@ -169,6 +172,7 @@ export function Moon({
   moonNormalMap?: THREE.Texture;
   moonDisplacementMap?: THREE.Texture;
   terrainEnabled?: boolean;
+  onTerrainStatusChange?: (status: MoonTerrainStatus) => void;
   parallaxOffset?: React.MutableRefObject<ParallaxOffset>;
 }) {
   const meshRef = React.useRef<THREE.Mesh>(null!);
@@ -197,7 +201,11 @@ export function Moon({
   const activeNormalMap = terrainReady ? undefined : moonNormalMap;
 
   React.useEffect(() => {
-    if (!terrainEnabled) return;
+    if (!terrainEnabled) {
+      onTerrainStatusChange?.('idle');
+      return;
+    }
+    onTerrainStatusChange?.('loading');
     window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'loading' }));
     let active = true;
     let resource: { geometry: THREE.BufferGeometry; map: THREE.Texture } | null = null;
@@ -222,21 +230,24 @@ export function Moon({
       geometry.scale(1 / bounds.radius, 1 / bounds.radius, 1 / bounds.radius);
       resource = { geometry, map: mesh.material.map };
       setTerrain(resource);
+      onTerrainStatusChange?.('ready');
       window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'ready' }));
     }).catch(error => {
       if (active) {
         console.warn('[Moon] Terrain model unavailable; using sphere', error);
+        onTerrainStatusChange?.('error');
         window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'error' }));
       }
     });
     return () => {
       active = false;
+      onTerrainStatusChange?.('idle');
       window.dispatchEvent(new CustomEvent('lubirth:moon-terrain', { detail: 'idle' }));
       resource?.geometry.dispose();
       resource?.map.dispose();
       setTerrain(null);
     };
-  }, [terrainEnabled]);
+  }, [terrainEnabled, onTerrainStatusChange]);
   
   const sunDirectionInfo = useMemo(() => {
     if (!currentDate || observerLat === undefined || observerLon === undefined) return null;

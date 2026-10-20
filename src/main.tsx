@@ -5,6 +5,30 @@ import './glass.css';
 
 createRoot(document.getElementById('root')!).render(<App />);
 
+// Font files are visual polish rather than a prerequisite for the first scene.
+// Load them once the base Earth/Moon frame is ready so they do not compete with
+// the two textures that gate the loading overlay.
+let fontScheduled = false;
+const scheduleFonts = () => {
+  if (fontScheduled) return;
+  fontScheduled = true;
+  const load = () => {
+    if (document.querySelector('link[data-lubirth-fonts]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `${import.meta.env.BASE_URL}fonts/inter.css`;
+    link.dataset.lubirthFonts = 'true';
+    document.head.appendChild(link);
+  };
+  const requestIdle = (window as any).requestIdleCallback as undefined | ((callback: () => void, options: { timeout: number }) => number);
+  if (typeof requestIdle === 'function') requestIdle(load, { timeout: 1800 });
+  else setTimeout(load, 250);
+};
+window.addEventListener('lubirth:assets-ready', scheduleFonts, { once: true });
+window.addEventListener('lubirth:overlay-fade-start', scheduleFonts, { once: true });
+if ((window as any).__lubirthAssetsReady) scheduleFonts();
+window.setTimeout(scheduleFonts, 8000);
+
 // Keep diagnostics available without parsing or executing them during normal startup.
 let diagnostics: Promise<void> | undefined;
 const loadDiagnostics = () => diagnostics ??= import('./astro/browserDiagnostics')
