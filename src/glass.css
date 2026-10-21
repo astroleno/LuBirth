@@ -43,7 +43,7 @@
   transition: background-color 180ms, border-color 180ms, transform 180ms;
 }
 .glass-ui .btn-primary {
-  /* Tint the panel's glass; do not add another backdrop or inset rim. */
+  /* CSS fallback. The compositor supplies registered controls' optical relief. */
   border-radius: var(--glass-control-radius);
   border-color: rgba(235,246,255,.34);
   background-color: rgba(218,236,255,.08);
@@ -137,16 +137,41 @@
   .glass-ui.mobile-layout .client-panel { left: auto; width: 300px; max-height: calc(100dvh - 88px); }
   .glass-ui.mobile-layout .music-player { right: max(12px, env(safe-area-inset-right)) !important; }
 }
+/* A control's lens and moving light are drawn inside its existing glass shell.
+   Keep the DOM face clear so there is one optical edge, with crisp text above. */
+.glass-ui [data-glass-control], .glass-ui [data-glass-control]:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+.glass-ui .panel-toggle, .glass-ui .visual-settings > summary,
+.glass-ui .location-cascader-toggle {
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.glass-ui .panel-toggle:active, .glass-ui .visual-settings > summary:active,
+.glass-ui .location-cascader-toggle:active { color: #fff; background-color: rgba(230,244,255,.07); }
+.glass-ui.glass-battery [data-glass-control] {
+  background: rgba(229,242,255,.06);
+  border-color: transparent;
+}
+.glass-ui.glass-battery .btn-primary[data-glass-control] {
+  background: linear-gradient(145deg, rgba(239,248,255,.18), rgba(218,236,255,.06));
+  border-color: rgba(235,246,255,.28);
+}
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .glass-ui [data-liquid-glass], .glass-ui.glass-battery [data-liquid-glass] {
     --glass-fill: #192536;
     border-color: #a9c0d9;
     box-shadow: none;
   }
-  .glass-ui .btn:not(.btn-primary) { background-color: #263b52; }
-  .glass-ui .btn-primary, .glass-ui .btn-primary:hover { background: #e5edf4; color: #111820; border-color: #d9edff; }
+  .glass-ui [data-glass-control], .glass-ui [data-glass-control]:hover,
+  .glass-ui.glass-battery [data-glass-control] { background: #263b52; }
+  .glass-ui .btn-primary, .glass-ui .btn-primary:hover,
+  .glass-ui.glass-battery .btn-primary[data-glass-control] { background: #e5edf4; color: #111820; border-color: #d9edff; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .glass-ui .btn { transition: none; }
+  .glass-ui .btn, .glass-ui .panel-toggle, .glass-ui .visual-settings > summary,
+  .glass-ui .location-cascader-toggle { transition: none; }
   .glass-ui .btn:active { transform: none; }
 }

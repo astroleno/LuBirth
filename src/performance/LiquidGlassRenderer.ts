@@ -5,6 +5,7 @@ import {
   type GlassMarkerOverlay,
 } from './GlassOverlayRegistry';
 import { layoutGlassMarker, projectCameraSphereBounds, type ScreenBounds } from './glassMarkerLayout';
+import { GlassControlInteractions, GLASS_CONTROL_SELECTOR, MAX_GLASS_CONTROLS, type GlassControlState } from './GlassControlInteractions';
 
 const rectVertexShader = `
 precision highp float;
@@ -31,6 +32,10 @@ uniform float clarity;
 uniform float bevelWidth;
 uniform float blurRadius;
 uniform float tintOpacity;
+uniform int controlCount;
+uniform vec4 controlRects[${MAX_GLASS_CONTROLS}];
+uniform vec4 controlStates[${MAX_GLASS_CONTROLS}];
+uniform vec4 controlLights[${MAX_GLASS_CONTROLS}];
 
 void main() {
   vec2 pixel = gl_FragCoord.xy / pixelRatio;
@@ -47,6 +52,41 @@ void main() {
   float t = clamp(depth / max(bevel, 0.001), 0.0, 1.0);
   float lens = sin(t * 3.14159265) * (1.0 - t * 0.28);
   vec2 offset = -normal * lens * strength - p * 0.003;
+  vec3 controlReflection = vec3(0.0);
+  float controlLift = 0.0;
+  // Buttons are relief in this same surface. Combine their lens with the shell
+  // before sampling the original scene; never refract an already-glazed panel.
+  for (int i = 0; i < ${MAX_GLASS_CONTROLS}; i++) {
+    if (i >= controlCount) break;
+    vec4 bounds = controlRects[i];
+    vec4 state = controlStates[i];
+    vec4 light = controlLights[i];
+    vec2 halfButton = bounds.zw * 0.5;
+    vec2 bp = pixel - bounds.xy - halfButton;
+    if (abs(bp.x) > halfButton.x + 1.0 || abs(bp.y) > halfButton.y + 1.0) continue;
+    float br = min(state.x, min(halfButton.x, halfButton.y));
+    vec2 bq = abs(bp) - halfButton + br;
+    float bd = length(max(bq, 0.0)) + min(max(bq.x, bq.y), 0.0) - br;
+    float mask = 1.0 - smoothstep(-0.65, 0.65, bd);
+    float bdepth = max(-bd, 0.0);
+    vec2 bn = normalize(bp - clamp(bp, -halfButton + br, halfButton - br) + vec2(0.0001));
+    float bt = clamp(bdepth / 7.0, 0.0, 1.0);
+    float blens = sin(bt * 3.14159265);
+    float enabled = 1.0 - light.w;
+    offset -= bn * blens * (3.0 + state.z * 2.0 + state.w * 3.5) * mask * enabled;
+    vec2 pointer = light.xy * halfButton;
+    vec2 lamp = normalize(vec2(-0.58, 0.82) + light.xy * 0.32);
+    float facing = dot(bn, lamp);
+    float shine = pow(max(facing, 0.0), 4.0) + pow(max(-facing, 0.0), 7.0) * 0.35;
+    float rim = exp(-bdepth * 1.35) * shine;
+    vec2 highlight = (bp - pointer) / max(halfButton * vec2(1.1, 2.0), vec2(1.0));
+    float glint = exp(-dot(highlight, highlight) * 2.5);
+    float relief = 0.018 + state.y * 0.035 + state.z * 0.045 + state.w * 0.035;
+    controlLift = relief * mask * enabled;
+    controlReflection = vec3(0.86, 0.94, 1.0) * mask * enabled * (
+      rim * (0.055 + state.y * 0.20 + state.z * 0.22 + light.z * 0.12)
+      + glint * (state.y * 0.025 + state.z * 0.085 + state.w * 0.055));
+  }
   vec2 uv = clamp((pixel + offset) / viewport, 0.001, 0.999);
   vec2 fringe = normal * lens * dispersion / viewport;
 
@@ -74,6 +114,8 @@ void main() {
   vec2 face = p / max(halfSize, vec2(1.0));
   float sheen = pow(clamp(0.5 + dot(face, vec2(-0.3, 0.4)), 0.0, 1.0), 2.0);
   color += vec3(0.03, 0.035, 0.04) * sheen;
+  color = mix(color, vec3(0.72, 0.83, 0.95), controlLift);
+  color += controlReflection;
 
   float direction = dot(normal, normalize(vec2(-0.58, 0.82)));
   float specular = pow(max(direction, 0.0), 4.0)
@@ -231,6 +273,7 @@ type GlassRect = {
   bevelWidth: number;
   blurRadius: number;
   tintOpacity: number;
+  controls: { state: GlassControlState; rect: THREE.Vector4; radius: number; primary: boolean }[];
 };
 
 export interface LiquidGlassRenderOptions {
@@ -267,6 +310,10 @@ export class LiquidGlassRenderer {
       bevelWidth: { value: 10 },
       blurRadius: { value: 3 },
       tintOpacity: { value: 0.14 },
+      controlCount: { value: 0 },
+      controlRects: { value: Array.from({ length: MAX_GLASS_CONTROLS }, () => new THREE.Vector4()) },
+      controlStates: { value: Array.from({ length: MAX_GLASS_CONTROLS }, () => new THREE.Vector4()) },
+      controlLights: { value: Array.from({ length: MAX_GLASS_CONTROLS }, () => new THREE.Vector4()) },
     },
   });
   private markerMaterial = new THREE.RawShaderMaterial({
@@ -316,6 +363,9 @@ export class LiquidGlassRenderer {
   private width = 0;
   private height = 0;
   private root: HTMLElement;
+  private controls: GlassControlInteractions;
+  private canvasLeft = 0;
+  private canvasBottom = 0;
   private observer: ResizeObserver;
   private observed = new Set<HTMLElement>();
   private mutations: MutationObserver;
@@ -329,6 +379,10 @@ export class LiquidGlassRenderer {
   readonly stats = {
     active: false,
     uiDraws: 0,
+    uiControls: 0,
+    hoveredControl: 0,
+    pressedControl: 0,
+    layoutMeasures: 0,
     markerDraws: 0,
     registeredMarkers: 0,
     activeMarkers: 0,
@@ -346,6 +400,7 @@ export class LiquidGlassRenderer {
 
   constructor(private canvas: HTMLCanvasElement) {
     this.root = (canvas.closest('.canvas-wrap') ?? canvas.parentElement) as HTMLElement;
+    this.controls = new GlassControlInteractions(this.root);
     this.fallbackTexture.needsUpdate = true;
     this.uiMesh.frustumCulled = false;
     this.markerMesh.frustumCulled = false;
@@ -361,7 +416,7 @@ export class LiquidGlassRenderer {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['class', 'hidden', 'style', 'data-glass-variant'],
+      attributeFilter: ['class', 'hidden', 'style', 'open', 'disabled', 'data-glass-variant'],
     });
     this.root.addEventListener('scroll', this.markDirty, true);
     this.root.addEventListener('transitionend', this.markDirty, true);
@@ -372,17 +427,33 @@ export class LiquidGlassRenderer {
   private measure() {
     this.dirty = false;
     this.rects = [];
+    this.stats.layoutMeasures++;
     const canvasRect = this.canvas.getBoundingClientRect();
     this.width = canvasRect.width;
     this.height = canvasRect.height;
+    this.canvasLeft = canvasRect.left;
+    this.canvasBottom = canvasRect.bottom;
     const elements = new Set(this.root.querySelectorAll<HTMLElement>('[data-liquid-glass]'));
+    const controlElements = new Set<HTMLElement>();
+    const regions: { element: HTMLElement; box: DOMRect; controls: HTMLElement[] }[] = [];
+    for (const element of Array.from(elements)) {
+      const box = element.getBoundingClientRect();
+      if (!box.width || !box.height || box.bottom <= 0 || box.top >= this.height || element.closest('[hidden]')) continue;
+      const controls = Array.from(element.querySelectorAll<HTMLElement>(GLASS_CONTROL_SELECTOR))
+        .filter(control => control.closest('[data-liquid-glass]') === element
+          && !control.closest('[hidden], details:not([open])') && control.getClientRects().length > 0)
+        .slice(0, MAX_GLASS_CONTROLS);
+      controls.forEach(control => { elements.add(control); controlElements.add(control); });
+      regions.push({ element, box, controls });
+    }
+    this.controls.sync(controlElements);
     for (const element of this.observed) {
       if (!elements.has(element)) this.observer.unobserve(element);
     }
     for (const element of elements) {
       if (!this.observed.has(element)) this.observer.observe(element);
-      const box = element.getBoundingClientRect();
-      if (!box.width || !box.height || box.bottom <= 0 || box.top >= this.height || element.closest('[hidden]')) continue;
+    }
+    for (const { element, box, controls } of regions) {
       this.rects.push({
         rect: new THREE.Vector4(box.left - canvasRect.left, canvasRect.bottom - box.bottom, box.width, box.height),
         radius: parseFloat(getComputedStyle(element).borderTopLeftRadius) || 12,
@@ -392,6 +463,19 @@ export class LiquidGlassRenderer {
         bevelWidth: 10,
         blurRadius: 3,
         tintOpacity: 0.14,
+        controls: controls.map(control => {
+          const state = this.controls.get(control);
+          const bounds = control.getBoundingClientRect();
+          const scale = this.controls.scale(state);
+          const width = bounds.width / scale;
+          const height = bounds.height / scale;
+          return { state, rect: new THREE.Vector4(
+            bounds.left + (bounds.width - width) * .5 - canvasRect.left,
+            canvasRect.bottom - bounds.bottom + (bounds.height - height) * .5,
+            width, height,
+          ), radius: parseFloat(getComputedStyle(control).borderTopLeftRadius) || 8,
+          primary: control.classList.contains('btn-primary') };
+        }),
       });
     }
     this.observed = elements;
@@ -501,11 +585,15 @@ export class LiquidGlassRenderer {
   render(gl: THREE.WebGLRenderer, renderCamera: THREE.Camera, options: LiquidGlassRenderOptions) {
     this.stats.active = false;
     this.stats.uiDraws = 0;
+    this.stats.uiControls = 0;
+    this.stats.hoveredControl = 0;
+    this.stats.pressedControl = 0;
     this.stats.markerDraws = 0;
     this.stats.markerLabelBounds = null;
     this.stats.markerBounds = null;
     this.stats.markerLabelPlacement = null;
     if (this.dirty || !this.width || !this.height) this.measure();
+    this.controls.update(performance.now());
     const markers = getGlassMarkerOverlays(this.canvas);
 
     // Use the actual lunar model's silhouette, rather than a fixed offset or
@@ -552,6 +640,24 @@ export class LiquidGlassRenderer {
           this.uiMaterial.uniforms.bevelWidth.value = region.bevelWidth;
           this.uiMaterial.uniforms.blurRadius.value = region.blurRadius;
           this.uiMaterial.uniforms.tintOpacity.value = region.tintOpacity;
+          this.uiMaterial.uniforms.controlCount.value = region.controls.length;
+          region.controls.forEach((control, index) => {
+            const { state, rect, radius, primary } = control;
+            const scale = this.controls.scale(state);
+            const width = rect.z * scale;
+            const height = rect.w * scale;
+            this.uiMaterial.uniforms.controlRects.value[index].set(
+              rect.x + (rect.z - width) * .5, rect.y + (rect.w - height) * .5, width, height);
+            this.uiMaterial.uniforms.controlStates.value[index].set(radius * scale, primary ? 1 : 0, state.hover, state.press);
+            const x = Number.isFinite(state.clientX) ? (state.clientX - this.canvasLeft - rect.x) / rect.z * 2 - 1 : 0;
+            const y = Number.isFinite(state.clientY) ? (this.canvasBottom - state.clientY - rect.y) / rect.w * 2 - 1 : 0;
+            this.uiMaterial.uniforms.controlLights.value[index].set(
+              THREE.MathUtils.clamp(x, -1, 1), THREE.MathUtils.clamp(y, -1, 1),
+              state.element.matches(':focus-visible') ? 1 : 0, state.element.matches(':disabled') ? 1 : 0);
+            this.stats.hoveredControl = Math.max(this.stats.hoveredControl, state.hover);
+            this.stats.pressedControl = Math.max(this.stats.pressedControl, state.press);
+          });
+          this.stats.uiControls += region.controls.length;
           gl.render(this.uiScene, this.camera);
           this.stats.uiDraws++;
         }
@@ -564,6 +670,7 @@ export class LiquidGlassRenderer {
   }
 
   dispose() {
+    this.controls.dispose();
     this.observer.disconnect();
     this.mutations.disconnect();
     this.root.removeEventListener('scroll', this.markDirty, true);
