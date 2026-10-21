@@ -43,8 +43,23 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const searchContainerRef = React.useRef<HTMLDivElement>(null);
   const onLocationChangeRef = React.useRef(onLocationChange);
   onLocationChangeRef.current = onLocationChange;
+
+  useEffect(() => {
+    if (!showSearchResults) return;
+    const close = () => setShowSearchResults(false);
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !searchContainerRef.current?.contains(event.target)) close();
+    };
+    document.addEventListener('pointerdown', closeOutside, true);
+    window.addEventListener('blur', close);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside, true);
+      window.removeEventListener('blur', close);
+    };
+  }, [showSearchResults]);
 
   // 加载数据
   useEffect(() => {
@@ -182,8 +197,10 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   return (
     <div className={`location-selector ${className}`}>
       {/* 搜索框 */}
-      <div className="location-search" onBlur={event => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowSearchResults(false);
+      <div ref={searchContainerRef} className="location-search" onBlur={event => {
+        // Safari can blur the input without focusing the tapped result button.
+        // Keep that result mounted until click; outside pointers/window blur dismiss it separately.
+        if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) setShowSearchResults(false);
       }} onKeyDown={event => {
         if (event.key === 'Escape') {
           searchInputRef.current?.focus();

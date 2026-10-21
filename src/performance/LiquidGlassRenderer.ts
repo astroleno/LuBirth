@@ -137,17 +137,10 @@ uniform vec4 rect;
 uniform float markerScale;
 uniform float pinScale;
 uniform float anchorOffsetY;
-uniform float labelCenterY;
-uniform float labelWidth;
 uniform float markerOpacity;
 uniform float reveal;
 uniform float highQuality;
 uniform float fallback;
-
-float sdRoundedBox(vec2 p, vec2 halfSize, float radius) {
-  vec2 q = abs(p) - halfSize + radius;
-  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-}
 
 float smoothUnion(float a, float b, float k) {
   float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
@@ -168,18 +161,11 @@ float pinDistance(vec2 local) {
   return max(pin, -hole);
 }
 
-float glassDistance(vec2 local) {
-  float u = markerScale;
-  float pin = pinDistance(local);
-  vec2 labelCenter = vec2(rect.z * 0.5, labelCenterY);
-  float pill = sdRoundedBox(local - labelCenter, vec2(labelWidth * 0.5, 20.0 * u), 20.0 * u);
-  return min(pin, pill);
-}
-
 void main() {
   vec2 pixel = gl_FragCoord.xy / pixelRatio;
   vec2 local = pixel - rect.xy;
-  float distance = glassDistance(local);
+  // Location names are plain text; only the geographic pin has glass geometry.
+  float distance = pinDistance(local);
   float u = markerScale;
   if (fallback > 0.5 && distance > 0.0) discard;
   if (fallback < 0.5 && distance > 15.0 * u) discard;
@@ -194,8 +180,8 @@ void main() {
 
   float epsilon = max(0.85, u);
   vec2 gradient = vec2(
-    glassDistance(local + vec2(epsilon, 0.0)) - glassDistance(local - vec2(epsilon, 0.0)),
-    glassDistance(local + vec2(0.0, epsilon)) - glassDistance(local - vec2(0.0, epsilon))
+    pinDistance(local + vec2(epsilon, 0.0)) - pinDistance(local - vec2(epsilon, 0.0)),
+    pinDistance(local + vec2(0.0, epsilon)) - pinDistance(local - vec2(0.0, epsilon))
   );
   vec2 normal = normalize(gradient + vec2(0.0001));
   vec2 offset = -normal * lens * 17.0 * u;
@@ -259,9 +245,11 @@ uniform sampler2D labelMap;
 uniform float opacity;
 varying vec2 vUv;
 void main() {
-  float alpha = texture2D(labelMap, vUv).a * opacity;
+  vec4 label = texture2D(labelMap, vUv);
+  float alpha = label.a * opacity;
   if (alpha < 0.01) discard;
-  gl_FragColor = vec4(vec3(0.97, 0.99, 1.0), alpha);
+  // Preserve the label texture's dark shadow instead of turning it into a glow.
+  gl_FragColor = vec4(label.rgb, alpha);
 }`;
 
 type GlassRect = {
@@ -329,8 +317,6 @@ export class LiquidGlassRenderer {
       markerScale: { value: 1 },
       pinScale: { value: 1 },
       anchorOffsetY: { value: 0 },
-      labelCenterY: { value: 116 },
-      labelWidth: { value: 100 },
       markerOpacity: { value: 0 },
       reveal: { value: 0 },
       highQuality: { value: 1 },
@@ -560,8 +546,6 @@ export class LiquidGlassRenderer {
     this.markerMaterial.uniforms.markerScale.value = markerScale;
     this.markerMaterial.uniforms.pinScale.value = layout.pinScale;
     this.markerMaterial.uniforms.anchorOffsetY.value = anchorY - rectY;
-    this.markerMaterial.uniforms.labelCenterY.value = labelCenterY - rectY;
-    this.markerMaterial.uniforms.labelWidth.value = labelWidth;
     this.markerMaterial.uniforms.markerOpacity.value = opacity;
     this.markerMaterial.uniforms.reveal.value = reveal;
     this.markerMaterial.uniforms.highQuality.value = highQuality ? 1 : 0;
