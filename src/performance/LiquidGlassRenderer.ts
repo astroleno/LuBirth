@@ -33,6 +33,7 @@ uniform float bevelWidth;
 uniform float blurRadius;
 uniform float tintOpacity;
 uniform int controlCount;
+uniform vec4 controlClip;
 uniform vec4 controlRects[${MAX_GLASS_CONTROLS}];
 uniform vec4 controlStates[${MAX_GLASS_CONTROLS}];
 uniform vec4 controlLights[${MAX_GLASS_CONTROLS}];
@@ -54,10 +55,12 @@ void main() {
   vec2 offset = -normal * lens * strength - p * 0.003;
   vec3 controlReflection = vec3(0.0);
   float controlLift = 0.0;
+  bool inControlClip = all(greaterThanEqual(pixel, controlClip.xy))
+                    && all(lessThanEqual(pixel, controlClip.xy + controlClip.zw));
   // Buttons are relief in this same surface. Combine their lens with the shell
   // before sampling the original scene; never refract an already-glazed panel.
   for (int i = 0; i < ${MAX_GLASS_CONTROLS}; i++) {
-    if (i >= controlCount) break;
+    if (i >= controlCount || !inControlClip) break;
     vec4 bounds = controlRects[i];
     vec4 state = controlStates[i];
     vec4 light = controlLights[i];
@@ -261,6 +264,7 @@ type GlassRect = {
   bevelWidth: number;
   blurRadius: number;
   tintOpacity: number;
+  controlClip: THREE.Vector4;
   controls: { state: GlassControlState; rect: THREE.Vector4; radius: number; primary: boolean }[];
 };
 
@@ -299,6 +303,7 @@ export class LiquidGlassRenderer {
       blurRadius: { value: 3 },
       tintOpacity: { value: 0.14 },
       controlCount: { value: 0 },
+      controlClip: { value: new THREE.Vector4() },
       controlRects: { value: Array.from({ length: MAX_GLASS_CONTROLS }, () => new THREE.Vector4()) },
       controlStates: { value: Array.from({ length: MAX_GLASS_CONTROLS }, () => new THREE.Vector4()) },
       controlLights: { value: Array.from({ length: MAX_GLASS_CONTROLS }, () => new THREE.Vector4()) },
@@ -440,6 +445,13 @@ export class LiquidGlassRenderer {
       if (!this.observed.has(element)) this.observer.observe(element);
     }
     for (const { element, box, controls } of regions) {
+      const content = this.root.classList.contains('mobile-layout')
+        ? element.querySelector<HTMLElement>('#client-panel-content') : null;
+      const clip = content?.getBoundingClientRect() ?? box;
+      const clipLeft = Math.max(box.left, clip.left);
+      const clipRight = Math.min(box.right, clip.right);
+      const clipTop = Math.max(box.top, clip.top);
+      const clipBottom = Math.min(box.bottom, clip.bottom);
       this.rects.push({
         rect: new THREE.Vector4(box.left - canvasRect.left, canvasRect.bottom - box.bottom, box.width, box.height),
         radius: parseFloat(getComputedStyle(element).borderTopLeftRadius) || 12,
@@ -449,6 +461,8 @@ export class LiquidGlassRenderer {
         bevelWidth: 10,
         blurRadius: 3,
         tintOpacity: 0.14,
+        controlClip: new THREE.Vector4(clipLeft - canvasRect.left, canvasRect.bottom - clipBottom,
+          Math.max(0, clipRight - clipLeft), Math.max(0, clipBottom - clipTop)),
         controls: controls.map(control => {
           const state = this.controls.get(control);
           const bounds = control.getBoundingClientRect();
@@ -625,6 +639,7 @@ export class LiquidGlassRenderer {
           this.uiMaterial.uniforms.blurRadius.value = region.blurRadius;
           this.uiMaterial.uniforms.tintOpacity.value = region.tintOpacity;
           this.uiMaterial.uniforms.controlCount.value = region.controls.length;
+          this.uiMaterial.uniforms.controlClip.value.copy(region.controlClip);
           region.controls.forEach((control, index) => {
             const { state, rect, radius, primary } = control;
             const scale = this.controls.scale(state);

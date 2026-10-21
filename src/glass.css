@@ -103,6 +103,9 @@
 .glass-ui .quality-control { gap: 12px; }
 .glass-ui .quality-control select { min-width: 112px; }
 .glass-ui.mobile-layout .client-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   left: max(12px, env(safe-area-inset-left));
   right: max(12px, env(safe-area-inset-right)) !important;
   bottom: max(12px, env(safe-area-inset-bottom)) !important;
@@ -112,6 +115,8 @@
   background: var(--glass-fill);
 }
 .glass-ui.mobile-layout .panel-toggle {
+  position: relative;
+  flex: 0 0 64px;
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -123,7 +128,14 @@
 }
 .glass-ui.mobile-layout:not(.panel-expanded) .panel-toggle { background: transparent; border-radius: calc(var(--glass-shell-radius) - 1px); }
 .glass-ui.mobile-layout .panel-toggle > span:last-child { font-weight: 400; }
-.glass-ui.mobile-layout #client-panel-content { padding-top: 4px; }
+.glass-ui.mobile-layout #client-panel-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-top: 4px;
+}
 .glass-ui.mobile-layout .music-player { border-radius: var(--glass-shell-radius); }
 .glass-ui.glass-battery [data-liquid-glass] {
   --glass-fill: rgba(22,32,47,.96);
