@@ -12,6 +12,7 @@ type LocalAudioPlayerProps = {
   tracks: LocalAudioTrack[];
   autoPlay?: boolean;
   playOnFirstInteraction?: boolean;
+  compact?: boolean;
 };
 
 const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
@@ -19,6 +20,7 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
   tracks,
   autoPlay = false,
   playOnFirstInteraction = true,
+  compact = false,
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -110,7 +112,7 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
   };
 
   return (
-    <div ref={rootRef} style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div ref={rootRef} style={{ width: compact ? 44 : '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <audio
         ref={audioRef}
         src={src}
@@ -122,7 +124,7 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
         preload="none"
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 400, justifyContent: 'center', height: 52 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: compact ? 44 : '100%', maxWidth: 400, justifyContent: 'center', height: 52 }}>
         <button
           aria-label={isPlaying ? '暂停' : '播放'}
           onClick={(e)=>togglePlay(e)}
@@ -156,7 +158,7 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
           )}
         </button>
 
-        <input
+        {!compact && <input
           type="range"
           aria-label="音乐播放进度"
           min={0}
@@ -165,7 +167,7 @@ const LocalAudioPlayer: React.FC<LocalAudioPlayerProps> = ({
           value={Math.min(Math.floor(progress), Math.floor(duration || 0))}
           onChange={(e) => handleSeek(Number(e.target.value))}
           style={{ flex: '0 1 340px', maxWidth: '100%', margin: 0, alignSelf: 'center' }}
-        />
+        />}
       </div>
     </div>
   );

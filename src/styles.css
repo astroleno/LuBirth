@@ -100,8 +100,8 @@ button, .btn { touch-action: manipulation; }
 
 .mobile-layout { height: 100dvh; }
 .mobile-layout .music-player {
-  width: auto !important;
-  left: max(12px, env(safe-area-inset-left));
+  width: 52px !important;
+  left: auto;
   right: max(12px, env(safe-area-inset-right)) !important;
   margin-top: env(safe-area-inset-top);
   backdrop-filter: none;
@@ -167,7 +167,7 @@ button, .btn { touch-action: manipulation; }
   .mobile-layout.panel-expanded .client-panel { height: calc(100dvh - 80px); }
   .mobile-layout .scene-viewport { bottom: 0; }
   .mobile-layout.panel-expanded .scene-viewport { right: calc(308px + env(safe-area-inset-right)); bottom: 0; }
-  .mobile-layout .music-player { left: auto; width: 300px !important; right: max(8px, env(safe-area-inset-right)) !important; }
+  .mobile-layout .music-player { left: auto; width: 52px !important; right: max(8px, env(safe-area-inset-right)) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -285,7 +285,56 @@ button, .btn { touch-action: manipulation; }
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 4px;
 }
+
+.location-picker-meta { margin-top: -2px; }
+
+.location-cascader-toggle,
+.location-change {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.location-cascader-toggle {
+  width: 100%;
+  padding: 4px 0;
+  text-align: left;
+  font-size: 12px;
+}
+
+.location-change {
+  margin-left: auto;
+  padding: 4px 0 4px 12px;
+  font-size: 12px;
+}
+
+.location-cascader-toggle:hover,
+.location-change:hover { color: var(--fg); }
+
+.primary-action { margin: 2px 0 12px; }
+.visual-settings {
+  border-top: 1px solid rgba(255,255,255,.09);
+  color: var(--muted);
+}
+.visual-settings > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  list-style: none;
+}
+.visual-settings > summary::-webkit-details-marker { display: none; }
+.visual-settings > summary::after { content: '＋'; margin-left: auto; }
+.visual-settings[open] > summary::after { content: '−'; }
+.visual-settings-content { display: grid; gap: 14px; padding: 0 0 6px; }
+.visual-settings-toggles { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.visual-settings-toggles label { display: flex; align-items: center; gap: 7px; color: var(--fg); font-size: 13px; }
 
 .cascader-row {
   display: flex;
@@ -320,6 +369,9 @@ button, .btn { touch-action: manipulation; }
 }
 
 .selected-location {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 8px 12px;
   background: rgba(159,179,200,0.1);
   border: 1px solid rgba(159,179,200,0.2);

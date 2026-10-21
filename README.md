@@ -29,13 +29,19 @@ npm run build
 
 ### 手机网页与发布
 
-手机竖屏使用上方场景和底部可收起的面板，横屏使用左右布局。地点、时间、对齐、截图及音乐均可在手机上使用。面板中的“画面品质”提供均衡、省电、细腻三档；手机默认均衡档使用 2K 贴图、最多 192 段地球网格、3 层云与 30 FPS 渲染目标。切到后台会暂停渲染。画质配置集中在 `src/performance/renderProfile.ts`，贴图加载策略在 `src/scenes/simple/utils/textureLoader.ts`。
+手机竖屏使用上方场景和底部可收起的面板，横屏使用左右布局。地点、时间、对齐、截图及音乐均可在手机上使用。面板中的“画面品质”提供均衡、省电、细腻三档；手机默认均衡档全景使用 2K 贴图、最多 192 段地球网格、3 层云与 30 FPS 渲染目标。放大后仅夜景升级为 4K，强度保持 3.0；省电档仍使用 2K。切到后台会暂停渲染。画质配置集中在 `src/performance/renderProfile.ts`，贴图加载策略在 `src/scenes/simple/utils/textureLoader.ts`。
 
 按“Xiu!!!”进入放大后的月地同框；手机可在折叠面板中点“开启体感”，允许浏览器访问设备姿态后用倾斜驱动视差。“重校准”以当前手持角度为中心；无法获取传感器时，画面保持静态。视差仅改变观察相机及月球的展示偏移，不修改天文位置、月相或太阳方向。近景按需加载 `public/models/nasa-moon-topo-128.glb`，普通视图仍使用原有球体。模型从 [NASA SVS 14959](https://svs.gsfc.nasa.gov/14959/) 的地形 GLB 重采样为 16,384 个三角面，并将内嵌彩色图降为 2K；生成脚本为 `scripts/build_nasa_moon.py`（需 numpy、scipy、Pillow）。模型署名：NASA's Goddard Space Flight Center；此署名不表示 NASA 对本站背书。
 
+进入放大视图时会清除全景动画累积的自转余量，恢复日期对应的地球朝向，使出生地标继续按既定 70° 参数左右居中。
+
+地名标注按月球模型的实际投影边界保留至少 16px 间距；空间较紧时缩短针身，矮屏则将地名放到锚点下方。文字大小、地理锚点、月球位置和地球占比不随避让改变。`node --experimental-strip-types scripts/verify-marker-layout.mjs` 验证标注布局，`scripts/verify-closeup-composition.mjs` 验证原构图与地标参数。
+
+手机面板使用独立的可见构图区域；相机控制模块持有该区域的投影，避免自适应分辨率或品质切换将宽高比覆盖为整块画布，造成地月画面被拉伸。`getLuBirthPerformance().projectionAspect` 可与画布的 CSS 宽高比对照检查。
+
 本地构建产物位于 `dist/`，Vite 的 `base` 为 `/lubirth/`。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
 
-界面玻璃通过当前帧的 GPU 纹理副本实现局部折射，文字保持独立清晰，控件保留小圆角矩形。每帧不重复渲染地月场景；省电、减少透明度及增强对比设置会跳过折射并释放副本。“隐藏 UI”与“全屏查看”是独立操作，恢复设置会保留地点和时间输入。截图调用 `captureLuBirth()`，只输出干净场景。`getLuBirthPerformance()` 可检查玻璃绘制次数、纹理字节数与场景资源。
+界面玻璃通过当前帧的 GPU 纹理副本实现局部折射；材质、背景扩散与唯一的光学边缘统一由 `LiquidGlassRenderer` 绘制，DOM 负责文字和普通控件，不再叠加玻璃边框、内阴影或内圈高光。面板、音乐按钮外壳和工具条统一使用清透材质，基础深色覆盖率为 14%，亮背景时自适应加深；外壳为 12px 小圆角矩形，按钮为 8px 小圆角矩形。Xiu 使用半透明填充和一条边缘，共享面板已有的玻璃，不额外叠加折射层。每帧不重复渲染地月场景；省电、减少透明度及增强对比设置会跳过界面折射，使用单层 CSS 实色后备；地标仍按自己的透明度偏好决定是否复用副本。“隐藏 UI”与“全屏查看”是独立操作，恢复设置会保留地点和时间输入。截图调用 `captureLuBirth()`，只输出干净场景。`getLuBirthPerformance()` 可检查玻璃绘制次数、纹理字节数与场景资源。
 
 海面反光包含正视角的低反射底值，并保留原有菲涅尔高光铺展；地缘 rim 与大气弧光沿用原有强度和厚度，手机与桌面使用同一套效果参数。月面结合 Lambert 与 Lommel–Seeliger 近似保留地形层次；这属于视觉材质近似，不是辐射标定模型，几何月相仍由原天文算法确定。
 
@@ -43,7 +49,7 @@ npm run build
 
 均衡档统一以 30 FPS 为目标，细腻档为 60 FPS，省电档为 24 FPS。高 DPI 窗口受总像素预算约束，并按持续帧率缓慢调整实际 DPR；界面文字仍由浏览器按原生分辨率绘制。`getLuBirthPerformance()` 的 `frames`、`measuredFps`、`effectiveDpr` 可用于实测，目标帧率不等于实际帧率。运行 `node --experimental-strip-types scripts/test-adaptive-resolution.mjs` 可验证分辨率策略边界。
 
-地形 AO 与夜光模糊使用 UV 缓存，相关纹理/参数改变时重算；太阳方向、地形法线和边缘光保持实时。2K 资源先加载基础地月画面，再加载细节；`scripts/compress-textures.py` 可用 libwebp 重建优先 WebP，高度/高光/法线保持无损，压缩后更大则保留 JPEG。加载提示显示真实基础资源完成数，并提供慢连接重试及月球地形状态。
+地形 AO 与夜光模糊使用 UV 缓存，相关纹理/参数改变时重算；太阳方向、地形法线和边缘光保持实时。2K 资源先加载基础地月画面，再加载细节；`scripts/compress-textures.py` 可用 libwebp 重建优先 WebP，高度/高光/法线保持无损，压缩后更大则保留 JPEG。`scripts/build_closeup_night_texture.py` 用 libwebp 从已有 8K 夜景生成独立 4K 资源，避免放大时解码整张 8K 图；升级就绪前继续显示 2K，随后释放旧纹理。夜光模糊为 0.002、发光层不透明度为 0.35，保留城市灯点。加载提示显示真实基础资源完成数，并提供慢连接重试及月球地形状态。
 
 普通访问不加载天文测试模块；需要时在控制台 `await runSolarFullTests()` 或 `await runMoonPhaseAutoTests()`，首次调用会按需加载。`?autotest=1`、`?fulltest=1` 仍可触发测试。`cloudLayersDebug.getPerformance()` 的 `reactRenders` 可检查体感运动是否触发云层重复更新；`getLuBirthPerformance()` 可观察纹理、几何与绘制次数。
 
@@ -148,7 +154,7 @@ import { EarthMoonScene } from './scene/Scene';
 本版本在移除“地球辉光”渲染后，新增了三套可直接调用的接口，分别用于：
 
 - 日期→地球/日月状态（世界系方向向量）
-- 构图对齐：将某经纬度（如出生点）旋到画面上沿并居中（ShotRig）
+- 构图对齐：将某经纬度（如出生点）放到中央经线、约北纬 70° 的构图区（ShotRig）
 - 日期→月相（明亮比例与相位角）
 
 ### 1) 日期→地球状态
@@ -180,7 +186,7 @@ const state = getEarthState('2024-12-19T12:00', 31.2, 121.5);
 // state.sunDirEQD 可直接作为光照方向来源
 ```
 
-### 2) 构图对齐 ShotRig（将经纬度旋到屏幕上沿并居中）
+### 2) 构图对齐 ShotRig（中央经线 + 约北纬 70° 构图）
 
 文件：`src/scenes/simple/api/shotRig.ts`
 
@@ -196,8 +202,8 @@ function createShotRig(): {
 ```
 
 说明：
-- 两步四元数对齐：先把目标地面法线旋到世界 +Y（画面上沿），再绕世界 +Y 旋转，使经线指向屏幕正前，从而保证“目标经纬位于画面上沿且地球居中”。
-- 适用于一键“出生点→80°N, 180°E 并居中”的构图需求。
+- 横向把目标经度放到中央经线；纵向按目标纬度构图，客户端放大视图默认使用约 70°N。
+- 适用于一键把出生点放到画面上部中央的构图需求。
 
 使用示例：
 
@@ -206,7 +212,7 @@ import { createShotRig } from '@/scenes/simple/api/shotRig';
 
 const { rig, alignToLatLon } = createShotRig();
 // 假设 earthMesh 是地球根节点对象，camera 为主相机
-alignToLatLon(earthMesh, camera, { targetLatDeg: 80, targetLonDeg: 180 });
+alignToLatLon(earthMesh, camera, { targetLatDeg: 70, targetLonDeg: 180 });
 ```
 
 ### 3) 日期→月相
@@ -227,7 +233,7 @@ function getMoonPhase(localISO: string, latDeg: number, lonDeg: number): MoonPha
 说明：
 - 月相统一使用 `astronomy-engine` 的 `Illumination` 与 `MoonPhase`：物理相位角为满月 0°、新月 180°；月相周期角为新月 0°、上弦 90°、满月 180°、下弦 270°。UI 与材质共用同一结果。
 - 相机锁定展示采用盈月右亮、亏月左亮的固定图示方向，明亮比例按地心月相计算；不模拟当地地平线倾角、天平动或月食。输入时间仍按现有经度时区规则转换为 UTC。
-- 月面使用中性光色，NASA 贴图保留少量原始色差，并经过标准色彩空间输出；夜面仅保留极弱轮廓，避免将新月显示成亮球。
+- 月面使用中性光色，NASA 贴图保留少量原始色差，并经过标准色彩空间输出；屏幕锚定月球在透明星空之后绘制，避免星空层压暗月面。夜面仅保留极弱轮廓，避免将新月显示成亮球。
 - `runMoonPhaseAutoTests()` 包含 [USNO 2026 年月相时刻](https://aa.usno.navy.mil/api/moon/phases/year?year=2026) 的独立日期对照、明亮面积、盈亏方向及本地时间转换回归。
 
 使用示例：

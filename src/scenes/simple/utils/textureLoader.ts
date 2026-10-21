@@ -9,6 +9,7 @@ type TextureOptions = {
   delayMs?: number;
   priority?: number;
   upgradePriority?: number;
+  exclusive?: boolean;
 };
 
 type TextureJob = {
@@ -58,6 +59,7 @@ function enqueueTextureJob(priority: number, run: TextureJob['run'], exclusive =
 
 function textureTier(path: string) {
   if (path.includes('8k')) return 8192;
+  if (path.includes('4k')) return 4096;
   if (path.includes('2k') || path.includes('2048')) return 2048;
   if (path.includes('1k') || path.includes('1024')) return 1024;
   return 2048;
@@ -74,6 +76,7 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
     delayMs = 5000,
     priority = 2,
     upgradePriority = priority + 10,
+    exclusive = false,
   } = options;
   React.useEffect(() => {
     setTexture(null);
@@ -155,7 +158,7 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
     };
     if (staged && starter.length && starterTier < targetTier) {
       load(starter, 0, () => { timer = setTimeout(() => load(upgrades, 0, undefined, upgradePriority, true), delayMs); });
-    } else load(candidates);
+    } else load(candidates, 0, undefined, priority, exclusive);
     return () => {
       canceled = true;
       clearTimeout(timer);
@@ -165,7 +168,7 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
       retired.forEach(t => t.dispose());
       currentTexture.current = null;
     };
-  }, [paths, enabled, maxSize, staged, delayMs, priority, upgradePriority]);
+  }, [paths, enabled, maxSize, staged, delayMs, priority, upgradePriority, exclusive]);
   React.useEffect(() => {
     if (!texture || texture.anisotropy === anisotropy) return;
     texture.anisotropy = anisotropy;
@@ -218,6 +221,7 @@ export const TEXTURE_PATHS = {
   ],
   earthNight: [
     '/textures/8k_earth_nightmap.webp',
+    '/textures/4k_earth_nightmap.webp',
     '/textures/2k_earth_nightmap.webp',
     '/textures/2k_earth_nightmap.jpg'
   ],
@@ -269,10 +273,14 @@ export const TEXTURE_PATHS = {
   ]
 };
 
-// Shared resource policy: mobile never requests the 8K candidates.
+// A dedicated 4K derivative avoids decoding the 8K source on the render thread.
+const CLOSEUP_NIGHT_PATHS = TEXTURE_PATHS.earthNight.filter(path => textureTier(path) > 2048);
+
+// General maps follow the profile. The approved close-up night upgrade is separate.
 export function useTextureLoader(config: {
   useTextures: boolean; useClouds?: boolean; useMilkyWay?: boolean; useMoon?: boolean;
   loadMoonFallbackDetails?: boolean; stagedLowFirst?: boolean; maxSize?: number; anisotropy?: number;
+  closeupNightMaxSize?: number;
 }) {
   const enabled = !!config.useTextures;
   const options = { maxSize: config.maxSize, anisotropy: config.anisotropy, staged: config.stagedLowFirst };
@@ -281,7 +289,14 @@ export function useTextureLoader(config: {
   const moonEnabled = enabled && config.useMoon !== false;
   const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, { ...baseOptions, priority: 0 });
   const baseReady = !!earthMap && (!moonEnabled || !!moonMap);
-  const earthNight = useManagedTexture(TEXTURE_PATHS.earthNight, enabled, { ...options, priority: 1 });
+  const closeupNightEnabled = enabled && (config.closeupNightMaxSize ?? 0) > (config.maxSize ?? 8192);
+  const closeupNight = useManagedTexture(CLOSEUP_NIGHT_PATHS, closeupNightEnabled, {
+    maxSize: config.closeupNightMaxSize, anisotropy: config.anisotropy, priority: 12, exclusive: true,
+  });
+  // Keep the compact map visible until the upgrade succeeds, then release it.
+  const baseNight = useManagedTexture(TEXTURE_PATHS.earthNight, enabled && !closeupNight,
+    { ...options, priority: 1 });
+  const earthNight = closeupNight ?? baseNight;
   // Earth derives its surface normals from DEM; the normal-map shader branch is disabled.
   const earthNormal = null;
   const earthSpecular = useManagedTexture(TEXTURE_PATHS.earthSpecular, enabled && baseReady, { ...options, priority: 2 });

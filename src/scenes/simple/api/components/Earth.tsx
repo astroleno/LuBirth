@@ -183,6 +183,14 @@ export function Earth({
   children?: React.ReactNode;
 }) {
   const rotationRef = React.useRef<THREE.Group>(null);
+  React.useLayoutEffect(() => {
+    // Panorama animation mutates this group without changing yawDeg. Restore
+    // the date's base yaw when it stops, even when the declarative yaw is equal.
+    if (!autoRotate && rotationRef.current) {
+      rotationRef.current.rotation.set(0, THREE.MathUtils.degToRad(yawDeg), 0);
+      rotationRef.current.updateMatrixWorld(true);
+    }
+  }, [autoRotate, yawDeg]);
   useFrame((_, delta) => {
     if (autoRotate && rotationRef.current) {
       rotationRef.current.rotation.y += Math.min(delta, 0.1) * Math.PI * 2 / 225;

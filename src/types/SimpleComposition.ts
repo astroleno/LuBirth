@@ -39,8 +39,8 @@ export interface SimpleComposition {
   dayEarthMapHue: number;         // 日半球地球贴图色调（0-360，默认200）
   dayEarthMapSaturation: number;   // 日半球地球贴图饱和度（0-2，默认0.30）
   dayEarthMapLightness: number;    // 日半球地球贴图亮度（0-2，默认0.30）
-  nightGlowBlur: number;           // 夜景灯光高斯模糊值（0-0.1，默认0.02）
-  nightGlowOpacity: number;        // 夜景灯光发光层不透明度（0-1，默认0.3）
+  nightGlowBlur: number;           // 夜景灯光高斯模糊值（0-0.1，默认0.002）
+  nightGlowOpacity: number;        // 夜景灯光发光层不透明度（0-1，默认0.35）
   
   // 日面漫反射顶亮控制（A方案）
   dayDiffuseMax?: number;        // 日面漫反射上限（0.2-3.0，默认1.0，1=不变）
@@ -171,6 +171,7 @@ export interface SimpleComposition {
   // 相机极坐标（最小接入）
   cameraAzimuthDeg?: number;   // 相机方位角 λ（绕世界+Y），0=面向 -Z
   cameraElevationDeg?: number; // 相机仰角 φ（绕相机右轴），正为向上
+  cameraViewPitchDeg?: number; // 近景构图视线俯仰；有值时以地理北向保持画面竖直
   lookAtDistanceRatio?: number; // 相机朝向上下倍率（倍数，-10到10，0=地心，正数=上方，负数=下方）
   viewOffsetY?: number;        // 视口主点纵向偏移（-5..+5，上为正）
   smooth?: { enable: boolean; timeConstantMs: number } | undefined; // 可选平滑参数（占位）
@@ -213,13 +214,14 @@ export interface SimpleComposition {
   birthPointLatitudeDeg?: number;        // 出生点纬度（°N 为正）
   birthPointMarkerSize?: number;         // 出生点标记大小（相对单位）
   birthPointMarkerColor?: string;        // 出生点标记颜色
+  birthPointMarkerLabel?: string;        // 出生点标记显示的简短地名
   birthPointAlphaDeg?: number;           // 抬升角α（控制出生点在画面高度）
 
   // 月球屏幕尺寸（弱解耦）：占屏高度比例（0-1）
   moonScreenSize?: number;
 
   // 纬度对齐（仅动相机俯仰）
-  latitudeAlignTargetDeg?: number; // 目标纬度（°N为正，默认80），对齐时将相机俯仰设置为 -target
+  latitudeAlignTargetDeg?: number; // 放大构图目标纬度（°N为正，默认70）
 
   // 季节模式参数
   useSeasonalVariation?: boolean;   // 是否使用季节变化
@@ -307,8 +309,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   dayEarthMapHue: 200,         // 日半球地球贴图色调（0-360，默认200）
   dayEarthMapSaturation: 0.30,   // 日半球地球贴图饱和度（0-2，默认0.30）
   dayEarthMapLightness: 0.30,    // 日半球地球贴图亮度（0-2，默认0.30）
-  nightGlowBlur: 0.010,           // 夜景灯光高斯模糊值（0-0.1，默认0.010）
-  nightGlowOpacity: 1.00,         // 夜景灯光发光层不透明度（0-1，默认1.00）
+  nightGlowBlur: 0.002,           // Keep individual city lights distinct.
+  nightGlowOpacity: 0.35,
   
   // 日面漫反射顶亮控制默认
   dayDiffuseMax: 1.0,
@@ -390,7 +392,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   cloudPerformanceMode: 'auto',     // 性能模式
   
   // 月球材质控制
-  moonLightIntensity: 0.10,    // 月球材质亮度
+  moonLightIntensity: 0.10,    // 月球材质亮度，0.1 对应原始增益
   moonLightTempK: 5600,        // 月球材质色温
   // 月球光照强度极值控制默认
   moonLightMinRatio: 0.3,      // 新月时月球光照强度比例 (0-1, 默认0.3)
@@ -508,6 +510,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   birthPointLatitudeDeg: 31.2,
   birthPointMarkerSize: 0.06,
   birthPointMarkerColor: '#ff3b30',
+  birthPointMarkerLabel: '上海',
   birthPointAlphaDeg: 12,
   // 贴图 seam/零点校准（可选）：若绝对经度对齐存在恒定偏差，可调此值
   seamOffsetDeg: 0,
@@ -521,8 +524,8 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   obliquityDeg: 23.44,
   seasonOffsetDays: 0,
 
-  // 纬度对齐默认目标（北纬28）
-  latitudeAlignTargetDeg: 28,
+  // 纬度对齐默认目标（北纬70）
+  latitudeAlignTargetDeg: 70,
 
   // 地表细节 LOD 默认：自动，根据相机距离
   earthDetailLOD: 'auto',
@@ -662,6 +665,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     cameraDistance: original.cameraDistance ?? DEFAULT_SIMPLE_COMPOSITION.cameraDistance,
     cameraAzimuthDeg: original.cameraAzimuthDeg ?? DEFAULT_SIMPLE_COMPOSITION.cameraAzimuthDeg,
     cameraElevationDeg: original.cameraElevationDeg ?? DEFAULT_SIMPLE_COMPOSITION.cameraElevationDeg,
+    cameraViewPitchDeg: original.cameraViewPitchDeg,
     lookAtDistanceRatio: original.lookAtDistanceRatio ?? DEFAULT_SIMPLE_COMPOSITION.lookAtDistanceRatio,
     viewOffsetY: original.viewOffsetY ?? DEFAULT_SIMPLE_COMPOSITION.viewOffsetY,
     smooth: original.smooth ?? DEFAULT_SIMPLE_COMPOSITION.smooth,
@@ -696,6 +700,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     birthPointLatitudeDeg: original.birthPointLatitudeDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointLatitudeDeg,
     birthPointMarkerSize: original.birthPointMarkerSize ?? DEFAULT_SIMPLE_COMPOSITION.birthPointMarkerSize,
     birthPointMarkerColor: original.birthPointMarkerColor ?? DEFAULT_SIMPLE_COMPOSITION.birthPointMarkerColor,
+    birthPointMarkerLabel: original.birthPointMarkerLabel ?? DEFAULT_SIMPLE_COMPOSITION.birthPointMarkerLabel,
     birthPointAlphaDeg: original.birthPointAlphaDeg ?? DEFAULT_SIMPLE_COMPOSITION.birthPointAlphaDeg,
 
 

@@ -11,8 +11,8 @@ export function createRenderProfile(mobile: boolean, quality: Quality = 'balance
     quality,
     dpr: mobile ? (battery ? 1 : detail ? 1.75 : 1.5) : (battery ? 1 : 2),
     fps: battery ? 24 : detail ? 60 : 30,
-    // Start and remain on the compact texture set unless the user explicitly
-    // asks for detail. Automatic 8K swaps caused multi-second decode/upload
+    // General maps remain compact unless the user explicitly asks for detail.
+    // The close-up night map has its own 4K policy. Automatic 8K swaps caused decode/upload
     // stalls after the loading overlay had already disappeared.
     maxTextureSize: detail && !mobile ? 8192 : 2048,
     anisotropy: mobile || battery ? 4 : 16,

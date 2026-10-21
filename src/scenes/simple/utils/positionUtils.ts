@@ -6,6 +6,16 @@ import { useThree } from '@react-three/fiber';
 export function useCameraControl(composition: any, frame?: { width: number; height: number }) {
   const { camera, size, gl } = useThree();
   
+  React.useLayoutEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    // This hook owns the cropped composition frustum. R3F also updates camera
+    // aspect on DPR changes, which would stretch that frustum to the full canvas.
+    const controlledCamera = camera as THREE.PerspectiveCamera & { manual?: boolean };
+    const wasManual = controlledCamera.manual;
+    controlledCamera.manual = true;
+    return () => { controlledCamera.manual = wasManual; };
+  }, [camera]);
+
   React.useEffect(() => {
     try {
       // 相机极坐标（最小接入）
@@ -28,15 +38,32 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
       const z = R * Math.cos(az) * Math.cos(el);
 
       camera.position.set(x, y, z);
-      camera.up.set(0, 1, 0);
       
       // 第二步：调整朝向 - 使用R倍率控制Y轴上下
       const lookAtRatio = composition?.lookAtDistanceRatio ?? 0;
-      
-      // 计算lookAt目标点：基于R的倍率，0=地心，正数=上方，负数=下方
-      const lookAtX = 0;
-      const lookAtY = lookAtRatio * R;
-      const lookAtZ = 0;
+      const viewPitchDeg = composition?.cameraViewPitchDeg;
+      let lookAtX = 0;
+      let lookAtY = lookAtRatio * R;
+      let lookAtZ = 0;
+
+      if (Number.isFinite(viewPitchDeg)) {
+        const radial = camera.position.clone().normalize();
+        const north = new THREE.Vector3(
+          -Math.sin(az) * Math.sin(el),
+          Math.cos(el),
+          -Math.cos(az) * Math.sin(el),
+        );
+        camera.up.copy(north);
+        const forward = radial.clone().negate();
+        const right = forward.clone().cross(north).normalize();
+        forward.applyAxisAngle(right, THREE.MathUtils.degToRad(viewPitchDeg));
+        const target = camera.position.clone().addScaledVector(forward, R);
+        lookAtX = target.x;
+        lookAtY = target.y;
+        lookAtZ = target.z;
+      } else {
+        camera.up.set(0, 1, 0);
+      }
       
       camera.lookAt(lookAtX, lookAtY, lookAtZ);
       
@@ -84,6 +111,7 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
           azDeg,
           elDeg,
           lookAtRatio,
+          viewPitchDeg,
           baseCameraY,
           viewOffsetY: composition?.viewOffsetY ?? 0,
           canvas: { w: size?.width, h: size?.height }
@@ -92,7 +120,7 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
     } catch (error) {
       console.error('[SimpleCamera] Error:', error);
     }
-  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY]);
+  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.cameraViewPitchDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY]);
 }
 
 // 地球位置计算

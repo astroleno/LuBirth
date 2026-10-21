@@ -45,7 +45,11 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     frames.current++;
     sceneStats.current.triangles = gl.info.render.triangles;
     sceneStats.current.calls = gl.info.render.calls;
-    glass.current?.render(gl, profile.quality !== 'battery');
+    glass.current?.render(gl, camera, {
+      uiGlass: profile.quality !== 'battery',
+      highQualityMarker: !profile.mobile && profile.quality !== 'battery',
+      moon: scene.getObjectByName('moonMesh'),
+    });
     const now = performance.now();
     if (now < sample.current.since) return;
     sample.current.frames++;
@@ -78,6 +82,12 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     const capture = () => {
       scene.updateMatrixWorld(true);
       gl.render(scene, camera);
+      glass.current?.render(gl, camera, {
+        uiGlass: false,
+        includeUi: false,
+        highQualityMarker: !profile.mobile && profile.quality !== 'battery',
+        moon: scene.getObjectByName('moonMesh'),
+      });
       return gl.domElement.toDataURL('image/png');
     };
     const diagnostics = () => ({
@@ -100,6 +110,32 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
         return (geometry.index?.count ?? geometry.getAttribute('position')?.count ?? 0) / 3;
       })(),
       cameraPosition: camera.position.toArray(),
+      projectionAspect: camera.projectionMatrix.elements[5] / camera.projectionMatrix.elements[0],
+      framing: (() => {
+        let earthSurface: THREE.Mesh | undefined;
+        scene.getObjectByName('earthRoot')?.traverse(object => {
+          if (object instanceof THREE.Mesh && object.material instanceof THREE.ShaderMaterial
+            && object.material.uniforms.nightBoost) earthSurface = object;
+        });
+        const material = earthSurface?.material instanceof THREE.ShaderMaterial ? earthSurface.material : undefined;
+        const nightImage = material?.uniforms.nightMap?.value?.image;
+        const moon = scene.getObjectByName('moonMesh');
+        const moonMaterial = moon instanceof THREE.Mesh && moon.material instanceof THREE.ShaderMaterial
+          ? moon.material : undefined;
+        const project = (object: THREE.Object3D | undefined) => object
+          ? object.getWorldPosition(new THREE.Vector3()).project(camera).toArray() : null;
+        return {
+          earthCenterNdc: project(earthSurface),
+          earthRadius: material?.uniforms.earthRadius?.value ?? null,
+          moonNdc: project(moon),
+          moonMaterialIntensity: moonMaterial?.uniforms.sunIntensity?.value ?? null,
+          moonPhaseIntensityRatio: moonMaterial?.uniforms.moonIntensityRatio?.value ?? null,
+          nightLightIntensity: material?.uniforms.nightBoost?.value ?? null,
+          hasNightMap: material?.uniforms.hasNight?.value === 1,
+          nightMapSize: nightImage ? [nightImage.width, nightImage.height] : null,
+          nightGlowOpacity: material?.uniforms.nightGlowOpacity?.value ?? null,
+        };
+      })(),
     });
     Object.assign(window, { captureLuBirth: capture, getLuBirthPerformance: diagnostics });
     return () => {

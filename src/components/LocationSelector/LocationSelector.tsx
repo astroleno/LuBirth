@@ -37,6 +37,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+  const [showCascader, setShowCascader] = useState<boolean>(false);
+  const [committedLabel, setCommittedLabel] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -107,12 +109,18 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
     if (locationTree && selectedProvince && selectedCity && district) {
       const coords = getLocationCoords(locationTree, selectedProvince, selectedCity, district);
       if (coords) {
+        const label = [selectedProvince, selectedCity, district]
+          .filter((part, index, parts) => part && part !== parts[index - 1])
+          .join(' · ');
+        setCommittedLabel(label);
+        setSearchQuery(label);
         onLocationChange({
           province: selectedProvince,
           city: selectedCity,
           district,
           ...coords
         });
+        setShowCascader(false);
       }
     }
   }, [locationTree, selectedProvince, selectedCity, onLocationChange]);
@@ -137,8 +145,13 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
     setSelectedProvince(result.province);
     setSelectedCity(result.city);
     setSelectedDistrict(result.district);
-    setSearchQuery('');
+    const label = [result.province, result.city, result.district]
+      .filter((part, index, parts) => part && part !== parts[index - 1])
+      .join(' · ');
+    setCommittedLabel(label);
+    setSearchQuery(label);
     setShowSearchResults(false);
+    setShowCascader(false);
     
     onLocationChange({
       province: result.province,
@@ -166,7 +179,6 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   const provinceList = provinces.map(p => p.name).sort();
   const cities = selectedProvince ? getCitiesByProvinceName(selectedProvince) : [];
   const districts = selectedProvince && selectedCity && locationTree ? getDistricts(locationTree, selectedProvince, selectedCity) : [];
-
   return (
     <div className={`location-selector ${className}`}>
       {/* 搜索框 */}
@@ -185,7 +197,10 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
           placeholder="搜索城市或地区..."
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
-          onFocus={() => searchQuery && setShowSearchResults(true)}
+          onFocus={(event) => {
+            if (searchQuery && searchQuery !== committedLabel) setShowSearchResults(true);
+            if (searchQuery === committedLabel) event.currentTarget.select();
+          }}
           className="search-input"
         />
         {showSearchResults && (
@@ -210,13 +225,14 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
         )}
       </div>
 
-      {/* 分隔线 */}
-      <div className="location-divider">
-        <span>或</span>
+      <div className="location-picker-meta">
+        <button type="button" className="location-cascader-toggle" onClick={() => setShowCascader(value => !value)} aria-expanded={showCascader}>
+          {showCascader ? '收起省市区选择' : '精确选择省市区'}
+        </button>
       </div>
 
-      {/* 三级联动选择器 */}
-      <div className="location-cascader">
+      {/* 搜索之外的精确选择路径，按需展开，避免重复呈现地点。 */}
+      {showCascader && <div className="location-cascader">
         <div className="cascader-row">
           <select
             aria-label="出生省份"
@@ -263,15 +279,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
           </select>
         </div>
 
-        {/* 当前选择显示 */}
-        {selectedProvince && selectedCity && selectedDistrict && (
-          <div className="selected-location">
-            <span className="selected-text">
-              {selectedProvince} {selectedCity} {selectedDistrict}
-            </span>
-          </div>
-        )}
-      </div>
+      </div>}
     </div>
   );
 };

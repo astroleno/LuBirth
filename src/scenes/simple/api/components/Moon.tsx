@@ -287,6 +287,9 @@ export function Moon({
     // 如果没有纹理，使用更明显的默认材质
     if (!activeMoonMap) {
       return new THREE.MeshPhongMaterial({
+        transparent: enableScreenAnchor,
+        depthTest: !enableScreenAnchor,
+        depthWrite: !enableScreenAnchor,
         color: new THREE.Color('#e8e8e8'), // 使用更自然的月球颜色
         shininess: 5,
         specular: new THREE.Color('#ffffff'),
@@ -305,6 +308,11 @@ export function Moon({
       }
       
       return new THREE.ShaderMaterial({
+        // Screen-anchored Moon must share the transparent queue with the sky:
+        // renderOrder alone cannot put an opaque object after transparent stars.
+        transparent: enableScreenAnchor,
+        depthTest: !enableScreenAnchor,
+        depthWrite: !enableScreenAnchor,
         uniforms: {
           moonMap: { value: activeMoonMap },
           displacementMap: { value: activeDisplacementMap },
@@ -472,6 +480,7 @@ export function Moon({
     // 使用标准材质（非Uniform照明模式）
     const dispScaleStd = terrainReady ? 0 : Math.max(0, moonDisplacementScale) * 0.05;
     return new THREE.MeshStandardMaterial({
+      transparent: enableScreenAnchor,
       map: activeMoonMap,
       displacementMap: activeDisplacementMap,
       displacementScale: dispScaleStd,

@@ -36,6 +36,11 @@ function calculateEarthRotationFromDateISO(dateISOStr: string, longitude: number
     }
 }
 
+const BIRTH_POINT_TARGET_LATITUDE_DEG = 70;
+const CLOSEUP_CAMERA_DISTANCE = 15;
+const CLOSEUP_EARTH_SIZE = 1.68;
+const CLOSEUP_LOOK_AT_DISTANCE_RATIO = 1.08;
+
 // 统一的时间更新处理函数
 function handleTimeUpdate(
   newTime: string, 
@@ -175,6 +180,83 @@ import { logger } from './utils/logger';
 import { alignLongitudeOnly } from './scenes/simple/api/shotRig';
 import { getMoonPhase } from './scenes/simple/api/moonPhase';
 import { calculateMoonPhase } from './scenes/simple/utils/moonPhaseCalculator';
+import { solveCloseupShot } from './scenes/simple/utils/closeupShot';
+
+function createCloseupComposition(
+  current: SimpleComposition,
+  dateISO: string,
+  longitudeDeg: number,
+  latitudeDeg: number,
+  aspect: number,
+) {
+  const earthYawDeg = calculateEarthRotationFromDateISO(dateISO, longitudeDeg) || 0;
+  const earthRadius = CLOSEUP_EARTH_SIZE * CLOSEUP_CAMERA_DISTANCE
+    * Math.tan(THREE.MathUtils.degToRad(45) / 2);
+  const shot = solveCloseupShot({
+    longitudeDeg,
+    latitudeDeg,
+    earthYawDeg,
+    seamOffsetDeg: current.seamOffsetDeg ?? 0,
+    cameraDistance: CLOSEUP_CAMERA_DISTANCE,
+    earthRadius,
+    aspect,
+    targetLatitudeDeg: current.latitudeAlignTargetDeg ?? BIRTH_POINT_TARGET_LATITUDE_DEG,
+    lookAtDistanceRatio: CLOSEUP_LOOK_AT_DISTANCE_RATIO,
+  });
+
+  return {
+    shot,
+    composition: {
+      viewOffsetY: 0,
+      enableBirthPointAlignment: true,
+      birthPointAlignmentMode: true,
+      cameraAzimuthDeg: shot.cameraAzimuthDeg,
+      cameraElevationDeg: shot.cameraElevationDeg,
+      cameraViewPitchDeg: shot.cameraViewPitchDeg,
+      cameraDistance: CLOSEUP_CAMERA_DISTANCE,
+      earthYawDeg,
+      earthSize: CLOSEUP_EARTH_SIZE,
+      lookAtDistanceRatio: CLOSEUP_LOOK_AT_DISTANCE_RATIO,
+      birthPointAlphaDeg: 10,
+      showMoon: true,
+      showBirthPointMarker: true,
+      moonScreenX: DEFAULT_SIMPLE_COMPOSITION.moonScreenX,
+      moonScreenY: DEFAULT_SIMPLE_COMPOSITION.moonScreenY,
+      moonDistance: 14,
+      moonRadius: 0.68,
+      cloudNumLayers: 16,
+      cloudLayerSpacing: 0.001,
+      cloudStrength: 0.25,
+      cloudHeight: 0.002,
+      cloudYawDeg: 0,
+      cloudPitchDeg: 0,
+      cloudDisplacementScale: 0,
+      cloudDisplacementBias: 0.03,
+      cloudScrollSpeedU: 0.00033,
+      cloudScrollSpeedV: 0.00066,
+      cloudGamma: 0.5,
+      cloudContrast: 0.9,
+      cloudBlack: 0,
+      cloudWhite: 0.9,
+      cloudUseVolumeScattering: true,
+      cloudVolumeDensity: 0.5,
+      cloudScatteringStrength: 1.5,
+      cloudScatteringG: -0.5,
+      cloudRimEffect: 0.1,
+      cloudDensityEnhancement: 2,
+      cloudNoiseScale: 2,
+      cloudNoiseStrength: 0.7,
+      cloudUseThicknessMapping: true,
+      cloudThicknessScale: 4,
+      cloudThicknessBias: 1,
+      cloudThicknessPower: 1.5,
+      exposure: 1,
+      sunIntensity: 2.45,
+      terminatorSoftness: 1,
+      nightIntensity: 3.0,
+    } satisfies Partial<SimpleComposition>,
+  };
+}
 
 const LocalAudioPlayer = React.lazy(() => import('./components/LocalAudioPlayer'));
 const LazyLocationSelector = React.lazy(() => import('./components/LocationSelector')
@@ -308,7 +390,8 @@ function SceneContent({
     isAlignedAndZoomed && !reducedMotion,
     parallaxTarget,
     [composition.cameraDistance, composition.cameraAzimuthDeg, composition.cameraElevationDeg,
-      composition.lookAtDistanceRatio, composition.viewOffsetY, size.width, size.height, frame.width, frame.height].join(':'),
+      composition.cameraViewPitchDeg, composition.lookAtDistanceRatio, composition.viewOffsetY,
+      size.width, size.height, frame.width, frame.height].join(':'),
   );
   useExposureControl(composition);
   
@@ -325,6 +408,10 @@ function SceneContent({
     // The NASA terrain is the preferred close-up path. Heavy normal and
     // displacement maps are loaded only if that model fails.
     loadMoonFallbackDetails: isAlignedAndZoomed && moonTerrainStatus === 'error',
+    // Only the night map upgrades in the close-up, after lunar terrain settles.
+    closeupNightMaxSize: isAlignedAndZoomed && profile.quality !== 'battery'
+      && (moonTerrainStatus === 'ready' || moonTerrainStatus === 'error')
+      ? Math.min(4096, gl.capabilities.maxTextureSize) : undefined,
     maxSize: Math.min(profile.maxTextureSize, gl.capabilities.maxTextureSize),
     anisotropy: Math.min(profile.anisotropy, gl.capabilities.getMaxAnisotropy()),
     stagedLowFirst: true
@@ -404,7 +491,7 @@ function SceneContent({
       // 方位角：yaw = normalize((L + seam) - lonDusk) [出生点→黄昏点]
       let yaw = (L + seam) - lonDusk; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
       // 使用正确的俯仰角算法：基于目标纬度差值
-      const targetLat = composition.latitudeAlignTargetDeg ?? 28;
+      const targetLat = composition.latitudeAlignTargetDeg ?? BIRTH_POINT_TARGET_LATITUDE_DEG;
       let pitch = -(targetLat - B); // 正确的算法：目标纬度 - 观测纬度
       if (pitch > 85) pitch = 85;
       if (pitch < -85) pitch = -85;
@@ -529,7 +616,12 @@ function SceneContent({
           directionalShadowSharpness={demParams.directionalShadowSharpness}
           directionalShadowContrast={demParams.directionalShadowContrast}
         >
-          <BirthPointMarker composition={composition} earthSize={earthInfo.size} />
+          <BirthPointMarker
+            composition={composition}
+            earthSize={earthInfo.size}
+            emphasized={isAlignedAndZoomed}
+            reducedMotion={reducedMotion}
+          />
         </Earth>
         
         
@@ -628,7 +720,8 @@ function SceneContent({
         lightDirection={lightDirection}
         useTextures={composition.useTextures}
         lightColor={moonLightColor}
-        sunIntensity={lightIntensity}
+        // Wire the existing material control; 0.1 preserves the original gain.
+        sunIntensity={lightIntensity * Math.max(0, composition.moonLightIntensity) / 0.1}
         // 月球光照强度极值控制
         moonLightMinRatio={composition.moonLightMinRatio}
         moonLightMaxRatio={composition.moonLightMaxRatio}
@@ -828,6 +921,7 @@ export default function SimpleTest() {
   const exitFullscreen = React.useCallback(() => {
     setFullscreenMode(false);
     setUiHidden(false);
+    setPanelExpanded(true);
     nativeFullscreenRef.current = false;
     if (document.fullscreenElement === fullscreenRootRef.current) {
       void document.exitFullscreen().catch(() => {});
@@ -839,6 +933,7 @@ export default function SimpleTest() {
         nativeFullscreenRef.current = false;
         setFullscreenMode(false);
         setUiHidden(false);
+        setPanelExpanded(true);
       }
     };
     const onEscape = (event: KeyboardEvent) => {
@@ -1356,6 +1451,36 @@ export default function SimpleTest() {
     };
   }, [sunWorld, sunAngles, duskLongitude, composition.earthYawDeg]);
 
+  const applyBirthPointCloseup = React.useCallback((immersive: boolean) => {
+    const longitude = Number(composition.birthPointLongitudeDeg ?? lonDeg);
+    const latitude = Number(composition.birthPointLatitudeDeg ?? latDeg);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+    const aspect = Math.max(0.25, window.innerWidth / Math.max(1, window.innerHeight));
+    const next = createCloseupComposition(composition, dateISO, longitude, latitude, aspect);
+    setComposition(previous => ({ ...previous, ...next.composition }));
+    setIsAlignedAndZoomed(true);
+    setPanelExpanded(false);
+    setRealTimeUpdate(false);
+    setAutoUpdate(false);
+    if (immersive) setUiHidden(true);
+    requestAnimationFrame(() => {
+      try { updateSunlight(); } catch {}
+    });
+    if (logger.isEnabled()) logger.log('birthPoint/closeup', {
+      longitude,
+      latitude,
+      markerNdc: next.shot.markerNdc,
+      earthCenterNdcY: next.shot.earthCenterNdcY,
+      targetLatitudeDeg: composition.latitudeAlignTargetDeg ?? BIRTH_POINT_TARGET_LATITUDE_DEG,
+      projectedLatitudeDeg: next.shot.projectedLatitudeDeg,
+      camera: {
+        azimuth: next.shot.cameraAzimuthDeg,
+        elevation: next.shot.cameraElevationDeg,
+        viewPitch: next.shot.cameraViewPitchDeg,
+      },
+    });
+  }, [composition, dateISO, latDeg, lonDeg, updateSunlight]);
+
   
 
   // 保持首屏：晨昏线居中（不自动对齐出生点；改为用户手动触发）
@@ -1363,12 +1488,12 @@ export default function SimpleTest() {
   return (
     <div ref={fullscreenRootRef} className={`canvas-wrap glass-ui${mobile ? " mobile-layout" : ""}${panelExpanded && !uiHidden ? " panel-expanded" : ""}${uiHidden ? " ui-hidden" : ""}${fullscreenMode ? " fullscreen-mode" : ""}${quality === 'battery' ? ' glass-battery' : ''}`}>
       {/* 音乐播放器 - 跟随UI隐藏状态做动画 */}
-      <div className="music-player" data-liquid-glass hidden={uiHidden} style={{
+      <div className="music-player" data-liquid-glass data-glass-variant="compact" hidden={uiHidden} style={{
         position: 'fixed', 
         top: uiHidden ? '-60px' : '10px',  // 隐藏时向上移出屏幕，显示时移回原位
         right: '16px',  // 与panel对齐 
         zIndex: 1000,
-        width: '400px',  // 与panel等宽
+        width: '52px',
         height: '52px',
         overflow: 'hidden',
       }}
@@ -1384,6 +1509,7 @@ export default function SimpleTest() {
               ]}
               autoPlay={false}
               playOnFirstInteraction={!mobile}
+              compact
             />
           </React.Suspense>
         ) : null}
@@ -1456,8 +1582,9 @@ export default function SimpleTest() {
         
       {/* 控制面板 - 使用与原版本一致的样式 */}
       {uiHidden && (
-        <div className="restore-ui" data-liquid-glass style={{ position:'absolute', top: 10, right: 10, zIndex: 40 }}>
+        <div className="restore-ui" data-liquid-glass data-glass-variant="compact" style={{ position:'absolute', top: 10, right: 10, zIndex: 40 }}>
           <SceneScreenshot />
+          {!fullscreenMode && <button className="btn" onClick={enterFullscreen}>全屏</button>}
           <button className="btn" onClick={exitFullscreen}>显示设置</button>
         </div>
       )}
@@ -3126,12 +3253,12 @@ export default function SimpleTest() {
               {/* 纬度对齐（仅动相机俯仰；目标纬度独立于地点） */}
               <div className="row" style={{ marginTop: 8, gap: 12, alignItems: 'center' }}>
                 <div className="col">
-                  <label className="label">目标纬度(°N为正，默认28)</label>
+                  <label className="label">放大构图目标纬度（°N，默认 70）</label>
                   <input
                     className="input"
                     type="number"
                     step={0.1}
-                    value={composition.latitudeAlignTargetDeg ?? 28}
+                    value={composition.latitudeAlignTargetDeg ?? BIRTH_POINT_TARGET_LATITUDE_DEG}
                     onChange={(e)=>{
                       const v = parseFloat(e.target.value);
                       setComposition(prev => ({ ...prev, latitudeAlignTargetDeg: v }));
@@ -3139,201 +3266,12 @@ export default function SimpleTest() {
                   />
                 </div>
                 <div className="col">
-                  <button className="btn" onClick={() => {
-                    try {
-                      const target = composition.latitudeAlignTargetDeg ?? 28; // 被减数（目标屏幕纬线）
-                      const obsLat = latDeg; // 观察地纬度
-                      // 非累加：每次直接计算绝对俯仰
-                      // 旋转纬度 = 目标纬度 − 观察地纬度；Δpitch = −(目标 − 观察地)；基线取0
-                      let newPitch = -(target - obsLat);
-                      if (newPitch > 85) newPitch = 85;
-                      if (newPitch < -85) newPitch = -85;
-                      setComposition(prev => ({ ...prev, cameraElevationDeg: newPitch }));
-                      // 对齐后关闭实时，避免后续tick导致状态跳变
-                      try { setRealTimeUpdate(false); setAutoUpdate(false); } catch {}
-                      console.log('[LatitudeAlign] obsLat(N)=', obsLat, 'target(N)=', target, 'newPitch=', newPitch);
-                    } catch (e) {
-                      console.error('[LatitudeAlign] failed:', e);
-                    }
-                  }}>对齐纬度</button>
+                  <button className="btn" onClick={() => applyBirthPointCloseup(false)}>对齐纬度</button>
                 </div>
                 <div className="col">
                   <button
                     className="btn"
-                    onClick={() => {
-                      // 对齐到出生点并放大
-                      console.log('[ClientAlignButton] 对齐按钮被点击');
-                      try {
-                        console.log('[ClientAlign] 🔧 启动客户端对齐并放大');
-
-                        // 1. 先计算所有需要的参数
-                        const current = composition;
-                        const L = (current.birthPointLongitudeDeg ?? lonDeg) || 121.5;
-                        const B = (current.birthPointLatitudeDeg ?? latDeg) || 31.2;
-                        // 使用dev模式成功的alpha值：10，而不是默认的12
-                        const alpha = 10;
-                        console.log('[ClientAlign] 使用dev模式成功的alpha值:', alpha, '(固定为10，不是默认12)');
-                        const seam = current.seamOffsetDeg ?? 0;
-                        
-                        // 2. 计算黄昏点经度（与 dev 模式一致：基于光照向量）
-                        let lonDusk;
-                        try {
-                          const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
-                          lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
-                          while (lonDusk > 180) lonDusk -= 360;
-                          while (lonDusk < -180) lonDusk += 360;
-                          console.log('[ClientAlign] 使用光照向量计算黄昏点经度:', lonDusk);
-                        } catch (error) {
-                          console.warn('[ClientAlign] 黄昏点计算失败，使用回退值:', error);
-                          lonDusk = -75.3;
-                        }
-                        
-                        console.log('[ClientAlign] === 开始五步操作（原子更新版）===');
-                        
-                        // 第1步：对齐经度
-                        console.log('[ClientAlign] 第1步：对齐经度 - 计算方位角');
-                        let yaw = (L + seam) - lonDusk; 
-                        while (yaw > 180) yaw -= 360; 
-                        while (yaw < -180) yaw += 360;
-                        console.log('[ClientAlign] 方位角计算完成:', yaw);
-                        
-                        console.log('[ClientAlign] 第2步：旋转纬度 - 计算俯仰角');
-                        console.log('[ClientAlign] 输入参数 - B(纬度):', B, 'alpha(抬升角):', alpha);
-                        const targetLat = 28; // 使用dev模式的目标纬度
-                        const obsLat = B; // 当前纬度
-                        let pitch = -(targetLat - obsLat); // dev模式的成功算法
-                        if (pitch > 85) pitch = 85;
-                        if (pitch < -85) pitch = -85;
-                        console.log('[ClientAlign] 俯仰角计算(dev模式算法):', `targetLat(${targetLat}) - obsLat(${obsLat}) =`, pitch);
-                        
-                        // 第3步：放大 - 使用你提供的默认参数
-                        console.log('[ClientAlign] 第3步：放大 - 设置地球大小和相机距离');
-                        const earthSize = 1.68;  // 正确的地球大小
-                        const cameraDistance = 15;  // 正确的相机距离
-                        console.log('[ClientAlign] 放大参数:', { earthSize, cameraDistance });
-                        
-                        // 第4步：旋转相机俯仰角
-                        console.log('[ClientAlign] 第4步：旋转相机俯仰角 - 应用相机参数');
-                        console.log('[ClientAlign] 相机参数:', { azimuth: yaw, elevation: pitch, distance: cameraDistance });
-                        
-                        // 第5步：改参数设置
-                        console.log('[ClientAlign] 第5步：改参数设置 - 应用所有参数');
-                        // 先确保视口偏移在同一轮事件内被归零（双保险）
-                        setComposition((prev)=>({ ...prev, viewOffsetY: 0 }));
-                        console.log('[ClientAlign] 应用对齐参数:', {
-                          enableBirthPointAlignment: true,
-                          birthPointAlignmentMode: true,
-                          cameraAzimuthDeg: yaw,
-                          cameraElevationDeg: pitch,
-                          cameraDistance: 15
-                        });
-                        console.log('[ClientAlign] 五步操作完成，开始设置参数...');
-                        setComposition((prev) => ({
-                          ...prev,
-                          // 先归零视口偏移，避免对齐时受偏移影响（同批次更新）
-                          viewOffsetY: 0,
-                          // 对齐参数
-                          enableBirthPointAlignment: true,
-                          birthPointAlignmentMode: true,
-                          cameraAzimuthDeg: yaw,
-                          cameraElevationDeg: pitch,
-                          cameraDistance: 15,
-                          
-                          // 地球参数 - 使用你提供的默认参数
-                          earthSize: 1.68,  // 地球大小
-                          lookAtDistanceRatio: 1.08,  // 视点距离比例
-                          birthPointAlphaDeg: 10, // 抬升角
-                          
-                          // 云层参数 - 使用你提供的默认参数（16层云系统）
-                          cloudsEnabled: true,
-                          cloudNumLayers: 16,  // 16层云系统
-                          cloudLayerSpacing: 0.0010,  // 层间距
-                          cloudStrength: 0.25,  // 云层强度
-                          cloudHeight: 0.002,  // 云层高度
-                          cloudYawDeg: 0,  // 云层旋转-经度
-                          cloudPitchDeg: 0,  // 云层旋转-纬度
-                          cloudDisplacementScale: 0.0,  // 置换强度
-                          cloudDisplacementBias: 0.03,  // 置换偏移
-                          cloudScrollSpeedU: 0.00033,  // U方向滚动（降至约1/3）
-                          cloudScrollSpeedV: 0.00066,  // V方向滚动（降至约1/3）
-                          cloudGamma: 0.50,  // 云层Gamma
-                          cloudContrast: 0.9,  // 云层对比度
-                          cloudBlack: 0.00,  // 云层黑点
-                          cloudWhite: 0.90,
-                          // 体积散射参数 - 使用你提供的默认参数
-                          cloudUseVolumeScattering: true,  // 启用体积散射
-                          cloudVolumeDensity: 0.50,  // 体积密度
-                          cloudScatteringStrength: 1.50,  // 散射强度
-                          cloudScatteringG: -0.50,  // 相位函数G
-                          cloudRimEffect: 0.10,  // 边缘增强
-                          cloudDensityEnhancement: 2.00,  // 密度增强
-                          cloudNoiseScale: 2.00,  // 噪声缩放
-                          cloudNoiseStrength: 0.70,  // 噪声强度
-                          // 启用厚度映射
-                          cloudUseThicknessMapping: true,
-                          cloudThicknessScale: 4.00,
-                          cloudThicknessBias: 1.00,
-                          cloudThicknessPower: 1.50,
-                          
-                          // 其他重要参数 - 确保与dev模式一致
-                          exposure: 1.00,
-                          atmosphereEnabled: true,
-                          starsEnabled: true,
-                          moonEnabled: true,
-                          moonDistance: 14,
-                          moonRadius: 0.68,
-                          
-                          // 材质参数 - 与dev模式一致
-                          sunIntensity: 2.45,
-                          lightAzimuth: 0,
-                          lightElevation: 0,
-                          terminatorSoftness: 1.00,
-                          nightIntensity: 0.20,
-                          
-                          // 月球参数 - 确保月相显示正确
-                          moonPhaseEnabled: true,
-                          moonAutoPosition: true
-                        }));
-                        
-                        // 4. 设置对齐状态（已在开始时设置，此处仅需设置其他状态）
-                        setRealTimeUpdate(false);
-                        setAutoUpdate(false);
-                        
-                        // 5. 强制更新光照和自转
-                        setTimeout(() => {
-                          updateSunlight();
-                          const bLon = composition.birthPointLongitudeDeg ?? lonDeg ?? 121.5;
-                          
-                          // 安全计算地球自转
-                          let newEarthRotation;
-                          try {
-                            newEarthRotation = calculateEarthRotationFromDateISO(dateISO, bLon);
-                            if (typeof newEarthRotation !== 'number' || isNaN(newEarthRotation)) {
-                              newEarthRotation = 0;
-                              console.warn('[ClientAlign] 使用默认自转角度:', newEarthRotation);
-                            }
-                          } catch (error) {
-                            console.warn('[ClientAlign] 自转计算失败，使用默认值:', error);
-                            newEarthRotation = 0;
-                          }
-                          
-                          updateValue('earthYawDeg', newEarthRotation);
-                          
-                          console.log('[ClientAlign] ✅ 客户端对齐并放大完成 - 五步操作总结:', { 
-                            step1_对齐经度: yaw,
-                            step2_旋转纬度: pitch,
-                            step3_放大: { earthSize: 1.68, cameraDistance: 8 },
-                            step4_旋转相机俯仰角: pitch,
-                            step5_改参数设置: '已完成',
-                            最终相机参数: { azimuth: yaw, elevation: pitch, radius: 8 },
-                            地球自转: newEarthRotation.toFixed(1),
-                            黄昏点经度: lonDusk
-                          });
-                        }, 0);
-                      } catch (e) {
-                        console.error('[ClientAlign] ❌ 对齐失败:', e);
-                      }
-                    }}
+                    onClick={() => applyBirthPointCloseup(false)}
                     style={{ minWidth: '120px' }}
                   >
                     📍 对齐到出生点
@@ -3531,7 +3469,7 @@ export default function SimpleTest() {
         </div>
           ) : (
             // 客户端模式 - 简洁UI
-            <div className="panel client-panel" data-liquid-glass style={{
+            <div className="panel client-panel" data-liquid-glass data-glass-variant="panel" style={{
               maxWidth: '400px', 
               position: 'absolute', 
               right: 16, 
@@ -3554,11 +3492,16 @@ export default function SimpleTest() {
               {/* 地点选择区域 */}
               <div style={{ marginBottom: '20px' }}>
                 <div className="label" style={{ marginBottom: '8px' }}>出生地点</div>
-                <LocationSelector onLocationChange={({ lat, lon }) => {
+                <LocationSelector onLocationChange={({ lat, lon, city, district }) => {
                   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
                   setLatDeg(lat);
                   setLonDeg(lon);
-                  setComposition(previous => ({ ...previous, birthPointLatitudeDeg: lat, birthPointLongitudeDeg: lon }));
+                  setComposition(previous => ({
+                    ...previous,
+                    birthPointLatitudeDeg: lat,
+                    birthPointLongitudeDeg: lon,
+                    birthPointMarkerLabel: district || city || '出生地',
+                  }));
                 }} />
               </div>
               
@@ -3640,195 +3583,16 @@ export default function SimpleTest() {
                 </div>
               </div>
               
-              {/* 主要操作按钮 */}
-              <div style={{ marginBottom: '20px' }}>
-                <div className="label" style={{ marginBottom: '8px' }}>主要操作</div>
+              <div className="primary-action">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
                     className="btn btn-primary"
                     aria-label="Xiu!!! 查看出生时刻的地月"
-                    onClick={() => {
-                      // 对齐到出生点并放大
-                      console.log('[ClientAlignButton] 对齐按钮被点击');
-                      try {
-                        console.log('[ClientAlign] 🔧 启动客户端对齐并放大');
-
-                        // 🔧 关键修复：立即设置对齐状态，防止 useEffect 竞态条件
-                        setIsAlignedAndZoomed(true);
-                        console.log('[ClientAlign] 立即设置 isAlignedAndZoomed = true，防止视口偏移被重置');
-                        console.log('[ClientAlign] 当前 viewOffsetY 值:', composition.viewOffsetY);
-
-                        // 1. 先计算所有需要的参数
-                        const current = composition;
-                        const L = (current.birthPointLongitudeDeg ?? lonDeg) || 121.5;
-                        const B = (current.birthPointLatitudeDeg ?? latDeg) || 31.2;
-                        // 使用dev模式成功的alpha值：10，而不是默认的12
-                        const alpha = 10;
-                        console.log('[ClientAlign] 使用dev模式成功的alpha值:', alpha, '(固定为10，不是默认12)');
-                        const seam = current.seamOffsetDeg ?? 0;
-                        
-                        // 2. 计算黄昏点经度（与 dev 模式一致：基于光照向量）
-                        let lonDusk;
-                        try {
-                          const lightDir = new THREE.Vector3(-sunWorld.x, -sunWorld.y, -sunWorld.z).normalize();
-                          lonDusk = THREE.MathUtils.radToDeg(Math.atan2(-lightDir.x, lightDir.z));
-                          while (lonDusk > 180) lonDusk -= 360;
-                          while (lonDusk < -180) lonDusk += 360;
-                          console.log('[ClientAlign] 使用光照向量计算黄昏点经度:', lonDusk);
-                        } catch (error) {
-                          console.warn('[ClientAlign] 黄昏点计算失败，使用回退值:', error);
-                          lonDusk = -75.3;
-                        }
-                        
-                        console.log('[ClientAlign] === 开始五步操作 ===');
-                        
-                        // 第1步：对齐经度
-                        console.log('[ClientAlign] 第1步：对齐经度 - 计算方位角');
-                        let yaw = (L + seam) - lonDusk; 
-                        while (yaw > 180) yaw -= 360; 
-                        while (yaw < -180) yaw += 360;
-                        console.log('[ClientAlign] 方位角计算完成:', yaw);
-                        
-                        console.log('[ClientAlign] 第2步：旋转纬度 - 计算俯仰角');
-                        console.log('[ClientAlign] 输入参数 - B(纬度):', B, 'alpha(抬升角):', alpha);
-                        const targetLat = 28; // 使用dev模式的目标纬度
-                        const obsLat = B; // 当前纬度
-                        let pitch = -(targetLat - obsLat); // dev模式的成功算法
-                        if (pitch > 85) pitch = 85;
-                        if (pitch < -85) pitch = -85;
-                        console.log('[ClientAlign] 俯仰角计算(dev模式算法):', `targetLat(${targetLat}) - obsLat(${obsLat}) =`, pitch);
-                        
-                        // 第3步：放大 - 使用你提供的默认参数
-                        console.log('[ClientAlign] 第3步：放大 - 设置地球大小和相机距离');
-                        const earthSize = 1.68;  // 正确的地球大小
-                        const cameraDistance = 15;  // 正确的相机距离
-                        console.log('[ClientAlign] 放大参数:', { earthSize, cameraDistance });
-                        
-                        // 第4步：旋转相机俯仰角
-                        console.log('[ClientAlign] 第4步：旋转相机俯仰角 - 应用相机参数');
-                        console.log('[ClientAlign] 相机参数:', { azimuth: yaw, elevation: pitch, distance: cameraDistance });
-                        
-                        // 第5步：改参数设置
-                        console.log('[ClientAlign] 第5步：改参数设置 - 应用所有参数');
-                        console.log('[ClientAlign] 应用对齐参数:', {
-                          enableBirthPointAlignment: true,
-                          birthPointAlignmentMode: true,
-                          cameraAzimuthDeg: yaw,
-                          cameraElevationDeg: pitch,
-                          cameraDistance: 15
-                        });
-                        // 预先计算地球自转角，避免中间帧出现旧自转导致的错误位置
-                        let newEarthRotation = 0;
-                        try {
-                          const bLonInstant = composition.birthPointLongitudeDeg ?? lonDeg ?? 121.5;
-                          newEarthRotation = calculateEarthRotationFromDateISO(dateISO, bLonInstant) || 0;
-                        } catch (err) {
-                          console.warn('[ClientAlign] 自转即时计算失败，使用0:', err);
-                          newEarthRotation = 0;
-                        }
-
-                        console.log('[ClientAlign] 五步操作完成，开始原子设置参数...');
-                        console.log('[ClientAlign] 设置 viewOffsetY = 0 + earthYawDeg 同步更新');
-                        setComposition(prev => ({
-                          ...prev,
-                          viewOffsetY: 0,
-                          enableBirthPointAlignment: true,
-                          birthPointAlignmentMode: true,
-                          cameraAzimuthDeg: yaw,
-                          cameraElevationDeg: pitch,
-                          cameraDistance: 15,
-                          earthYawDeg: newEarthRotation,
-
-                          // 地球参数 - 使用你提供的默认参数
-                          earthSize: 1.68,
-                          lookAtDistanceRatio: 1.08,
-                          birthPointAlphaDeg: 10,
-
-                          // 云层参数 - 使用你提供的默认参数（16层云系统）
-                          cloudsEnabled: true,
-                          cloudNumLayers: 16,
-                          cloudLayerSpacing: 0.0010,
-                          cloudStrength: 0.25,
-                          cloudHeight: 0.002,
-                          cloudYawDeg: 0,
-                          cloudPitchDeg: 0,
-                          cloudDisplacementScale: 0.0,
-                          cloudDisplacementBias: 0.03,
-                          cloudScrollSpeedU: 0.00033,
-                          cloudScrollSpeedV: 0.00066,
-                          cloudGamma: 0.50,
-                          cloudContrast: 0.9,
-                          cloudBlack: 0.00,
-                          cloudWhite: 0.90,
-                          // 体积散射参数
-                          cloudUseVolumeScattering: true,
-                          cloudVolumeDensity: 0.50,
-                          cloudScatteringStrength: 1.50,
-                          cloudScatteringG: -0.50,
-                          cloudRimEffect: 0.10,
-                          cloudDensityEnhancement: 2.00,
-                          cloudNoiseScale: 2.00,
-                          cloudNoiseStrength: 0.70,
-                          // 厚度映射
-                          cloudUseThicknessMapping: true,
-                          cloudThicknessScale: 4.00,
-                          cloudThicknessBias: 1.00,
-                          cloudThicknessPower: 1.50,
-
-                          // 其他重要参数
-                          exposure: 1.00,
-                          atmosphereEnabled: true,
-                          starsEnabled: true,
-                          moonEnabled: true,
-                          moonDistance: 14,
-                          moonRadius: 0.68,
-
-                          // 材质参数
-                          sunIntensity: 2.45,
-                          lightAzimuth: 0,
-                          lightElevation: 0,
-                          terminatorSoftness: 1.00,
-                          nightIntensity: 0.20,
-
-                          // 月球参数
-                          moonPhaseEnabled: true,
-                          moonAutoPosition: true
-                        }));
-
-                        // 与参数更新同一批次设置标志，减少中间态
-                        setIsAlignedAndZoomed(true);
-                        if (mobile) setPanelExpanded(false);
-                        
-                        // 4. 设置对齐状态（已在开始时设置，此处仅需设置其他状态）
-                        setRealTimeUpdate(false);
-                        setAutoUpdate(false);
-                        // 5. 轻量触发光照刷新（异步，不再改变earthYawDeg）
-                        setTimeout(() => {
-                          try { updateSunlight(); } catch (e) { console.error('[ClientAlign] 光照刷新失败:', e); }
-                          console.log('[ClientAlign] ✅ 客户端对齐并放大完成 - 五步操作总结:', { 
-                            step1_对齐经度: yaw,
-                            step2_旋转纬度: pitch,
-                            step3_放大: { earthSize: 1.68, cameraDistance: 15 },
-                            step4_旋转相机俯仰角: pitch,
-                            step5_改参数设置: '已完成',
-                            最终相机参数: { azimuth: yaw, elevation: pitch, radius: 15 },
-                            地球自转: newEarthRotation.toFixed(1),
-                            黄昏点经度: lonDusk
-                          });
-                        }, 0);
-                      } catch (e) {
-                        console.error('[ClientAlign] ❌ 对齐失败:', e);
-                      }
-                    }}
+                    onClick={() => applyBirthPointCloseup(true)}
                     style={{ width: '100%' }}
                   >
                     Xiu!!!
                   </button>
-                  <div className="scene-actions" style={{ display: 'flex', gap: '8px' }}>
-                    <SceneScreenshot />
-                    <button className="btn" onClick={() => setUiHidden(true)} style={{ flex: 1 }}>隐藏 UI</button>
-                    <button className="btn" onClick={enterFullscreen} style={{ flex: 1 }}>全屏查看</button>
-                  </div>
                   {mobile && isAlignedAndZoomed && reducedMotion && <div className="row motion-controls"><small>已跟随系统减少动态效果</small></div>}
                   {mobile && isAlignedAndZoomed && !reducedMotion && <div className="row motion-controls" aria-live="polite">
                     <span className="label">体感视差</span>
@@ -3843,19 +3607,14 @@ export default function SimpleTest() {
                     {parallax.mode === 'denied' && <small>未获得体感权限</small>}
                     {parallax.mode === 'unavailable' && <small>未收到感应数据</small>}
                   </div>}
-                  <a className="moon-credit" href="https://svs.gsfc.nasa.gov/14959/" target="_blank" rel="noopener noreferrer"
-                    title="月球模型来源：NASA's Goddard Space Flight Center">月球模型：NASA Goddard ↗</a>
                 </div>
               </div>
 
-              
-              
-              
-              {/* 显示选项 */}
-              <div style={{ marginBottom: '20px' }}>
-                <div className="label" style={{ marginBottom: '8px' }}>显示选项</div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+              <details className="visual-settings">
+                <summary>画面设置</summary>
+                <div className="visual-settings-content">
+                  <div className="visual-settings-toggles">
+                  <label>
                     <input
                       type="checkbox"
                       checked={!!composition.useClouds}
@@ -3866,7 +3625,7 @@ export default function SimpleTest() {
                     />
                     云层
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                  <label>
                     <input
                       type="checkbox"
                       checked={!!composition.showStars}
@@ -3875,7 +3634,7 @@ export default function SimpleTest() {
                     />
                     星空
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                  <label>
                     <input
                       type="checkbox"
                       checked={composition.showMoon ?? true}
@@ -3884,7 +3643,7 @@ export default function SimpleTest() {
                     />
                     月球
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                  <label>
                     <input
                       type="checkbox"
                       checked={!!composition.showBirthPointMarker}
@@ -3893,17 +3652,24 @@ export default function SimpleTest() {
                     />
                     出生地标记
                   </label>
+                  </div>
+                  <label className="quality-control">
+                    <span className="label">画面品质</span>
+                    <select className="input" value={quality} onChange={event => setQuality(event.target.value as Quality)}>
+                      <option value="balanced">均衡</option>
+                      <option value="battery">省电</option>
+                      <option value="detail">细腻</option>
+                    </select>
+                  </label>
+                  <div className="scene-actions" style={{ display: 'flex', gap: 8 }}>
+                    <SceneScreenshot />
+                    <button className="btn" onClick={() => setUiHidden(true)} style={{ flex: 1 }}>隐藏 UI</button>
+                    <button className="btn" onClick={enterFullscreen} style={{ flex: 1 }}>全屏查看</button>
+                  </div>
+                  <a className="moon-credit" href="https://svs.gsfc.nasa.gov/14959/" target="_blank" rel="noopener noreferrer"
+                    title="月球模型来源：NASA's Goddard Space Flight Center">月球模型：NASA Goddard ↗</a>
                 </div>
-              </div>
-              
-              <label className="quality-control">
-                <span className="label">画面品质</span>
-                <select className="input" value={quality} onChange={event => setQuality(event.target.value as Quality)}>
-                  <option value="balanced">均衡</option>
-                  <option value="battery">省电</option>
-                  <option value="detail">细腻</option>
-                </select>
-              </label>
+              </details>
               </div>
               {/* 开发者模式入口：已按需求在客户端隐藏 */}
             </div>
