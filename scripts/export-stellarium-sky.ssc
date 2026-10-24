@@ -1,0 +1,43 @@
+// Run with the official Stellarium 26.3 desktop executable, an isolated --user-dir,
+// and --startup-script /absolute/path/to/this/file.ssc. Never load personal settings.
+// Output: isolated user-dir/stellarium-sky-reference.json (core.saveOutputAs).
+// Numeric Julian days are UT. ISO labels below use proleptic Gregorian UTC.
+core.setTimeRate(0);
+core.setTimezone("UTC");
+core.setStelProperty("StelCore.flagUseNutation", true);
+core.setStelProperty("StelCore.flagUseAberration", false);
+core.setStelProperty("StelCore.flagUseParallax", false);
+LandscapeMgr.setFlagAtmosphere(false);
+LandscapeMgr.setFlagLandscape(false);
+var scenarios = [
+    {id:"shanghai-2026", utc:"2026-10-21T13:00", jd:2461335.0416666665, latitude:31.2304, longitude:121.4737},
+    {id:"sydney-2026", utc:"2026-10-21T13:00", jd:2461335.0416666665, latitude:-33.8688, longitude:151.2093},
+    {id:"north70-2026", utc:"2026-10-21T13:00", jd:2461335.0416666665, latitude:70, longitude:0},
+    {id:"hangzhou-1076", utc:"1076-09-01T13:00", jd:2114305.0416666665, latitude:30.2741, longitude:120.1551},
+    {id:"shanghai-0050", utc:"0050-01-01T12:30", jd:1739323.0208333335, latitude:31.2304, longitude:121.4737}
+];
+var hips = [11767,32349,91262,69673,65474,24436,27989,80763,113368,71683,30343,3179];
+var result = {producer:"Stellarium desktop 26.3", schema:1,
+    settings:{nutation:true,annualAberration:false,parallax:false,refraction:false,
+        calendar:"proleptic Gregorian labels; numeric JD(UT) supplied", altitudeMetres:0},
+    scenarios:[]};
+for (var i=0; i<scenarios.length; i++) {
+    var sample = scenarios[i];
+    core.setObserverLocation(sample.longitude, sample.latitude, 0, 0, "LuBirth fixture", "Earth");
+    core.setJDay(sample.jd);
+    core.wait(0.25);
+    sample.actualJD = core.getJDay();
+    sample.deltaTSeconds = core.getDeltaTsec();
+    sample.deltaTAlgorithm = core.getDeltaTAlgorithm();
+    sample.stars = [];
+    for (var j=0; j<hips.length; j++) {
+        var info = core.getObjectInfo("HIP " + hips[j]);
+        sample.stars.push({hip:hips[j], name:info["name"],
+            azimuth:info["azimuth-geometric"], altitude:info["altitude-geometric"],
+            raJ2000:info["raJ2000"], decJ2000:info["decJ2000"]});
+    }
+    result.scenarios.push(sample);
+}
+core.output(JSON.stringify(result));
+core.saveOutputAs("stellarium-sky-reference.json");
+core.quitStellarium();

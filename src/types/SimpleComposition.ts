@@ -1,5 +1,6 @@
 // 简化的构图参数类型
 export interface SimpleComposition {
+  showSkyCulture?: boolean;
   // 地球参数
   earthSize: number;           // 地球大小
   earthTiltDeg: number;        // 地球倾角（固定为0，我们转阳光）
@@ -481,6 +482,7 @@ export const DEFAULT_SIMPLE_COMPOSITION: SimpleComposition = {
   useTextures: true,           // 使用贴图
   useClouds: true,             // 显示云层
   showStars: true,             // 显示星空
+  showSkyCulture: true,        // 默认呈现所选文化的星官连线与图绘
   useMilkyWay: true,           // 使用银河星空
   showMoon: true,              // 显示月球
   bgYawDeg: -61,
@@ -675,6 +677,7 @@ export function convertToSimpleComposition(original: any): SimpleComposition {
     useTextures: original.useTextures ?? DEFAULT_SIMPLE_COMPOSITION.useTextures,
     useClouds: original.useClouds ?? DEFAULT_SIMPLE_COMPOSITION.useClouds,
     showStars: original.showStars ?? DEFAULT_SIMPLE_COMPOSITION.showStars,
+    showSkyCulture: original.showSkyCulture ?? DEFAULT_SIMPLE_COMPOSITION.showSkyCulture,
     useMilkyWay: original.useMilkyWay ?? DEFAULT_SIMPLE_COMPOSITION.useMilkyWay,
     bgYawDeg: original.bgYawDeg ?? DEFAULT_SIMPLE_COMPOSITION.bgYawDeg,
     bgPitchDeg: original.bgPitchDeg ?? DEFAULT_SIMPLE_COMPOSITION.bgPitchDeg,

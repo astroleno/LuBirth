@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "first-meeting",
+      "text": "天地初见",
+      "width": 599,
+      "height": 219,
+      "inkRect": [
+        0,
+        0,
+        599,
+        175
+      ],
+      "card": "first-meeting.svg",
+      "loading": "first-meeting-loading.svg",
+      "png": "first-meeting.png",
+      "label": {
+        "path": "inko-label.png",
+        "width": 815,
+        "height": 129,
+        "textHeight": 129
+      },
+      "sourceJob": "87a4631e-4753-45b5-92c4-317d3d8f2d00",
+      "metadata": [
+        {
+          "type": "iTXt",
+          "data": "QUlHQwAAAAAAeyJMYWJlbCI6ICIxIiwgIkNvbnRlbnRQcm9kdWNlciI6ICJJbmtvIChpbmtvdHlwZS5jb20pIiwgIlByb2R1Y2VJRCI6ICI4N2E0NjMxZS00NzUzLTQ1YjUtOTJjNC0zMTdkM2Q4ZjJkMDAtcDEiLCAiUmVzZXJ2ZWRDb2RlMSI6ICJmYzc2ZDg0YWMwZmY2NmE3ZDM3NzIzMmMyMDg5NDYxOWRjMjA3ZjNiNTc1M2Q1YzdkNmM3ZDZjOWI3MTE3YjM4IiwgIkNvbnRlbnRQcm9wYWdhdG9yIjogImlua290eXBlLmNvbSIsICJQcm9wYWdhdGVJRCI6ICI4N2E0NjMxZS00NzUzLTQ1YjUtOTJjNC0zMTdkM2Q4ZjJkMDAtcDEiLCAiUmVzZXJ2ZWRDb2RlMiI6ICIifQ=="
+        },
+        {
+          "type": "iTXt",
+          "data": "WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+PHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyI+PHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj48cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczpUQzI2MD0iaHR0cDovL3d3dy50YzI2MC5vcmcuY24vbnMvQUlHQy8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iPjxUQzI2MDpBSUdDPnsiTGFiZWwiOiAiMSIsICJDb250ZW50UHJvZHVjZXIiOiAiSW5rbyAoaW5rb3R5cGUuY29tKSIsICJQcm9kdWNlSUQiOiAiODdhNDYzMWUtNDc1My00NWI1LTkyYzQtMzE3ZDNkOGYyZDAwLXAxIiwgIlJlc2VydmVkQ29kZTEiOiAiZmM3NmQ4NGFjMGZmNjZhN2QzNzcyMzJjMjA4OTQ2MTlkYzIwN2YzYjU3NTNkNWM3ZDZjN2Q2YzliNzExN2IzOCIsICJDb250ZW50UHJvcGFnYXRvciI6ICJpbmtvdHlwZS5jb20iLCAiUHJvcGFnYXRlSUQiOiAiODdhNDYzMWUtNDc1My00NWI1LTkyYzQtMzE3ZDNkOGYyZDAwLXAxIiwgIlJlc2VydmVkQ29kZTIiOiAiIn08L1RDMjYwOkFJR0M+PGRjOmNyZWF0b3I+PHJkZjpTZXE+PHJkZjpsaT5JbmtvIChpbmtvdHlwZS5jb20pPC9yZGY6bGk+PC9yZGY6U2VxPjwvZGM6Y3JlYXRvcj48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC94OnhtcG1ldGE+PD94cGFja2V0IGVuZD0idyI/Pg=="
+        }
+      ]
+    },
+    {
+      "id": "earth-and-you",
+      "text": "天地与你",
+      "width": 633,
+      "height": 228,
+      "inkRect": [
+        0,
+        0,
+        633,
+        184
+      ],
+      "card": "earth-and-you.svg",
+      "loading": "earth-and-you-loading.svg",
+      "png": "earth-and-you.png",
+      "label": {
+        "path": "inko-label.png",
+        "width": 815,
+        "height": 129,
+        "textHeight": 129
+      },
+      "sourceJob": "87a4631e-4753-45b5-92c4-317d3d8f2d00",
+      "metadata": [
+        {
+          "type": "iTXt",
+          "data": "QUlHQwAAAAAAeyJMYWJlbCI6ICIxIiwgIkNvbnRlbnRQcm9kdWNlciI6ICJJbmtvIChpbmtvdHlwZS5jb20pIiwgIlByb2R1Y2VJRCI6ICI4N2E0NjMxZS00NzUzLTQ1YjUtOTJjNC0zMTdkM2Q4ZjJkMDAtcDEiLCAiUmVzZXJ2ZWRDb2RlMSI6ICJmYzc2ZDg0YWMwZmY2NmE3ZDM3NzIzMmMyMDg5NDYxOWRjMjA3ZjNiNTc1M2Q1YzdkNmM3ZDZjOWI3MTE3YjM4IiwgIkNvbnRlbnRQcm9wYWdhdG9yIjogImlua290eXBlLmNvbSIsICJQcm9wYWdhdGVJRCI6ICI4N2E0NjMxZS00NzUzLTQ1YjUtOTJjNC0zMTdkM2Q4ZjJkMDAtcDEiLCAiUmVzZXJ2ZWRDb2RlMiI6ICIifQ=="
+        },
+        {
+          "type": "iTXt",
+          "data": "WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+PHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyI+PHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj48cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczpUQzI2MD0iaHR0cDovL3d3dy50YzI2MC5vcmcuY24vbnMvQUlHQy8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iPjxUQzI2MDpBSUdDPnsiTGFiZWwiOiAiMSIsICJDb250ZW50UHJvZHVjZXIiOiAiSW5rbyAoaW5rb3R5cGUuY29tKSIsICJQcm9kdWNlSUQiOiAiODdhNDYzMWUtNDc1My00NWI1LTkyYzQtMzE3ZDNkOGYyZDAwLXAxIiwgIlJlc2VydmVkQ29kZTEiOiAiZmM3NmQ4NGFjMGZmNjZhN2QzNzcyMzJjMjA4OTQ2MTlkYzIwN2YzYjU3NTNkNWM3ZDZjN2Q2YzliNzExN2IzOCIsICJDb250ZW50UHJvcGFnYXRvciI6ICJpbmtvdHlwZS5jb20iLCAiUHJvcGFnYXRlSUQiOiAiODdhNDYzMWUtNDc1My00NWI1LTkyYzQtMzE3ZDNkOGYyZDAwLXAxIiwgIlJlc2VydmVkQ29kZTIiOiAiIn08L1RDMjYwOkFJR0M+PGRjOmNyZWF0b3I+PHJkZjpTZXE+PHJkZjpsaT5JbmtvIChpbmtvdHlwZS5jb20pPC9yZGY6bGk+PC9yZGY6U2VxPjwvZGM6Y3JlYXRvcj48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC94OnhtcG1ldGE+PD94cGFja2V0IGVuZD0idyI/Pg=="
+        }
+      ]
+    },
+    {
+      "id": "same-moon",
+      "text": "与古人同望",
+      "width": 741,
+      "height": 229,
+      "inkRect": [
+        0,
+        0,
+        741,
+        185
+      ],
+      "card": "same-moon.svg",
+      "loading": "same-moon-loading.svg",
+      "png": "same-moon.png",
+      "label": {
+        "path": "inko-label.png",
+        "width": 815,
+        "height": 129,
+        "textHeight": 129
+      },
+      "sourceJob": "87a4631e-4753-45b5-92c4-317d3d8f2d00",
+      "metadata": [
+        {
+          "type": "iTXt",
+          "data": "QUlHQwAAAAAAeyJMYWJlbCI6ICIxIiwgIkNvbnRlbnRQcm9kdWNlciI6ICJJbmtvIChpbmtvdHlwZS5jb20pIiwgIlByb2R1Y2VJRCI6ICI4N2E0NjMxZS00NzUzLTQ1YjUtOTJjNC0zMTdkM2Q4ZjJkMDAtcDEiLCAiUmVzZXJ2ZWRDb2RlMSI6ICJmYzc2ZDg0YWMwZmY2NmE3ZDM3NzIzMmMyMDg5NDYxOWRjMjA3ZjNiNTc1M2Q1YzdkNmM3ZDZjOWI3MTE3YjM4IiwgIkNvbnRlbnRQcm9wYWdhdG9yIjogImlua290eXBlLmNvbSIsICJQcm9wYWdhdGVJRCI6ICI4N2E0NjMxZS00NzUzLTQ1YjUtOTJjNC0zMTdkM2Q4ZjJkMDAtcDEiLCAiUmVzZXJ2ZWRDb2RlMiI6ICIifQ=="
+        },
+        {
+          "type": "iTXt",
+          "data": "WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+PHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyI+PHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj48cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczpUQzI2MD0iaHR0cDovL3d3dy50YzI2MC5vcmcuY24vbnMvQUlHQy8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iPjxUQzI2MDpBSUdDPnsiTGFiZWwiOiAiMSIsICJDb250ZW50UHJvZHVjZXIiOiAiSW5rbyAoaW5rb3R5cGUuY29tKSIsICJQcm9kdWNlSUQiOiAiODdhNDYzMWUtNDc1My00NWI1LTkyYzQtMzE3ZDNkOGYyZDAwLXAxIiwgIlJlc2VydmVkQ29kZTEiOiAiZmM3NmQ4NGFjMGZmNjZhN2QzNzcyMzJjMjA4OTQ2MTlkYzIwN2YzYjU3NTNkNWM3ZDZjN2Q2YzliNzExN2IzOCIsICJDb250ZW50UHJvcGFnYXRvciI6ICJpbmtvdHlwZS5jb20iLCAiUHJvcGFnYXRlSUQiOiAiODdhNDYzMWUtNDc1My00NWI1LTkyYzQtMzE3ZDNkOGYyZDAwLXAxIiwgIlJlc2VydmVkQ29kZTIiOiAiIn08L1RDMjYwOkFJR0M+PGRjOmNyZWF0b3I+PHJkZjpTZXE+PHJkZjpsaT5JbmtvIChpbmtvdHlwZS5jb20pPC9yZGY6bGk+PC9yZGY6U2VxPjwvZGM6Y3JlYXRvcj48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC94OnhtcG1ldGE+PD94cGFja2V0IGVuZD0idyI/Pg=="
+        }
+      ]
+    }
+  ]
+}

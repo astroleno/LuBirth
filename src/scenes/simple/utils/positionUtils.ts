@@ -69,7 +69,7 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
       
       // 设置近远平面
       camera.near = 0.01;
-      camera.far = Math.max(400, R + 20);
+      camera.far = Math.max(400, R + 20, composition?.cameraFar ?? 0);
       
       // 视口偏移（主点纵向偏移，-5..+5，上为正）
       const offsetY = composition?.viewOffsetY ?? 0;
@@ -120,7 +120,7 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
     } catch (error) {
       console.error('[SimpleCamera] Error:', error);
     }
-  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.cameraViewPitchDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY]);
+  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.cameraViewPitchDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY, composition?.cameraFar]);
 }
 
 // 地球位置计算

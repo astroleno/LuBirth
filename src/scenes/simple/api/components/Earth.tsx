@@ -991,6 +991,7 @@ export function Earth({
     >
       {/* 地球核心 */}
       <mesh castShadow={receiveShadows} receiveShadow={receiveShadows}
+        name="earthSurface"
         // 为阴影接收附加自定义深度材质（支持高度置换）
         customDepthMaterial={receiveShadows ? depthMaterial : undefined}
       >

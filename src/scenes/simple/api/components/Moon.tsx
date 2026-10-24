@@ -7,6 +7,11 @@ import { toUTCFromLocal } from '../../../../astro/ephemeris';
 import { getScreenAnchoredPosition } from '../../utils/positionUtils';
 import { assetUrl } from '../../../../utils/assetUrl';
 import type { ParallaxOffset } from '../../../../performance/useParallaxInput';
+import type { Vec3 } from '../../../../astro/referenceFrames';
+
+export type MoonCelestialLighting = {
+  key: string; portraitLight: Vec3; phaseFraction: number; phaseAngleDeg: number; cycleAngleDeg: number;
+};
 
 // 🌙 计算UV旋转矩阵（实现潮汐锁定）
 function calculateUVRotation(moonYawDeg: number, lonDeg: number, latDeg: number): THREE.Matrix3 {
@@ -109,6 +114,8 @@ export function Moon({
   nightLift = 0.002,
   // 🌙 屏幕锚定参数
   enableScreenAnchor = false,
+  screenSpacePortrait = false,
+  portraitPixelRadius,
   screenX = 0.5,
   screenY = 0.75,
   anchorDistance = 14,
@@ -119,6 +126,9 @@ export function Moon({
   terrainEnabled = false,
   onTerrainStatusChange,
   parallaxOffset,
+  celestialLighting,
+  skyLayer = false,
+  horizonClip = false,
 }: {
   position: [number, number, number];
   radius: number;
@@ -143,6 +153,9 @@ export function Moon({
   observerLat?: number; // 观察者纬度
   observerLon?: number; // 观察者经度
   useCameraLockedPhase?: boolean;
+  celestialLighting?: MoonCelestialLighting;
+  skyLayer?: boolean;
+  horizonClip?: boolean;
   renderLayer?: number;
   customCameraForTideLock?: THREE.Camera;
   customCameraForPhase?: THREE.Camera;
@@ -164,6 +177,8 @@ export function Moon({
   nightLift?: number;            // 夜面抬升（0-0.2），避免新月过亮
   // 🌙 屏幕锚定参数
   enableScreenAnchor?: boolean;  // 是否启用屏幕锚定
+  screenSpacePortrait?: boolean;
+  portraitPixelRadius?: number;
   screenX?: number;              // 屏幕X位置 (0-1)
   screenY?: number;              // 屏幕Y位置 (0-1)
   anchorDistance?: number;       // 锚定距离
@@ -176,7 +191,7 @@ export function Moon({
   parallaxOffset?: React.MutableRefObject<ParallaxOffset>;
 }) {
   const meshRef = React.useRef<THREE.Mesh>(null!);
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const tideCam = customCameraForTideLock || camera;
   const phaseCam = customCameraForPhase || camera;
   const lightBasis = useMemo(() => ({
@@ -196,7 +211,13 @@ export function Moon({
   // 纹理从父组件传入，不再在这里加载
   const [terrain, setTerrain] = React.useState<{ geometry: THREE.BufferGeometry; map: THREE.Texture } | null>(null);
   const terrainReady = terrainEnabled && terrain !== null;
-  const activeMoonMap = terrainReady ? terrain.map : moonMap;
+  const neutralMap = useMemo(() => {
+    const texture = new THREE.DataTexture(new Uint8Array([190, 190, 190, 255]), 1, 1);
+    texture.needsUpdate = true; texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }, []);
+  useEffect(() => () => neutralMap.dispose(), [neutralMap]);
+  const activeMoonMap = terrainReady ? terrain.map : moonMap ?? (celestialLighting ? neutralMap : undefined);
   const activeDisplacementMap = terrainReady ? undefined : moonDisplacementMap;
   const activeNormalMap = terrainReady ? undefined : moonNormalMap;
 
@@ -250,17 +271,23 @@ export function Moon({
   }, [terrainEnabled, onTerrainStatusChange]);
   
   const sunDirectionInfo = useMemo(() => {
+    if (celestialLighting) return {
+      illumination: celestialLighting.phaseFraction, phaseAngleRad: celestialLighting.phaseAngleDeg * Math.PI / 180,
+      cycleAngleDeg: celestialLighting.cycleAngleDeg, sunDirection: new THREE.Vector3(...celestialLighting.portraitLight),
+      moonIntensityRatio: moonLightMinRatio + (moonLightMaxRatio - moonLightMinRatio) * celestialLighting.phaseFraction,
+    };
     if (!currentDate || observerLat === undefined || observerLon === undefined) return null;
     const phase = getMoonPhase(currentDate, observerLat, observerLon);
     return { ...phase, moonIntensityRatio:
       moonLightMinRatio + (moonLightMaxRatio - moonLightMinRatio) * phase.illumination };
-  }, [currentDate, observerLat, observerLon, moonLightMinRatio, moonLightMaxRatio]);
+  }, [currentDate, observerLat, observerLon, moonLightMinRatio, moonLightMaxRatio, celestialLighting]);
 
   const sdirWorld = sunDirectionInfo?.sunDirection;
   const moonPhaseResult = useMemo(() => {
+    if (celestialLighting) return null;
     if (!currentDate || observerLon === undefined) return null;
     return calculateMoonPhase(toUTCFromLocal(currentDate, observerLon), observerLat ?? 0, observerLon);
-  }, [currentDate, observerLat, observerLon]);
+  }, [currentDate, observerLat, observerLon, celestialLighting]);
 
   useEffect(() => {
     if (!sunDirectionInfo) return;
@@ -271,9 +298,10 @@ export function Moon({
       cycleAngleDeg: sunDirectionInfo.cycleAngleDeg,
       sunDirection: sunDirectionInfo.sunDirection.toArray(),
       brightSide: sunDirectionInfo.cycleAngleDeg < 180 ? 'RIGHT' : 'LEFT',
-      source: 'astronomy-engine geocentric phase; screen-relative presentation',
+      source: celestialLighting ? 'shared celestial state; observer-corrected phase' : 'astronomy-engine geocentric phase; screen-relative presentation',
+      key: celestialLighting?.key,
     };
-  }, [sunDirectionInfo, currentDate]);
+  }, [sunDirectionInfo, currentDate, celestialLighting]);
 
   // 从 HSL 计算色调
   const tintColor = useMemo(() => {
@@ -287,7 +315,7 @@ export function Moon({
     // 如果没有纹理，使用更明显的默认材质
     if (!activeMoonMap) {
       return new THREE.MeshPhongMaterial({
-        transparent: enableScreenAnchor,
+        transparent: enableScreenAnchor || skyLayer,
         depthTest: !enableScreenAnchor,
         depthWrite: !enableScreenAnchor,
         color: new THREE.Color('#e8e8e8'), // 使用更自然的月球颜色
@@ -310,10 +338,12 @@ export function Moon({
       return new THREE.ShaderMaterial({
         // Screen-anchored Moon must share the transparent queue with the sky:
         // renderOrder alone cannot put an opaque object after transparent stars.
-        transparent: enableScreenAnchor,
+        transparent: enableScreenAnchor || skyLayer,
         depthTest: !enableScreenAnchor,
         depthWrite: !enableScreenAnchor,
         uniforms: {
+          portraitProjection: { value: screenSpacePortrait && enableScreenAnchor ? 1 : 0 },
+          clipGround: { value: horizonClip ? 1 : 0 },
           moonMap: { value: activeMoonMap },
           displacementMap: { value: activeDisplacementMap },
           // 🌙 新增：UV旋转角度（简化传递）
@@ -355,6 +385,7 @@ export function Moon({
           uniform float phaseCoupleStrength;
           uniform float displacementMid;
           uniform float uvRotationAngle;
+          uniform float portraitProjection;
           
           void main() {
             vUv = uv;
@@ -376,6 +407,12 @@ export function Moon({
             vViewPosition = mvPosition.xyz;
             vPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
             gl_Position = projectionMatrix * mvPosition;
+            if (portraitProjection > .5) {
+              // A picture-in-picture disc uses orthographic projection within
+              // its screen anchor, independent of the sky camera's wide field.
+              vec4 centerView = modelViewMatrix * vec4(0., 0., 0., 1.);
+              gl_Position = projectionMatrix * vec4(mvPosition.xy, centerView.z, 1.);
+            }
           }
         `,
         fragmentShader: `
@@ -387,6 +424,7 @@ export function Moon({
           uniform sampler2D normalMap;
 
           uniform vec3 sunDirView;
+          uniform float portraitProjection;
           uniform vec3 lightColor;
           uniform float sunIntensity;
           uniform float moonIntensityRatio;
@@ -406,6 +444,7 @@ export function Moon({
           uniform float phaseCoupleStrength;
           uniform float surgeStrength;
           uniform float surgeSigmaRad;
+          uniform float clipGround;
           
           varying vec2 vUv;
           varying vec2 vUvRotated;
@@ -433,6 +472,7 @@ export function Moon({
           }
           
           void main() {
+            if (clipGround > .5 && vPosition.y < 0.) discard;
             // 🌙 基础纹理颜色（使用旋转后的UV实现潮汐锁定）
             vec3 moonColor = texture2D(moonMap, vUvRotated).rgb;
             // Neutral lunar albedo; retain a little of the NASA map's subtle color variation.
@@ -450,7 +490,8 @@ export function Moon({
             float edge = clamp(terminatorSoftness + terminatorRadius, 0.001, 0.03);
             float terminator = smoothstep(-edge, edge, signedNdl);
             float incidence = max(dot(normal, lightDir), 0.0);
-            float emission = max(dot(normal, normalize(-vViewPosition)), 0.0);
+            vec3 viewer = portraitProjection > .5 ? vec3(0., 0., 1.) : normalize(-vViewPosition);
+            float emission = max(dot(normal, viewer), 0.0);
             // Lommel-Seeliger single scattering reduces the artificial dark rim at full moon.
             // The geometric terminator above still owns which hemisphere is sunlit.
             float singleScatter = 2.0 * incidence / max(incidence + emission, 0.001);
@@ -498,7 +539,7 @@ export function Moon({
       depthTest: enableScreenAnchor ? false : true,
       depthWrite: enableScreenAnchor ? false : true
     });
-  }, [activeMoonMap, activeDisplacementMap, activeNormalMap, terrainReady, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, sunDirectionInfo, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale, enableScreenAnchor, lonDeg, nightLift, useCameraLockedPhase, terminatorRadius, phaseCoupleStrength]);
+  }, [activeMoonMap, activeDisplacementMap, activeNormalMap, terrainReady, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, sunDirectionInfo, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale, enableScreenAnchor, lonDeg, nightLift, useCameraLockedPhase, terminatorRadius, phaseCoupleStrength, skyLayer, horizonClip, screenSpacePortrait]);
 
   React.useEffect(() => () => moonMaterial.dispose(), [moonMaterial]);
 
@@ -517,12 +558,22 @@ export function Moon({
           camera,
           frameScratch.anchor,
         );
+        if (screenSpacePortrait) {
+          frameScratch.target.copy(newPosition).applyMatrix4(camera.matrixWorldInverse);
+          newPosition.sub(camera.position).multiplyScalar(anchorDistance / Math.max(.001, -frameScratch.target.z)).add(camera.position);
+          if (portraitPixelRadius !== undefined) {
+            const targetRadius = 2 * anchorDistance * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2)
+              * portraitPixelRadius / Math.max(1, size.height);
+            meshRef.current.scale.setScalar(targetRadius / (terrainReady ? 1 : radius));
+          }
+        }
         meshRef.current.position.copy(newPosition);
         
         // 🌙 方案B：几何旋转潮汐锁定（放弃UV旋转）
         if (enableTidalLock) {
           // 先面向相机
-          meshRef.current.lookAt(camera.position);
+          if (screenSpacePortrait) meshRef.current.quaternion.copy(camera.quaternion);
+          else meshRef.current.lookAt(camera.position);
           
           // 再应用潮汐锁定偏移
           meshRef.current.quaternion.multiply(tidalOffset);
@@ -571,7 +622,8 @@ export function Moon({
         } else {
           lightBasis.direction.copy(sunDirWorldForShading ?? lightDirection);
         }
-        mat.uniforms.sunDirView.value.copy(lightBasis.direction).transformDirection(camera.matrixWorldInverse);
+        if (screenSpacePortrait && enableScreenAnchor && sunDirectionInfo) mat.uniforms.sunDirView.value.copy(sunDirectionInfo.sunDirection);
+        else mat.uniforms.sunDirView.value.copy(lightBasis.direction).transformDirection(camera.matrixWorldInverse);
       }
     }
   });
@@ -746,6 +798,7 @@ export function Moon({
     <mesh 
       ref={meshRef}
       name={name}
+      userData={{ frameKey: celestialLighting?.key, placement: enableScreenAnchor ? 'portrait' : 'physical' }}
       position={position}
       scale={terrainReady ? radius : 1}
       // 🌙 渲染层级控制：确保月球始终在前景显示

@@ -1,4 +1,6 @@
 import React from 'react';
+import { LoadingHandwriting } from './keepsake/LoadingHandwriting';
+import { useReducedMotion } from '../performance/renderProfile';
 
 interface LoadingOverlayProps {
   // 等待超过此时长后提供重试或手动进入，不假装资源已加载完成。
@@ -16,11 +18,13 @@ interface LoadingOverlayProps {
 export default function LoadingOverlay(props: LoadingOverlayProps) {
   const {
     durationMs = 8000,
-    minShowMs = 1200,
-    fadeMs = 800,
+    minShowMs = 0,
+    fadeMs: configuredFadeMs = 800,
     readyEventName = 'lubirth:assets-ready',
     prewarmFrames = 3
   } = props;
+  const reducedMotion = useReducedMotion();
+  const fadeMs = reducedMotion ? 0 : configuredFadeMs;
 
   const [visible, setVisible] = React.useState(true);
   const [fading, setFading] = React.useState(false);
@@ -115,22 +119,6 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
 
   if (!visible) return null;
 
-  const renderWord = (text: string) => {
-    return (
-      <span className="lubirth-loading-word" aria-label={text}>
-        {Array.from(text).map((ch, idx) => (
-          <span
-            className="lubirth-loading-char"
-            data-index={idx}
-            key={`${text}-${idx}`}
-          >
-            {ch === ' ' ? '\u00a0' : ch}
-          </span>
-        ))}
-      </span>
-    );
-  };
-
   return (
     <div
       className={`lubirth-loading-overlay${fading ? ' fading' : ''}`}
@@ -139,8 +127,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
       style={{ ['--fadeMs' as any]: `${fadeMs}ms`, transitionDuration: `${fadeMs}ms` }}
     >
       <div className="lubirth-loading-container">
-        <div className="lubirth-loading-line line-1">{renderWord('LuBirth')}</div>
-        <div className="lubirth-loading-line line-2">{renderWord('Moon Earth You')}</div>
+        <LoadingHandwriting />
         <span className="sr-only">地月基础画面已加载 {progress.loaded} / {progress.total}。</span>
         {(failed || slow) && <div className="loading-caption">
           <p>{failed ? '部分画面未能加载' : '连接较慢，地月画面仍在加载…'}</p>

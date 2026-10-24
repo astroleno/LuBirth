@@ -1,0 +1,682 @@
+{
+  "date": "2026-10-22",
+  "scope": "Standalone sky spike only; no production entry integration.",
+  "sources": [
+    {
+      "file": "src/spikes/sky/starAppearance.ts",
+      "sha256": "e22e3ceabd2536faa71ef45dedf1b61b920b172d78fe2e5c27d6c35ad470f75f"
+    },
+    {
+      "file": "src/spikes/sky/SkyObjects.tsx",
+      "sha256": "7fd50bc338c5074bc4ea27cc6cd0eeca091fb2b96f6617032817709bac10cb2f"
+    },
+    {
+      "file": "src/spikes/sky/main.tsx",
+      "sha256": "c6464e98a46185bd0b0f6478a852de573a38b45fc4c010548d696ff81c9eca7e"
+    },
+    {
+      "file": "scripts/verify-sky-star-rendering.mjs",
+      "sha256": "1a0e7e03d12765fdcc4cdf33447be58a7bfbb83768e16ab547152488cfa50d3b"
+    }
+  ],
+  "gpuProbe": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "the actual shader compiles",
+        "pass": true
+      },
+      {
+        "name": "integrated star light strictly follows V magnitude, including negative magnitudes",
+        "pass": true
+      },
+      {
+        "name": "faint stars remain visible and materially dimmer than bright stars",
+        "pass": true
+      },
+      {
+        "name": "blue and orange are distinguishable in the rendered halo",
+        "pass": true
+      },
+      {
+        "name": "missing B−V stays neutral; zero color strength actually removes chroma",
+        "pass": true
+      },
+      {
+        "name": "zoom reveals light progressively without turning points into enlarged disks",
+        "pass": true
+      },
+      {
+        "name": "zooming back restores the same profile without stale uniforms",
+        "pass": true
+      },
+      {
+        "name": "DPR changes preserve CSS point size and light within raster sampling tolerance",
+        "pass": true
+      },
+      {
+        "name": "the faintest catalog stars survive every supported DPR",
+        "pass": true
+      },
+      {
+        "name": "magnitude limit, daylight and the ground mask still hide stars",
+        "pass": true
+      },
+      {
+        "name": "brightness control changes rendered light without changing catalog values",
+        "pass": true
+      },
+      {
+        "name": "turning off glow removes the broad corona and preserves the core",
+        "pass": true
+      }
+    ],
+    "magnitudes": [
+      {
+        "magnitude": -1.44,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 8846,
+        "peak": 254.99999999999997,
+        "radius50": 3.5355339059327378,
+        "radius90": 7.905694150420949,
+        "rgb": [
+          8846,
+          8846,
+          8846
+        ],
+        "corona": [
+          5498,
+          5498,
+          5498
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": -0.05,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 4113,
+        "peak": 234,
+        "radius50": 2.121320343559643,
+        "radius90": 5.70087712549569,
+        "rgb": [
+          4113,
+          4113,
+          4113
+        ],
+        "corona": [
+          2192,
+          2192,
+          2192
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 0.5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 3047,
+        "peak": 207.99999999999997,
+        "radius50": 1.5811388300841898,
+        "radius90": 5.522680508593631,
+        "rgb": [
+          3047,
+          3047,
+          3047
+        ],
+        "corona": [
+          1490,
+          1490,
+          1490
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 1,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 2305,
+        "peak": 182,
+        "radius50": 1.5811388300841898,
+        "radius90": 4.743416490252569,
+        "rgb": [
+          2305,
+          2305,
+          2305
+        ],
+        "corona": [
+          1029,
+          1029,
+          1029
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 3,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 436,
+        "peak": 69,
+        "radius50": 0.7071067811865476,
+        "radius90": 2.5495097567963927,
+        "rgb": [
+          436,
+          436,
+          436
+        ],
+        "corona": [
+          60,
+          60,
+          60
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 88,
+        "peak": 21,
+        "radius50": 0.7071067811865476,
+        "radius90": 0.7071067811865476,
+        "rgb": [
+          88,
+          88,
+          88
+        ],
+        "corona": [
+          0,
+          0,
+          0
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 6.5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 32,
+        "peak": 8,
+        "radius50": 0.7071067811865476,
+        "radius90": 0.7071067811865476,
+        "rgb": [
+          32,
+          32,
+          32
+        ],
+        "corona": [
+          0,
+          0,
+          0
+        ],
+        "monochromeError": 0
+      }
+    ],
+    "cold": {
+      "magnitude": 1,
+      "bv": -0.1,
+      "fov": 85,
+      "dpr": 1,
+      "energy": 1915.000800000001,
+      "peak": 157.259,
+      "radius50": 1.5811388300841898,
+      "radius90": 4.743416490252569,
+      "rgb": [
+        1685,
+        1944,
+        2305
+      ],
+      "corona": [
+        729,
+        854,
+        1029
+      ],
+      "monochromeError": 23
+    },
+    "warm": {
+      "magnitude": 1,
+      "bv": 1.8,
+      "fov": 85,
+      "dpr": 1,
+      "energy": 1503.763799999999,
+      "peak": 134.0994,
+      "radius50": 1.5811388300841898,
+      "radius90": 4.743416490252569,
+      "rgb": [
+        2305,
+        1333,
+        836
+      ],
+      "corona": [
+        1029,
+        556,
+        286
+      ],
+      "monochromeError": 60
+    },
+    "zoom": [
+      {
+        "magnitude": 1,
+        "bv": 0.3,
+        "fov": 110,
+        "dpr": 1,
+        "energy": 1846.4452000000013,
+        "peak": 157.01199999999997,
+        "radius50": 1.5811388300841898,
+        "radius90": 4.527692569068709,
+        "rgb": [
+          1812,
+          1843,
+          1982
+        ],
+        "corona": [
+          769,
+          778,
+          849
+        ],
+        "monochromeError": 9
+      },
+      {
+        "magnitude": 1,
+        "bv": 0.3,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 2164.7484000000013,
+        "peak": 172.0842,
+        "radius50": 1.5811388300841898,
+        "radius90": 4.743416490252569,
+        "rgb": [
+          2123,
+          2163,
+          2305
+        ],
+        "corona": [
+          948,
+          964,
+          1029
+        ],
+        "monochromeError": 10
+      },
+      {
+        "magnitude": 1,
+        "bv": 0.3,
+        "fov": 70,
+        "dpr": 1,
+        "energy": 2429.2140000000027,
+        "peak": 176.0842,
+        "radius50": 1.5811388300841898,
+        "radius90": 5.1478150704935,
+        "rgb": [
+          2367,
+          2434,
+          2565
+        ],
+        "corona": [
+          1098,
+          1137,
+          1189
+        ],
+        "monochromeError": 10
+      },
+      {
+        "magnitude": 1,
+        "bv": 0.3,
+        "fov": 40,
+        "dpr": 1,
+        "energy": 3048.971200000004,
+        "peak": 197.012,
+        "radius50": 2.121320343559643,
+        "radius90": 5.522680508593631,
+        "rgb": [
+          2984,
+          3049,
+          3240
+        ],
+        "corona": [
+          1463,
+          1498,
+          1588
+        ],
+        "monochromeError": 10
+      },
+      {
+        "magnitude": 1,
+        "bv": 0.3,
+        "fov": 25,
+        "dpr": 1,
+        "energy": 3678.6558000000027,
+        "peak": 209.012,
+        "radius50": 2.121320343559643,
+        "radius90": 5.70087712549569,
+        "rgb": [
+          3606,
+          3677,
+          3909
+        ],
+        "corona": [
+          1864,
+          1905,
+          2028
+        ],
+        "monochromeError": 10
+      }
+    ],
+    "resolution": [
+      {
+        "magnitude": 3,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 436,
+        "peak": 69,
+        "radius50": 0.7071067811865476,
+        "radius90": 2.5495097567963927,
+        "rgb": [
+          436,
+          436,
+          436
+        ],
+        "corona": [
+          60,
+          60,
+          60
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 3,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1.5,
+        "energy": 440.44444444444446,
+        "peak": 88.99999999999999,
+        "radius50": 1.0540925533894598,
+        "radius90": 2.357022603955159,
+        "rgb": [
+          991,
+          991,
+          991
+        ],
+        "corona": [
+          128,
+          128,
+          128
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 3,
+        "bv": null,
+        "fov": 85,
+        "dpr": 2,
+        "energy": 444.25,
+        "peak": 96,
+        "radius50": 1.0606601717798214,
+        "radius90": 2.3717082451262845,
+        "rgb": [
+          1777,
+          1777,
+          1777
+        ],
+        "corona": [
+          256,
+          256,
+          256
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 3,
+        "bv": null,
+        "fov": 85,
+        "dpr": 3,
+        "energy": 443.1111111111111,
+        "peak": 101.99999999999999,
+        "radius50": 0.97182531580755,
+        "radius90": 2.4608038433722332,
+        "rgb": [
+          3988,
+          3988,
+          3988
+        ],
+        "corona": [
+          592,
+          592,
+          592
+        ],
+        "monochromeError": 0
+      }
+    ],
+    "faintResolution": [
+      {
+        "magnitude": 6.5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1,
+        "energy": 32,
+        "peak": 8,
+        "radius50": 0.7071067811865476,
+        "radius90": 0.7071067811865476,
+        "rgb": [
+          32,
+          32,
+          32
+        ],
+        "corona": [
+          0,
+          0,
+          0
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 6.5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 1.5,
+        "energy": 35.55555555555556,
+        "peak": 12.999999999999998,
+        "radius50": 0.4714045207910317,
+        "radius90": 1.0540925533894598,
+        "rgb": [
+          80,
+          80,
+          80
+        ],
+        "corona": [
+          0,
+          0,
+          0
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 6.5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 2,
+        "energy": 35,
+        "peak": 15,
+        "radius50": 0.7905694150420949,
+        "radius90": 1.2747548783981963,
+        "rgb": [
+          140,
+          140,
+          140
+        ],
+        "corona": [
+          0,
+          0,
+          0
+        ],
+        "monochromeError": 0
+      },
+      {
+        "magnitude": 6.5,
+        "bv": null,
+        "fov": 85,
+        "dpr": 3,
+        "energy": 35.111111111111114,
+        "peak": 17,
+        "radius50": 0.5270462766947299,
+        "radius90": 1.1785113019775795,
+        "rgb": [
+          316,
+          316,
+          316
+        ],
+        "corona": [
+          0,
+          0,
+          0
+        ],
+        "monochromeError": 0
+      }
+    ],
+    "shaderErrors": [],
+    "interpretation": "Perceptual GPU rendering checks; neither calibrated photometry nor a live Stellarium pixel match."
+  },
+  "desktop": [
+    {
+      "state": "measuring",
+      "fps": 29.97650490163602,
+      "callbackFps": 59.94815294923524,
+      "callbackP95": 17.599999994039536,
+      "frameP95": 34.900000005960464,
+      "cpuMs": 0.10270270463582631,
+      "cpuP95": 0.20000000298023224,
+      "gpuP95": 0.5765,
+      "gpuSupported": true,
+      "calls": 4,
+      "points": 8945,
+      "segments": 208,
+      "triangles": 800,
+      "width": 1280,
+      "height": 800,
+      "renders": 8009,
+      "longTasks": 0,
+      "longTasksSupported": true,
+      "focused": true
+    }
+  ],
+  "phone": [
+    {
+      "state": "measuring",
+      "fps": 30.03734372433993,
+      "callbackFps": 59.99675693249264,
+      "callbackP95": 17.599999994039536,
+      "frameP95": 34.20000000298023,
+      "cpuMs": 0.12162162323255797,
+      "cpuP95": 0.20000000298023224,
+      "gpuP95": 1.628375,
+      "gpuSupported": true,
+      "calls": 3,
+      "points": 8945,
+      "segments": 208,
+      "triangles": 0,
+      "width": 585,
+      "height": 1266,
+      "renders": 1481,
+      "longTasks": 0,
+      "longTasksSupported": true,
+      "focused": true
+    },
+    {
+      "state": "measuring",
+      "fps": 30.00567674980038,
+      "callbackFps": 59.99189298743413,
+      "callbackP95": 17.600000008940697,
+      "frameP95": 34.30000001192093,
+      "cpuMs": 0.13243243057985563,
+      "cpuP95": 0.20000000298023224,
+      "gpuP95": 1.501333,
+      "gpuSupported": true,
+      "calls": 3,
+      "points": 8945,
+      "segments": 208,
+      "triangles": 0,
+      "width": 585,
+      "height": 1266,
+      "renders": 5631,
+      "longTasks": 0,
+      "longTasksSupported": true,
+      "focused": true
+    }
+  ],
+  "pinch": {
+    "host": "Ego Lite phone emulation",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "devicePixelRatio": 3
+    },
+    "touches": 2,
+    "startSpan": 110,
+    "endSpan": 210,
+    "fovBefore": 70,
+    "fovAfter": 36.666666666666664,
+    "hardwareIPhone": false
+  },
+  "regressionGroupsPassed": 13,
+  "typecheck": "passed",
+  "independentBuild": "passed",
+  "upstreamReference": "https://github.com/Stellarium/stellarium/blob/v26.3/src/core/StelSkyDrawer.cpp",
+  "limitations": [
+    "Not calibrated photometry or a pixel match to Stellarium.",
+    "Viewport/DPR/touch emulation is not iPhone hardware validation.",
+    "First-load shader compilation and network startup not covered by warm samples."
+  ],
+  "finalIdle": {
+    "before": {
+      "state": "idle",
+      "fps": null,
+      "callbackFps": null,
+      "callbackP95": null,
+      "frameP95": null,
+      "cpuMs": 0.2499999962747097,
+      "cpuP95": 0.5,
+      "gpuP95": null,
+      "gpuSupported": true,
+      "calls": 3,
+      "points": 8945,
+      "segments": 208,
+      "triangles": 0,
+      "width": 1632,
+      "height": 918,
+      "renders": 8035,
+      "longTasks": 0,
+      "longTasksSupported": true,
+      "focused": true
+    },
+    "after": {
+      "state": "idle",
+      "fps": null,
+      "callbackFps": null,
+      "callbackP95": null,
+      "frameP95": null,
+      "cpuMs": 0.2499999962747097,
+      "cpuP95": 0.5,
+      "gpuP95": null,
+      "gpuSupported": true,
+      "calls": 3,
+      "points": 8945,
+      "segments": 208,
+      "triangles": 0,
+      "width": 1632,
+      "height": 918,
+      "renders": 8035,
+      "longTasks": 0,
+      "longTasksSupported": true,
+      "focused": true
+    }
+  },
+  "applicationConsoleWarningsAndErrors": []
+}

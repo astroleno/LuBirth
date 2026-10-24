@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "status": "two original samples; complete 28 remains required",
+  "references": {
+    "animal-association": {
+      "title": "《演禽通纂》卷上，第 90 段",
+      "url": "https://ctext.org/wiki.pl?chapter=603024&if=en",
+      "checked": "2026-10-22",
+      "access": "Indexed text verified; direct page returns 403. Animal correspondences only, not iconography or divination."
+    },
+    "song-lines": {
+      "url": "https://github.com/Stellarium/stellarium/tree/023040b5241badc9ea0b29428e3ef3f35d2fc65b/skycultures/chinese_song_dynasty",
+      "license": "CC-BY-SA-4.0"
+    },
+    "hyg-stars": {
+      "url": "https://codeberg.org/astronexus/hyg/src/commit/53e3df311869e813ace5f1ad2ec4ce909f13256c",
+      "license": "CC-BY-SA-4.0"
+    }
+  },
+  "rights": "New project-generated artwork; no museum photograph or third-party illustration copied. No separate distribution license assigned in this spike.",
+  "entries": [
+    {
+      "cultureId": "CON chinese_song_dynasty 05A",
+      "name": "心宿",
+      "title": "心月狐",
+      "image": {
+        "file": "chinese-art/heart-fox.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "anchors": [
+          {
+            "hip": 80975,
+            "pos": [
+              575.5624868774652,
+              280.3205956141404
+            ]
+          },
+          {
+            "hip": 80911,
+            "pos": [
+              591.5552973020211,
+              1150.330123484821
+            ]
+          },
+          {
+            "hip": 77858,
+            "pos": [
+              1148.9259291394198,
+              498.174313165713
+            ]
+          }
+        ]
+      },
+      "sha256": "f359a5fa05960975adfdbddc0aeca043bbf080e48aadcfd401d5fc535e289361",
+      "bytes": 1869476,
+      "creator": "LuBirth — AI-assisted contemporary artwork using OpenAI image generation",
+      "created": "2026-10-22",
+      "sourceRefs": [
+        "animal-association",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "animalAssociation": "confirmed in indexed primary text, paragraph 90",
+        "museumReconstruction": "NOT CLAIMED: sculpture iconography has not been verified",
+        "registration": "three HIP control points tested across dates and hemispheres; auxiliary controls are not asterism membership",
+        "artDirection": "sample under visual review; not the final 28-image collection"
+      },
+      "promptSummary": "Original celestial scholar and single-tailed fox, horizontal flowing robes, pale-gold contours, mineral teal and cinnabar, transparent background; no stars, words, lines, frames."
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 06A",
+      "name": "尾宿",
+      "title": "尾火虎",
+      "image": {
+        "file": "chinese-art/tail-tiger.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "anchors": [
+          {
+            "hip": 87261,
+            "pos": [
+              256.9701762969552,
+              511.07104803135354
+            ]
+          },
+          {
+            "hip": 84720,
+            "pos": [
+              607.356442082848,
+              1037.4642321883143
+            ]
+          },
+          {
+            "hip": 82396,
+            "pos": [
+              941.4388040348015,
+              350.0064536463801
+            ]
+          }
+        ]
+      },
+      "sha256": "8c1b7c9ba9ad64c8b3bd6daefacfd263b97f17276fdd736fc99a96ce402261ca",
+      "bytes": 2006772,
+      "creator": "LuBirth — AI-assisted contemporary artwork using OpenAI image generation",
+      "created": "2026-10-22",
+      "sourceRefs": [
+        "animal-association",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "animalAssociation": "confirmed in indexed primary text, paragraph 90",
+        "museumReconstruction": "NOT CLAIMED: sculpture iconography has not been verified",
+        "registration": "three HIP control points tested across dates and hemispheres; auxiliary controls are not asterism membership",
+        "artDirection": "sample under visual review; not the final 28-image collection"
+      },
+      "promptSummary": "Original celestial guardian with tiger and curling tail, diagonal S-shaped composition, pale-gold contours, mineral teal and cinnabar, transparent background; no stars, words, lines, frames."
+    }
+  ]
+}

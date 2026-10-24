@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "namespace": "dsh",
+  "input": "output/history-dsh-fresh50-20261023-r2/catalog-150/records.json",
+  "inputSha256": "d84a1aae7d7d1d1da69034748cdac06a65d225970c527417108a6fe004d92c1b",
+  "sourceHashes": [
+    {
+      "path": "output/history-dsh-parallel-20261022/export-stage/export/records.json",
+      "sha256": "f90aa55ee06652fec4ac1add9f7ba25199b3d7e12264eaf91da9a0183c6b92e0"
+    },
+    {
+      "path": "output/history-dsh-complete15-20261022/final-50/records.json",
+      "sha256": "d7aa7520ae2ae7e8712f16f3cb1d04775883db8161ced241045dddd6f1f5f593"
+    },
+    {
+      "path": "output/history-dsh-fresh50-20261023-r2/new-50/records.json",
+      "sha256": "7c648ae6710c5dee38dbbf819730afb1b7aae639b41feec20abdabfa71186b49"
+    }
+  ],
+  "coordinates": {
+    "path": "public/data/全国各地方省市经纬度及地方行政区号simple.csv",
+    "sha256": "6ee2b1ecf7c836dd611b3be56bcda27508c40a91d8a02396044c973c06057e40"
+  },
+  "overrides": {
+    "path": "reference/history/location-overrides.json",
+    "sha256": "c4b460fec2e6ada5140dfed16f6ce82d0fb061a90399e51be7c2f5b1819d96f9"
+  },
+  "recordsSha256": "a82447980edfd206941ae42093c375d68e53effe44229fb340d0d95b9a5e3ea1",
+  "count": 150,
+  "kinds": {
+    "birth": 90,
+    "event": 60
+  },
+  "calendar": {
+    "numeric_equivalence_verified": 12,
+    "not_applicable": 46,
+    "conditional_gregorian_interpretation": 85,
+    "calculated_agreement": 7
+  },
+  "periods": {
+    "宋代": 7,
+    "清代及清末": 121,
+    "明代": 5,
+    "五代十国": 1,
+    "元代": 1,
+    "世界其他地区": 11,
+    "魏晋南北朝": 1,
+    "隋唐": 3
+  },
+  "monthDays": 120,
+  "placesWithRepresentative": 116,
+  "placesRequiringChoice": [
+    "dsh:H006",
+    "dsh:H007",
+    "dsh:H008",
+    "dsh:H009",
+    "dsh:H013",
+    "dsh:H014",
+    "dsh:H015",
+    "dsh:H016",
+    "dsh:H017",
+    "dsh:H018",
+    "dsh:H019",
+    "dsh:H026",
+    "dsh:H060",
+    "dsh:H040",
+    "dsh:H041",
+    "dsh:H042",
+    "dsh:H043",
+    "dsh:H054",
+    "dsh:H055",
+    "dsh:H056",
+    "dsh:H057",
+    "dsh:H058",
+    "dsh:B03-04",
+    "dsh:B04-06",
+    "dsh:X01-01",
+    "dsh:X01-02",
+    "dsh:S15-05",
+    "dsh:N50-008",
+    "dsh:N50-026",
+    "dsh:N50-033",
+    "dsh:N50-034",
+    "dsh:N50-035",
+    "dsh:N50-047",
+    "dsh:N50-048"
+  ],
+  "preciseInstants": 0,
+  "productionReady": 0
+}

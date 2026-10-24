@@ -1,0 +1,13 @@
+{
+  "source": "https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/milkyway_2020_4k.exr",
+  "page": "https://svs.gsfc.nasa.gov/4851/",
+  "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio",
+  "sourceSha256": "2eb802d6e68d170b410f766c7fec07f7518619f6b6708fdc81e9302d93e74fdb",
+  "outputSha256": "b30d5aea43d2138e162c06760a4a1bb65b1b331752461ac375b1705af757955a",
+  "width": 1024,
+  "height": 512,
+  "exposure": 5.6234646659273615,
+  "coordinates": "ICRF/J2000 equatorial; RA=0 at center, RA increases left; north up",
+  "recipe": "4x4 luminance-trimmed mean (brightest quarter excluded); two separable radius-2 box filters; exponential exposure and sRGB encoding",
+  "limitation": "NASA omits bright Hipparcos/Tycho stars in this source. Low-frequency stellar-density visualization, not photometric surface brightness or a star-free astrophotograph. Fixed J2000 diffuse morphology."
+}

@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RenderProfile } from './renderProfile';
 import { LiquidGlassRenderer } from './LiquidGlassRenderer';
 import { adaptResolution, resolutionCeiling, type ResolutionState } from './adaptiveResolution';
+import { GpuTimer, percentile } from '../spikes/sky/skyPerformance';
 
 /** Drive only the requested frames; stop GPU work while the tab is hidden. */
 export function RenderRuntime({ profile }: { profile: RenderProfile }) {
@@ -14,6 +15,31 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
   const resolution = useRef<ResolutionState>({ dpr: 1, slow: 0, fast: 0 });
   const sample = useRef({ since: 0, frames: 0, fps: 0 });
   const booting = useRef(!(window as any).__lubirthOverlayFading);
+  const renderTiming = useRef({cpu:[] as number[],gpu:[] as number[],frames:0});
+  const validationTimer = useRef<GpuTimer | null>(null);
+  useEffect(() => {
+    if (!import.meta.env.DEV || new URLSearchParams(location.search).get('spatialtest') !== '1') return;
+    validationTimer.current = new GpuTimer(gl.getContext());
+    return () => { validationTimer.current?.dispose(); validationTimer.current=null; };
+  }, [gl]);
+  const renderScene = useCallback(() => {
+    const background = scene.userData.astronomicalBackground as { scene: THREE.Scene; camera: THREE.PerspectiveCamera } | undefined;
+    if (!background) { gl.render(scene, camera); return { calls: gl.info.render.calls, triangles: gl.info.render.triangles }; }
+    const autoClear = gl.autoClear;
+    let calls = 0, triangles = 0;
+    try {
+      background.camera.copy(camera as THREE.PerspectiveCamera);
+      background.camera.position.set(0, 0, 0);
+      background.camera.updateMatrixWorld(true);
+      gl.autoClear = false;
+      gl.clear();
+      gl.render(background.scene, background.camera);
+      calls = gl.info.render.calls; triangles = gl.info.render.triangles;
+      gl.clearDepth();
+      gl.render(scene, camera);
+      return { calls: calls + gl.info.render.calls, triangles: triangles + gl.info.render.triangles };
+    } finally { gl.autoClear = autoClear; }
+  }, [scene, camera, gl]);
   const ceiling = resolutionCeiling(size.width, size.height, window.devicePixelRatio || 1, profile.dpr,
     profile.quality === 'battery' ? 1_000_000 : profile.quality === 'detail' ? 3_500_000 : profile.mobile ? 1_500_000 : 2_500_000);
   useEffect(() => {
@@ -41,10 +67,22 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     if (Math.abs(gl.getPixelRatio() - resolution.current.dpr) > 0.001) {
       setDpr(resolution.current.dpr);
     }
-    gl.render(scene, camera);
+    if (validationTimer.current) {
+      renderTiming.current.gpu.push(...validationTimer.current.poll());
+      renderTiming.current.gpu=renderTiming.current.gpu.slice(-240);
+      validationTimer.current.begin();
+    }
+    const renderStart = performance.now();
+    const rendered = renderScene();
+    if (validationTimer.current) {
+      validationTimer.current.end();
+      renderTiming.current.cpu.push(performance.now()-renderStart);
+      renderTiming.current.cpu=renderTiming.current.cpu.slice(-240); renderTiming.current.frames++;
+    }
+    scene.userData.renderedSpatialFrameKey = scene.userData.astronomicalBackground?.scene.userData.frameKey ?? null;
     frames.current++;
-    sceneStats.current.triangles = gl.info.render.triangles;
-    sceneStats.current.calls = gl.info.render.calls;
+    sceneStats.current.triangles = rendered.triangles;
+    sceneStats.current.calls = rendered.calls;
     glass.current?.render(gl, camera, {
       uiGlass: profile.quality !== 'battery',
       highQualityMarker: !profile.mobile && profile.quality !== 'battery',
@@ -81,7 +119,7 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     // Render and read in the same task: screenshots do not need a persistent buffer.
     const capture = () => {
       scene.updateMatrixWorld(true);
-      gl.render(scene, camera);
+      renderScene();
       glass.current?.render(gl, camera, {
         uiGlass: false,
         includeUi: false,
@@ -103,6 +141,12 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
       textures: gl.info.memory.textures,
       geometries: gl.info.memory.geometries,
       programs: gl.info.programs?.length ?? 0,
+      renderTiming: validationTimer.current ? {frames:renderTiming.current.frames,cpuSamples:renderTiming.current.cpu.length,
+        gpuSamples:renderTiming.current.gpu.length,cpuP95:percentile(renderTiming.current.cpu,.95),gpuP95:percentile(renderTiming.current.gpu,.95),
+        cpuMean:renderTiming.current.cpu.reduce((a,b)=>a+b,0)/Math.max(1,renderTiming.current.cpu.length),
+        gpuMean:renderTiming.current.gpu.reduce((a,b)=>a+b,0)/Math.max(1,renderTiming.current.gpu.length),
+        gpuSupported:validationTimer.current.supported,scope:'Complete scene drawing; excludes separate glass context, React/layout and asset loading'} : null,
+      backgroundFrameKey: scene.userData.astronomicalBackground?.scene.userData.frameKey ?? null,
       moonTriangles: (() => {
         const moon = scene.getObjectByName('moonMesh');
         if (!moon || !('geometry' in moon)) return 0;
@@ -144,6 +188,6 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
       delete (window as any).captureLuBirth;
       delete (window as any).getLuBirthPerformance;
     };
-  }, [gl, scene, camera, invalidate, setFrameloop, profile]);
+  }, [gl, scene, camera, invalidate, setFrameloop, profile, renderScene]);
   return null;
 }

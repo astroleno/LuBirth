@@ -8,14 +8,26 @@ import { useParallaxInput, type ParallaxOffset } from './performance/useParallax
 import { useParallaxCamera } from './performance/useParallaxCamera';
 import { SceneScreenshot } from './components/SceneScreenshot';
 import { assetUrl } from './utils/assetUrl';
+import type { Observation } from './history/observation';
+import { observationKey, type ViewTransfer } from './history/viewBridge';
+import { createCelestialState, createObserverState, EARTH_RADIUS_KM } from './astro/celestialState';
+import type { CelestialState, ObserverState } from './astro/celestialState';
+import { angleDegrees, applyFrame, createEarthSceneFrame, EQUATOR_TO_SCENE, inverseFrame, legacySolarAzimuth } from './astro/referenceFrames';
+import type { Vec3 } from './astro/referenceFrames';
+import type { EarthSceneFrame } from './astro/referenceFrames';
+import type { CultureVersion, MoonPlacement } from './history/journeyStore';
+import { MoonPlacementControl } from './components/MoonPlacementControl';
+import MoonPresentation from './scenes/simple/api/components/MoonPresentation';
+
+const AstronomicalSky = React.lazy(() => import('./scenes/simple/api/components/AstronomicalSky'));
 
 // 统一的黄昏点计算函数
 function calculateDuskLongitude(sunWorld: {x: number, y: number, z: number}, dateISO: string, latDeg: number, lonDeg: number): number {
   // 直接使用已经验证正确的 calculateTerminatorLongitude 函数
   // 使用用户设置的时间而不是当前系统时间
-  const currentTime = toUTCFromLocal(dateISO, lonDeg || 121.4737);
-  const observerLat = latDeg || 31.2304; // 上海纬度作为默认
-  const observerLon = lonDeg || 121.4737; // 上海经度作为默认
+  const currentTime = toUTCFromLocal(dateISO, Number.isFinite(lonDeg) ? lonDeg : 121.4737);
+  const observerLat = Number.isFinite(latDeg) ? latDeg : 31.2304;
+  const observerLon = Number.isFinite(lonDeg) ? lonDeg : 121.4737;
 
   return calculateTerminatorLongitude(currentTime, observerLat, observerLon);
 }
@@ -188,8 +200,9 @@ function createCloseupComposition(
   longitudeDeg: number,
   latitudeDeg: number,
   aspect: number,
+  physicalEarthYaw?: number,
 ) {
-  const earthYawDeg = calculateEarthRotationFromDateISO(dateISO, longitudeDeg) || 0;
+  const earthYawDeg = physicalEarthYaw ?? (calculateEarthRotationFromDateISO(dateISO, longitudeDeg) || 0);
   const earthRadius = CLOSEUP_EARTH_SIZE * CLOSEUP_CAMERA_DISTANCE
     * Math.tan(THREE.MathUtils.degToRad(45) / 2);
   const shot = solveCloseupShot({
@@ -312,6 +325,11 @@ function SceneContent({
   parallaxTarget,
   panelExpanded,
   uiHidden,
+  celestial,
+  observerState,
+  spatialFrame,
+  moonPlacement,
+  cultureVersion,
 }: { 
   composition: SimpleComposition;
   mode: 'debug' | 'celestial';
@@ -339,10 +357,22 @@ function SceneContent({
   parallaxTarget: React.MutableRefObject<ParallaxOffset>;
   panelExpanded: boolean;
   uiHidden: boolean;
+  celestial: CelestialState;
+  observerState: ObserverState;
+  spatialFrame: EarthSceneFrame;
+  moonPlacement: MoonPlacement;
+  cultureVersion: CultureVersion;
 }): JSX.Element {
   const { camera, scene, size, gl } = useThree();
   const reducedMotion = useReducedMotion();
   const [moonTerrainStatus, setMoonTerrainStatus] = React.useState<MoonTerrainStatus>('idle');
+  const [validationMoonSuppressed, setValidationMoonSuppressed] = React.useState(false);
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || new URLSearchParams(location.search).get('spatialtest') !== '1') return;
+    const update = () => setValidationMoonSuppressed(!!(window as any).__validationMoonSuppressed);
+    update(); window.addEventListener('lubirth:validation-moon', update);
+    return () => window.removeEventListener('lubirth:validation-moon', update);
+  }, []);
   const handleMoonTerrainStatus = React.useCallback((status: MoonTerrainStatus) => {
     setMoonTerrainStatus(status);
   }, []);
@@ -378,14 +408,85 @@ function SceneContent({
   }, [scene]);
   
   // 光照系统 - 单光照，与日期时间计算耦合
-  const lightDirection = useLightDirection(mode, sunWorld, composition, altDeg);
+  // Existing shader uniforms and directionalLight.position both point toward the Sun.
+  const lightDirection = useMemo(() => new THREE.Vector3(...spatialFrame.sunDirectionScene), [spatialFrame]);
   const lightColor = useLightColor(composition);
   const moonLightColor = useMemo(() => new THREE.Color(0xffffff), []);
   const lightIntensity = useLightIntensity(composition);
   const ambientIntensity = useAmbientIntensity(composition);
+  const earthInfo = useEarthPosition(presentedComposition, composition.cameraDistance);
+  const physicalFar = moonPlacement === 'physical'
+    ? celestial.moonDistanceKm / EARTH_RADIUS_KM * earthInfo.size + composition.cameraDistance + earthInfo.size * 2 : 400;
+  React.useEffect(() => {
+    const snapshot = () => {
+      scene.updateMatrixWorld(true);
+      const earth = scene.getObjectByName('earthSurface') as THREE.Mesh | undefined;
+      const moon = scene.getObjectByName('moonMesh') as THREE.Mesh | undefined;
+      moon?.geometry.computeBoundingSphere();
+      const rotation = earth?.getWorldQuaternion(new THREE.Quaternion());
+      const background = scene.userData.astronomicalBackground;
+      const stars = background?.scene.getObjectByName('skyStars') as THREE.Points | undefined;
+      const positions = stars?.geometry.getAttribute('position');
+      const samples = rotation && positions ? (stars?.userData.samples || []).map((sample: { hip: number; index: number; localDirection: Vec3 }) => {
+        const world = new THREE.Vector3().fromBufferAttribute(positions as THREE.BufferAttribute, sample.index);
+        const model = world.clone().applyQuaternion(rotation.clone().invert()).toArray() as Vec3;
+        const ecef = applyFrame(inverseFrame(EQUATOR_TO_SCENE), model);
+        const local = applyFrame(observerState.eqjToSky, applyFrame(celestial.ecefToEqj, ecef));
+        return { hip: sample.hip, world: world.toArray(), local, direct: sample.localDirection, errorDeg: angleDegrees(local, sample.localDirection) };
+      }) : [];
+      const earthMaterial = earth?.material instanceof THREE.ShaderMaterial ? earth.material : undefined;
+      const moonMaterial = moon?.material instanceof THREE.ShaderMaterial ? moon.material : undefined;
+      return { key: celestial.key, observerKey: observerState.key, utc: celestial.utc, observer: observerState.location,
+        earthReady: gl.info.render.frame > 0 && scene.userData.renderedSpatialFrameKey === spatialFrame.key && !!earthMaterial,
+        frame: spatialFrame, backgroundKey: background?.scene.userData.frameKey ?? null, starFrameKey: stars?.userData.frameKey,
+        placement: moonPlacement, starSamples: samples, starCount: positions?.count ?? 0,
+        backgroundCulture: background?.scene.userData.culture,
+        backgroundArtwork: background?.scene.getObjectsByProperty('name', 'skyConstellationArt').map((art: THREE.Object3D) => art.userData.file) ?? [],
+        backgroundLineVertices: background?.scene.getObjectByName('skyConstellationLines')?.geometry?.getAttribute('position').count ?? 0,
+        moonCount: scene.getObjectsByProperty('name', 'moonMesh').length,
+        earthRadius: earthInfo.size, earthQuaternion: rotation?.toArray(),
+        earthPosition: earth?.getWorldPosition(new THREE.Vector3()).toArray(),
+        markerNdc: scene.getObjectByName('birthPointMarker')?.getWorldPosition(new THREE.Vector3()).project(camera).toArray(),
+        axis: rotation ? new THREE.Vector3(0,1,0).applyQuaternion(rotation).toArray() : null,
+        shaderSunDirection: earthMaterial?.uniforms.lightDir?.value.toArray(),
+        moonSunDirectionView: moonMaterial?.uniforms.sunDirView?.value.toArray(),
+        directionalLights: scene.getObjectsByProperty('isDirectionalLight', true).length,
+        moonPosition: moon?.getWorldPosition(new THREE.Vector3()).toArray(), moonRadius: moon?.geometry.boundingSphere?.radius,
+        moonScale: moon?.scale.toArray(), moonFrameKey: moon?.userData.frameKey,
+        moonPhysicalKm: celestial.moonEqjKm, moonDistanceKm: celestial.moonDistanceKm,
+        phaseFraction: observerState.phaseFraction, moonAltitude: observerState.moon.altitudeDeg,
+        cameraPosition: camera.position.toArray(), cameraQuaternion: camera.quaternion.toArray(), far: camera.far,
+        textureAttributes: stars ? Object.fromEntries(Object.entries(stars.geometry.attributes).map(([key,value]) => [key,value.count])) : null };
+    };
+    (window as any).getLuBirthSpatialState = snapshot;
+    const azimuth = (v: number[]) => Math.atan2(v[0], v[2]) * 180 / Math.PI;
+    const azTest = () => {
+      const current = snapshot(), direction = current.shaderSunDirection;
+      const diff = direction ? Math.abs(((azimuth(direction) - spatialFrame.fixedSunAzimuthDeg + 540) % 360) - 180) : Infinity;
+      const result = {ok: diff <= .0001, diff, frameKey: current.key, source: 'actual Earth shader lightDir'};
+      console.log('[FixedSunAzTest:JSON]', JSON.stringify(result)); return result;
+    };
+    const seasonTest = () => {
+      const year = String(celestial.date.getUTCFullYear()).padStart(4, '0');
+      const cases = ['03-20','06-21','09-22','12-21'].map(day => {
+        const state = createCelestialState(`${year}-${day}T12:00:00Z`);
+        const frame = createEarthSceneFrame(state, spatialFrame.fixedSunAzimuthDeg);
+        return {utc:state.utc,declinationDeg:frame.sunDeclinationDeg,elevationDeg:Math.asin(frame.sunDirectionScene[1])*180/Math.PI};
+      });
+      const result = {ok:cases.every(row=>Math.abs(row.declinationDeg-row.elevationDeg)<.0001),cases,
+        current: {actualShader:snapshot().shaderSunDirection,declinationDeg:spatialFrame.sunDeclinationDeg}};
+      console.log('[SeasonalTest:JSON]', JSON.stringify(result)); return result;
+    };
+    Object.assign(window, {runFixedSunAzimuthLockTest:azTest,runSeasonalAutoTest:seasonTest});
+    return () => {
+      if ((window as any).getLuBirthSpatialState === snapshot) delete (window as any).getLuBirthSpatialState;
+      if ((window as any).runFixedSunAzimuthLockTest === azTest) delete (window as any).runFixedSunAzimuthLockTest;
+      if ((window as any).runSeasonalAutoTest === seasonTest) delete (window as any).runSeasonalAutoTest;
+    };
+  }, [scene, camera, celestial, observerState, spatialFrame, moonPlacement, earthInfo.size]);
   
   // 相机控制
-  useCameraControl(composition, frame);
+  useCameraControl({ ...composition, cameraFar: physicalFar }, frame);
   const parallaxOffset = useParallaxCamera(
     isAlignedAndZoomed && !reducedMotion,
     parallaxTarget,
@@ -396,14 +497,13 @@ function SceneContent({
   useExposureControl(composition);
   
   // 位置计算
-  const earthInfo = useEarthPosition(presentedComposition, composition.cameraDistance);
   const moonInfo = useMoonPosition(composition, camera);
   
   // 纹理加载 - 统一在顶层获取，传递给子组件
   const textureConfig = {
     useTextures: composition.useTextures,
     useClouds: composition.useClouds,
-    useMilkyWay: composition.useMilkyWay && composition.showStars,
+    useMilkyWay: false,
     useMoon: composition.showMoon ?? true,
     // The NASA terrain is the preferred close-up path. Heavy normal and
     // displacement maps are loaded only if that model fails.
@@ -552,7 +652,7 @@ function SceneContent({
           position={[0, 0, 0]}
           size={earthInfo.size}
           segments={(composition.useSegLOD && (isAlignedAndZoomed || earthInfo.screenSize >= (composition.segLODTriggerSize ?? 1.0))) ? Math.min(composition.earthSegmentsHigh ?? 288, profile.earthSegmentsHigh) : Math.min(composition.earthSegmentsBase ?? 144, profile.earthSegments)}
-          autoRotate={!reducedMotion && mode === 'celestial' && composition.viewOffsetY === 2 && !isAlignedAndZoomed}
+          autoRotate={false}
           lightDirection={lightDirection}
           tiltDeg={0}
           yawDeg={composition.earthYawDeg}
@@ -713,8 +813,14 @@ function SceneContent({
       </group>
 
       {/* 月球 */}
-      {(composition.showMoon ?? true) && (
-      <Moon
+      {(composition.showMoon ?? true) && !validationMoonSuppressed && (
+      <MoonPresentation
+        celestial={celestial}
+        observer={observerState}
+        frame={spatialFrame}
+        placement={moonPlacement}
+        earthRadius={earthInfo.size}
+        earthPosition={earthInfo.position}
         position={moonInfo.position}
         radius={composition.moonRadius * (isAlignedAndZoomed ? 1.35 : 1)}
         lightDirection={lightDirection}
@@ -772,18 +878,10 @@ function SceneContent({
       />)}
       
       {/* 星空背景 */}
-      {composition.showStars && (
-        composition.useMilkyWay && starsMilky ? (
-          <MilkyWayMesh 
-            starsMilky={starsMilky}
-            bgScale={composition.bgScale}
-            bgYawDeg={composition.bgYawDeg}
-            bgPitchDeg={composition.bgPitchDeg}
-            autoRotateDegPerSec={composition.bgAutoRotateDegPerSec ?? 0}
-            paused={!!isAlignedAndZoomed || reducedMotion}
-          />
-        ) : null
-      )}
+      {composition.showStars && <React.Suspense fallback={null}><AstronomicalSky
+        celestial={celestial} observer={observerState} frame={spatialFrame} culture={cultureVersion}
+        galaxy={composition.useMilkyWay ? .85 : 0} artwork={composition.showSkyCulture !== false} />
+      </React.Suspense>}
 
       
       {/* 相机控制 */}
@@ -836,11 +934,28 @@ function AlignOnDemand({ tick, latDeg, lonDeg, sunWorld, useFixedSun, fixedSunDi
 }
 
 // 主测试组件
-export default function SimpleTest() {
+export type EarthViewState = {
+  composition: SimpleComposition;
+  quality: Quality;
+  panelExpanded: boolean;
+  isAlignedAndZoomed: boolean;
+  uiHidden: boolean;
+};
+
+export default function SimpleTest({ observation, observationControls, initialState, onStateChange,
+  celestial: sharedCelestial, observerState: sharedObserver, moonPlacement = 'portrait', cultureVersion = 'song',
+  onMoonPlacementChange, onEnterSky, onLocateMoon, entryTransfer, onEntryTransferConsumed,
+}: {
+  observation?: Observation; observationControls?: React.ReactNode; initialState?: EarthViewState;
+  onStateChange?: (value: EarthViewState) => void;
+  celestial?: CelestialState; observerState?: ObserverState; moonPlacement?: MoonPlacement; cultureVersion?: CultureVersion;
+  onMoonPlacementChange?: (value: MoonPlacement) => void; onEnterSky?: () => void; onLocateMoon?: () => void;
+  entryTransfer?: ViewTransfer; onEntryTransferConsumed?: () => void;
+} = {}) {
   const mobile = useMobileLayout();
-  const [quality, setQuality] = useState<Quality>('balanced');
+  const [quality, setQuality] = useState<Quality>(initialState?.quality || 'balanced');
   const profile = useMemo(() => createRenderProfile(mobile, quality), [mobile, quality]);
-  const [panelExpanded, setPanelExpanded] = useState(true);
+  const [panelExpanded, setPanelExpanded] = useState(entryTransfer ? false : initialState?.panelExpanded ?? true);
   
   const initialComp = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -891,14 +1006,14 @@ export default function SimpleTest() {
     } as SimpleComposition;
   }, []);
 
-  const [composition, setComposition] = useState<SimpleComposition>(initialComp);
+  const [composition, setComposition] = useState<SimpleComposition>(initialState?.composition || initialComp);
   
   // 通用更新器：更新 composition 的某个字段
   const updateValue = React.useCallback((key: keyof SimpleComposition, value: number | boolean | [number, number, number, number]) => {
     setComposition(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const [uiHidden, setUiHidden] = useState(false);
+  const [uiHidden, setUiHidden] = useState(entryTransfer ? true : initialState?.uiHidden ?? false);
   const [fullscreenMode, setFullscreenMode] = useState(false);
   const fullscreenRootRef = useRef<HTMLDivElement>(null);
   const nativeFullscreenRef = useRef(false);
@@ -946,7 +1061,7 @@ export default function SimpleTest() {
       document.removeEventListener('keydown', onEscape);
     };
   }, [exitFullscreen]);
-  const [isAlignedAndZoomed, setIsAlignedAndZoomed] = useState(false);
+  const [isAlignedAndZoomed, setIsAlignedAndZoomed] = useState(initialState?.isAlignedAndZoomed ?? false);
   const reducedMotion = useReducedMotion();
   const parallax = useParallaxInput(isAlignedAndZoomed && !reducedMotion);
   // 基础地月贴图就绪后再挂载音频播放器，避免首屏竞争带宽/CPU。
@@ -1044,9 +1159,9 @@ export default function SimpleTest() {
     return getCurrentLocalTimeForLocation(lonDeg);
   };
   
-  const [dateISO, setDateISO] = useState(() => getCurrentLocalTimeForLocation(121.5));
-  const [latDeg, setLatDeg] = useState<number>(31.2);   // 上海默认
-  const [lonDeg, setLonDeg] = useState<number>(121.5);
+  const [dateISO, setDateISO] = useState(() => observation?.utc || getCurrentLocalTimeForLocation(121.5));
+  const [latDeg, setLatDeg] = useState<number>(observation?.observer.latitude ?? 31.2);
+  const [lonDeg, setLonDeg] = useState<number>(observation?.observer.longitude ?? 121.5);
   // 客户端时间输入缓冲：避免用户输入年份首字符时被格式化覆盖
   const [clientTimeInput, setClientTimeInput] = useState<string | null>(null);
 
@@ -1121,6 +1236,15 @@ export default function SimpleTest() {
   // 月相信息
   const [moonPhaseInfo, setMoonPhaseInfo] = useState<string>('计算中...');
   const [mode, setMode] = useState<'debug' | 'celestial'>('celestial');
+  const celestial = useMemo(() => sharedCelestial || createCelestialState(toUTCFromLocal(dateISO, lonDeg)),
+    [sharedCelestial, dateISO, lonDeg]);
+  const observerState = useMemo(() => sharedObserver || createObserverState(celestial, { latitude: latDeg, longitude: lonDeg }),
+    [sharedObserver, celestial, latDeg, lonDeg]);
+  const fixedSolarAzimuth = legacySolarAzimuth(composition.fixedSunDir);
+  const spatialFrame = useMemo(() => createEarthSceneFrame(celestial, fixedSolarAzimuth), [celestial, fixedSolarAzimuth]);
+  const renderedComposition = useMemo(() => ({ ...composition, earthYawDeg: spatialFrame.earthYawDeg,
+    birthPointLatitudeDeg: observerState.location.latitude, birthPointLongitudeDeg: observerState.location.longitude,
+    fixedSunDir: spatialFrame.sunDirectionScene, useFixedSun: true }), [composition, spatialFrame, observerState]);
   // 统一的黄昏点经度状态
   const [duskLongitude, setDuskLongitude] = useState<number>(0);
   const [alignTick, setAlignTick] = useState(0);
@@ -1132,7 +1256,7 @@ export default function SimpleTest() {
   const [realTimeUpdate, setRealTimeUpdate] = useState<boolean>(false); // 🔧 默认禁用实时时间更新
   const [realTimeInterval, setRealTimeInterval] = useState<number | null>(null);
   // 季相/仰角更新节流：分钟级即可，无需每帧
-  const seasonalUpdateInfoRef = React.useRef<{ lastUpdateMs: number }>({ lastUpdateMs: 0 });
+  const seasonalUpdateInfoRef = React.useRef<{ lastUpdateMs: number; observationKey: string }>({ lastUpdateMs: 0, observationKey: '' });
 
   // 统一调试日志开关
   React.useEffect(() => {
@@ -1141,6 +1265,15 @@ export default function SimpleTest() {
 
   // 改进的光照更新函数 - 使用 useRef 避免无限循环
   const updateSunlight = React.useCallback(() => {
+    if (observation) {
+      const [x,y,z] = spatialFrame.sunDirectionScene;
+      const moon = applyFrame(spatialFrame.eqjToScene, celestial.moonEqjKm);
+      setSunWorld({x,y,z}); setMoonEQD({ x: moon[0], y: moon[1], z: moon[2] });
+      setIllumination(observerState.phaseFraction);
+      setSunAngles({ azDeg: observerState.sun.azimuthDeg ?? 0, altDeg: observerState.sun.altitudeDeg });
+      setMoonPhaseInfo(`${Math.round(observerState.phaseFraction*100)}% 受光`);
+      return;
+    }
     try {
       // 使用出生点经纬驱动天文/光照与地球系统；观察点不影响地球系统
       const bLat = composition.birthPointLatitudeDeg ?? latDeg;
@@ -1170,7 +1303,9 @@ export default function SimpleTest() {
         if (composition.useFixedSun && composition.useSeasonalVariation) {
           const now = Date.now();
           const intervalMin = composition.seasonalUpdateIntervalMin ?? 1;
-          const needUpdate = (now - seasonalUpdateInfoRef.current.lastUpdateMs) > intervalMin * 60 * 1000;
+          const observationKey = [dateISO, bLat, bLon, timeMode, composition.obliquityDeg, composition.seasonOffsetDays, composition.strongAltitudeConsistency].join('|');
+          const needUpdate = seasonalUpdateInfoRef.current.observationKey !== observationKey
+            || (now - seasonalUpdateInfoRef.current.lastUpdateMs) > intervalMin * 60 * 1000;
           if (needUpdate) {
             const utc = timeMode === 'byLongitude' ? toUTCFromLocal(dateISO, bLon) : new Date(dateISO);
             const cur = composition.fixedSunDir ?? [-0.7071, 0.7071, 0];
@@ -1201,6 +1336,7 @@ export default function SimpleTest() {
 
             setComposition(prev => ({ ...prev, fixedSunDir: [newX, yClamped, newZ] as [number, number, number] }));
             seasonalUpdateInfoRef.current.lastUpdateMs = now;
+            seasonalUpdateInfoRef.current.observationKey = observationKey;
             if (logger.isEnabled()) logger.log('seasonal/fixedSunDir:update', {
               mode: composition.strongAltitudeConsistency ? 'altitude-strong' : 'declination',
               yawDeg: +(THREE.MathUtils.radToDeg(yawRad)).toFixed(2),
@@ -1289,7 +1425,35 @@ export default function SimpleTest() {
       setIllumination(0.5);
       setSunAngles({ azDeg: 0, altDeg: 0 });
     }
-  }, [dateISO, latDeg, lonDeg, mode, timeMode, composition.useFixedSun, composition.useSeasonalVariation, composition.obliquityDeg, composition.seasonOffsetDays, composition.birthPointLatitudeDeg, composition.birthPointLongitudeDeg]);
+  }, [dateISO, latDeg, lonDeg, mode, timeMode, composition.useFixedSun, composition.useSeasonalVariation, composition.obliquityDeg, composition.seasonOffsetDays, composition.strongAltitudeConsistency, composition.seasonalUpdateIntervalMin, composition.birthPointLatitudeDeg, composition.birthPointLongitudeDeg,
+    observation, spatialFrame, celestial, observerState]);
+
+  React.useEffect(() => {
+    if (!observation) return;
+    setDateISO(observation.utc);
+    setLatDeg(observation.observer.latitude);
+    setLonDeg(observation.observer.longitude);
+    setClientTimeInput(null);
+    setRealTimeUpdate(false);
+    setAutoUpdate(false);
+    setUserModifiedTime(true);
+    userModifiedTimeRef.current = true;
+    setComposition(previous => ({ ...previous, birthPointLatitudeDeg: observation.observer.latitude,
+      birthPointLongitudeDeg: observation.observer.longitude, birthPointMarkerLabel: observation.observer.name }));
+  }, [observation]);
+  React.useEffect(() => {
+    if (observation && dateISO === observation.utc
+      && composition.birthPointLatitudeDeg === observation.observer.latitude
+      && composition.birthPointLongitudeDeg === observation.observer.longitude) updateSunlight();
+  }, [observation, dateISO, composition.birthPointLatitudeDeg, composition.birthPointLongitudeDeg, updateSunlight]);
+  React.useEffect(() => {
+    onStateChange?.({ composition, quality, panelExpanded, isAlignedAndZoomed, uiHidden });
+  }, [composition, quality, panelExpanded, isAlignedAndZoomed, uiHidden, onStateChange]);
+  React.useEffect(() => {
+    if (!observation) return;
+    (window as any).__luBirthObservation = { utc: toUTCFromLocal(dateISO, lonDeg).toISOString(), latitude: latDeg, longitude: lonDeg,
+      source: observation.source, composition, isAlignedAndZoomed, panelExpanded, uiHidden };
+  }, [observation, dateISO, latDeg, lonDeg, composition, isAlignedAndZoomed, panelExpanded, uiHidden]);
 
   // 当日期或经纬度变化时，自动计算 sunWorld 以驱动光照
   React.useEffect(() => {
@@ -1456,7 +1620,7 @@ export default function SimpleTest() {
     const latitude = Number(composition.birthPointLatitudeDeg ?? latDeg);
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
     const aspect = Math.max(0.25, window.innerWidth / Math.max(1, window.innerHeight));
-    const next = createCloseupComposition(composition, dateISO, longitude, latitude, aspect);
+    const next = createCloseupComposition(composition, dateISO, longitude, latitude, aspect, spatialFrame.earthYawDeg);
     setComposition(previous => ({ ...previous, ...next.composition }));
     setIsAlignedAndZoomed(true);
     setPanelExpanded(false);
@@ -1479,7 +1643,32 @@ export default function SimpleTest() {
         viewPitch: next.shot.cameraViewPitchDeg,
       },
     });
-  }, [composition, dateISO, latDeg, lonDeg, updateSunlight]);
+  }, [composition, dateISO, latDeg, lonDeg, updateSunlight, spatialFrame]);
+
+  const consumedEntry = React.useRef<ViewTransfer>();
+  React.useEffect(() => {
+    if (!entryTransfer || consumedEntry.current === entryTransfer || !observation
+      || entryTransfer.reason !== 'birth-point' || entryTransfer.observationKey !== observationKey(observation)
+      || dateISO !== observation.utc || latDeg !== observation.observer.latitude || lonDeg !== observation.observer.longitude
+      || composition.birthPointLatitudeDeg !== observation.observer.latitude
+      || composition.birthPointLongitudeDeg !== observation.observer.longitude) return;
+    consumedEntry.current = entryTransfer;
+    applyBirthPointCloseup(true);
+    onEntryTransferConsumed?.();
+  }, [entryTransfer, observation, dateISO, latDeg, lonDeg, composition, applyBirthPointCloseup, onEntryTransferConsumed]);
+
+  // An edited observation must move an already aligned camera to its new point.
+  // Ordinary navigation restores the saved presentation without re-aligning it.
+  const alignedObservationKey = React.useRef(observerState.key);
+  React.useEffect(() => {
+    if (alignedObservationKey.current === observerState.key) return;
+    alignedObservationKey.current = observerState.key;
+    if (!isAlignedAndZoomed) return;
+    const aspect = Math.max(.25, window.innerWidth / Math.max(1, window.innerHeight));
+    const next = createCloseupComposition(composition, celestial.utc,
+      observerState.location.longitude, observerState.location.latitude, aspect, spatialFrame.earthYawDeg);
+    setComposition(previous => ({ ...previous, ...next.composition }));
+  }, [observerState, celestial.utc, spatialFrame, composition, isAlignedAndZoomed]);
 
   
 
@@ -1550,7 +1739,12 @@ export default function SimpleTest() {
       >
         <RenderRuntime profile={profile} />
         <SceneContent 
-          composition={composition} 
+          composition={renderedComposition}
+          celestial={celestial}
+          observerState={observerState}
+          spatialFrame={spatialFrame}
+          moonPlacement={moonPlacement}
+          cultureVersion={cultureVersion}
           mode={mode}
           sunWorld={sunWorld}
           altDeg={sunAngles.altDeg}
@@ -1588,6 +1782,12 @@ export default function SimpleTest() {
           <button className="btn" onClick={exitFullscreen}>显示设置</button>
         </div>
       )}
+      {uiHidden && observation?.source.kind === 'history' && <div className="history-portrait-caption" aria-label="历史地月合照说明">
+        <p>{observation.source.label}</p>
+        <p>{observation.civilDate} · {observation.clock} · {observation.observer.name}</p>
+        <small>{observation.timeSelection.origin === 'event-default-20' ? '默认当地 20:00 演示' : '所选当地时刻演示'}
+          {observation.observer.precision === 'representative' ? ' · 地区代表点' : ''}</small>
+      </div>}
 
       {/* Preserve the form and its loaded location data while fullscreen hides controls. */}
       <div hidden={uiHidden}>
@@ -3489,6 +3689,7 @@ export default function SimpleTest() {
               </div>
                 <div style={{ display: 'none' }} />
               
+              {observationControls || <>
               {/* 地点选择区域 */}
               <div style={{ marginBottom: '20px' }}>
                 <div className="label" style={{ marginBottom: '8px' }}>出生地点</div>
@@ -3583,11 +3784,13 @@ export default function SimpleTest() {
                 </div>
               </div>
               
+              </>}
+              {onEnterSky && <button type="button" className="journey-secondary journey-look-up" onClick={onEnterSky}>{observation?.source.kind === 'history' ? '从此地观天 ↗' : '从出生点观天 ↗'}</button>}
               <div className="primary-action">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
                     className="btn btn-primary"
-                    aria-label="Xiu!!! 查看出生时刻的地月"
+                    aria-label={observation?.source.kind === 'history' ? 'Xiu!!! 查看这一天的地月合照' : 'Xiu!!! 查看出生时刻的地月'}
                     onClick={() => applyBirthPointCloseup(true)}
                     style={{ width: '100%' }}
                   >
@@ -3613,6 +3816,10 @@ export default function SimpleTest() {
               <details className="visual-settings">
                 <summary>画面设置</summary>
                 <div className="visual-settings-content">
+                  {onMoonPlacementChange && <MoonPlacementControl value={moonPlacement} onChange={onMoonPlacementChange}
+                    onLocate={onLocateMoon} belowHorizon={observerState.moon.altitudeDeg < 0} />}
+                  <label className="sky-culture-toggle"><input type="checkbox" checked={composition.showSkyCulture !== false}
+                    onChange={e => updateValue('showSkyCulture', e.target.checked)} />星官连线与图绘</label>
                   <div className="visual-settings-toggles">
                   <label>
                     <input

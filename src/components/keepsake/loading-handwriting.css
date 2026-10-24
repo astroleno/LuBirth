@@ -1,0 +1,6 @@
+.loading-handwriting{width:min(420px,76vw);display:flex;flex-direction:column;align-items:center;gap:22px}
+.loading-handwriting .loading-handwriting-brand{margin:0;color:#edf0f4;font-size:13px;font-family:inherit;font-weight:450;letter-spacing:.26em;line-height:1.4}
+.loading-handwriting img{display:block;width:100%;height:auto;max-height:180px;object-fit:contain}
+.loading-handwriting .loading-handwriting-fallback{margin:0;font-family:'Songti SC','STSong','SimSun',serif;font-size:clamp(28px,7vw,46px);letter-spacing:.22em;line-height:1.6;color:#e6ddca;font-weight:400}
+.loading-handwriting .loading-handwriting-caption{margin:0;color:#9ca9b9;font-size:10px;letter-spacing:.18em;line-height:1.6}
+@media(max-width:600px){.loading-handwriting{width:min(360px,76vw);gap:18px}.loading-handwriting img{max-height:145px}}

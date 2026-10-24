@@ -145,23 +145,22 @@ uniform float reveal;
 uniform float highQuality;
 uniform float fallback;
 
-float smoothUnion(float a, float b, float k) {
-  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
-  return mix(b, a, h) - k * h * (1.0 - h);
-}
-
 float pinDistance(vec2 local) {
   if (pinScale < 0.001) return 10000.0;
-  float u = pinScale;
-  float x = local.x - rect.z * 0.5;
-  float y = local.y - anchorOffsetY;
-  float circle = length(vec2(x, y - 57.0 * u)) - 28.0 * u;
-  float tailY = clamp(y, 0.0, 57.0 * u);
-  float halfWidth = mix(1.0 * u, 21.0 * u, tailY / max(57.0 * u, 0.001));
-  float tail = max(abs(x) - halfWidth, max(-y, y - 57.0 * u));
-  float pin = smoothUnion(circle, tail, 7.0 * u);
-  float hole = length(vec2(x, y - 57.0 * u)) - 8.2 * u;
-  return max(pin, -hole);
+  vec2 p = vec2(abs(local.x - rect.z * 0.5), local.y - anchorOffsetY) / pinScale;
+  // Exact distance to a round head with tangent sides meeting at the anchor.
+  // One continuous outline also gives the glass a continuous surface normal.
+  float slope = 28.0 / 57.0;
+  float normalX = sqrt(1.0 - slope * slope);
+  float alongSide = dot(p, vec2(slope, normalX));
+  float pin = dot(p, vec2(normalX, -slope));
+  if (alongSide < 0.0) {
+    pin = length(p);
+  } else if (alongSide > normalX * 57.0) {
+    pin = length(p - vec2(0.0, 57.0)) - 28.0;
+  }
+  float hole = length(p - vec2(0.0, 57.0)) - 8.2;
+  return max(pin, -hole) * pinScale;
 }
 
 void main() {
@@ -179,7 +178,10 @@ void main() {
   float depth = max(-distance, 0.0);
   float bevel = 13.0 * u;
   float t = clamp(depth / max(bevel, 0.001), 0.0, 1.0);
-  float lens = sin(t * 3.14159265) * (1.0 - t * 0.22);
+  float pinHeight = (local.y - anchorOffsetY) / max(pinScale, 0.001);
+  float tipBlend = smoothstep(12.0, 42.0, pinHeight);
+  // Keep the pointed end clear of a second refracted/highlighted silhouette.
+  float lens = sin(t * 3.14159265) * (1.0 - t * 0.22) * mix(0.2, 1.0, tipBlend);
 
   float epsilon = max(0.85, u);
   vec2 gradient = vec2(
@@ -206,7 +208,7 @@ void main() {
   vec3 glass = mix(low, high, step(0.5, highQuality));
 
   float rim = exp(-depth / max(2.2 * u, 0.001));
-  float innerCaustic = exp(-pow((depth - 8.5 * u) / max(2.5 * u, 0.001), 2.0));
+  float innerCaustic = exp(-pow((depth - 8.5 * u) / max(2.5 * u, 0.001), 2.0)) * tipBlend;
   float lightFacing = dot(normal, normalize(vec2(-0.62, 0.78)));
   float sparkle = pow(max(lightFacing, 0.0), 5.0) + pow(max(-lightFacing, 0.0), 8.0) * 0.52;
   vec3 spectral = vec3(

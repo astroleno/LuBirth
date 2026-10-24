@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const prefix = 'releases/aitoshuu-me/';
-const sourceInputs = ['src', 'public', 'index.html', 'vite.config.ts', 'package.json', 'package-lock.json', 'deploy/package-release.mjs'];
+const sourceInputs = ['src', 'public', 'reference/sky/yuhuang-temple/photos', 'index.html', 'vite.config.ts', 'package.json', 'package-lock.json', 'deploy/package-release.mjs'];
 // Unreferenced sound prototypes are local authoring material, not site resources.
 const sourceExclusions = [':(exclude)public/sfx'];
 const isPrototype = path => path === 'sfx' || path.startsWith('sfx/');

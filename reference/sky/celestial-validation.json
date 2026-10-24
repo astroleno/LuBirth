@@ -1,0 +1,151 @@
+{
+  "retrievedAt": "2026-10-24T02:32:52.407Z",
+  "source": "NASA/JPL Horizons",
+  "documentation": "https://ssd-api.jpl.nasa.gov/doc/horizons.html",
+  "endpoint": "https://ssd.jpl.nasa.gov/api/horizons.api",
+  "options": {
+    "format": "json",
+    "EPHEM_TYPE": "VECTORS",
+    "CENTER": "500@399",
+    "REF_PLANE": "FRAME",
+    "REF_SYSTEM": "ICRF",
+    "OUT_UNITS": "KM-S",
+    "VEC_TABLE": "2",
+    "VEC_CORR": "LT",
+    "TIME_TYPE": "UT",
+    "CAL_TYPE": "GREGORIAN",
+    "CSV_FORMAT": "YES",
+    "TLIST_TYPE": "JD",
+    "TLIST": "1739323.0210532406\n2099830.0449074074\n2451545\n2461120\n2461213\n2461306\n2461338\n2461396"
+  },
+  "observer": "Earth geocenter (500@399); local observer derived only in the comparison",
+  "convention": "ICRF/EQJ, km, light-time only; no stellar aberration or refraction. UT input; proleptic Gregorian.",
+  "cases": [
+    {
+      "utc": "0050-01-01T12:30:19Z",
+      "sunEqjKm": [
+        93084778.5191593,
+        -104629927.568328,
+        -45919313.17074712
+      ],
+      "moonEqjKm": [
+        -370785.1325398982,
+        -138886.6822815388,
+        -32343.72220394015
+      ]
+    },
+    {
+      "utc": "1037-01-14T13:04:40Z",
+      "sunEqjKm": [
+        90558498.32997197,
+        -106518271.0503952,
+        -46450144.54463734
+      ],
+      "moonEqjKm": [
+        -364073.8739210665,
+        -13319.71634882689,
+        17732.42732460052
+      ]
+    },
+    {
+      "utc": "2000-01-01T12:00:00Z",
+      "sunEqjKm": [
+        26500941.41757992,
+        -132757089.5069501,
+        -57556576.2635969
+      ],
+      "moonEqjKm": [
+        -291527.9592926465,
+        -266751.9366264939,
+        -76118.49485310167
+      ]
+    },
+    {
+      "utc": "2026-03-20T12:00:00Z",
+      "sunEqjKm": [
+        148977219.3272195,
+        -1137257.335753219,
+        -493594.8702762963
+      ],
+      "moonEqjKm": [
+        349336.9181346297,
+        98628.80098008516,
+        66387.3052651298
+      ]
+    },
+    {
+      "utc": "2026-06-21T12:00:00Z",
+      "sunEqjKm": [
+        593034.3838923224,
+        139479876.5779334,
+        60461805.4221545
+      ],
+      "moonEqjKm": [
+        -384303.3048497308,
+        37209.3371643126,
+        1324.048943839967
+      ]
+    },
+    {
+      "utc": "2026-09-22T12:00:00Z",
+      "sunEqjKm": [
+        -150137242.1211191,
+        2074023.482780579,
+        899876.9943133428
+      ],
+      "moonEqjKm": [
+        250733.9968003631,
+        -277757.412465224,
+        -133985.7264811955
+      ]
+    },
+    {
+      "utc": "2026-10-24T12:00:00Z",
+      "sunEqjKm": [
+        -127915616.4407301,
+        -69748201.00787947,
+        -30233337.63306903
+      ],
+      "moonEqjKm": [
+        371056.9304338992,
+        43808.37703973055,
+        42881.04664888233
+      ]
+    },
+    {
+      "utc": "2026-12-21T12:00:00Z",
+      "sunEqjKm": [
+        -1922577.119767009,
+        -135016351.5206605,
+        -58526272.48068893
+      ],
+      "moonEqjKm": [
+        217538.8379942467,
+        253666.9629515707,
+        145309.1411420628
+      ]
+    }
+  ],
+  "responses": [
+    {
+      "body": "sun",
+      "command": "10",
+      "file": "celestial-horizons-sun.json",
+      "signature": {
+        "source": "NASA/JPL Horizons API",
+        "version": "1.2"
+      },
+      "sha256": "6f3dfdce633d945c27225ae3a9591d2f4f61cb962725d7cd4870e5df358275a6"
+    },
+    {
+      "body": "moon",
+      "command": "301",
+      "file": "celestial-horizons-moon.json",
+      "signature": {
+        "source": "NASA/JPL Horizons API",
+        "version": "1.2"
+      },
+      "sha256": "5151cecee443d5bd00a40a3112ceb72e43ecc7f5c5fd78a01f2438a19b5c14cc"
+    }
+  ]
+}

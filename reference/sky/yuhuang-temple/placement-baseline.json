@@ -1,0 +1,2914 @@
+{
+  "schema": 4,
+  "status": "28 photo-referenced Yuhuang Temple adaptations, each with a full-color prototype and a finer transparent sky line drawing. Photographic attribution remains distinct from independent museum identification.",
+  "references": {
+    "animal-association": {
+      "title": "《演禽通纂》卷上，第 90 段",
+      "url": "https://ctext.org/wiki.pl?chapter=603024&if=en",
+      "checked": "2026-10-22",
+      "access": "Indexed text verified; direct page returns 403. Animal correspondences only, not iconography or divination."
+    },
+    "song-lines": {
+      "url": "https://github.com/Stellarium/stellarium/tree/023040b5241badc9ea0b29428e3ef3f35d2fc65b/skycultures/chinese_song_dynasty",
+      "license": "CC-BY-SA-4.0"
+    },
+    "hyg-stars": {
+      "url": "https://codeberg.org/astronexus/hyg/src/commit/53e3df311869e813ace5f1ad2ec4ce909f13256c",
+      "license": "CC-BY-SA-4.0"
+    },
+    "yuhuang-photographs": {
+      "url": "https://commons.wikimedia.org/wiki/Category:Statues_of_the_Twenty-Eight_Mansions_in_Jade_Emperor_Temple,_Fucheng",
+      "author": "Patrick20242023",
+      "license": "CC-BY-SA-4.0",
+      "checked": "2026-10-22",
+      "evidence": "All 28 local photographic previews and their source metadata inspected. Names follow the source photographer; independent museum identification remains pending."
+    }
+  },
+  "rights": "Adapted from photographs by Patrick20242023, CC BY-SA 4.0. Contemporary AI-assisted drawings by LuBirth, distributed as adaptations under CC BY-SA 4.0. No museum endorsement claimed.",
+  "entries": [
+    {
+      "cultureId": "CON chinese_song_dynasty 01A",
+      "number": 1,
+      "name": "角宿",
+      "title": "角木蛟",
+      "group": "dragon",
+      "summary": "高冠怒目，举臂执珠，蛟盘身侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/jiao-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 69701,
+            "pos": [
+              -869.289586270546,
+              753.5760937515055
+            ]
+          },
+          {
+            "hip": 63090,
+            "pos": [
+              1609.9215516357635,
+              -420.55431665486867
+            ]
+          },
+          {
+            "hip": 64924,
+            "pos": [
+              886.0813174874985,
+              2264.8560757314817
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/jiao-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 69701,
+            "pos": [
+              -869.289586270546,
+              753.5760937515055
+            ]
+          },
+          {
+            "hip": 63090,
+            "pos": [
+              1609.9215516357635,
+              -420.55431665486867
+            ]
+          },
+          {
+            "hip": 64924,
+            "pos": [
+              886.0813174874985,
+              2264.8560757314817
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "59f3cebbccc9647318c3f2e6c723b7f64de8bc16818765bc77c306e3b0693a8b",
+        "bytes": 2228247,
+        "derivedFrom": "jiao-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 8.9,
+      "sha256": "a32a79a45bdbd9921e4f987d640fe871fbda911cfe93381a15878d6ac6088aad",
+      "bytes": 2653569,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E8%A7%92%E6%9C%A8%E8%9B%9F.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/9/96/%E8%A7%92%E6%9C%A8%E8%9B%9F.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "19d880144e0c22420db4af604a0cf5a1a3f50fe6",
+        "localFile": "01.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Tall upright rectangular official crown; fierce dark red face with large round eyes; left arm raised on image right holding a small round object; other sleeve across chest; long robes over armor, coiling scaled dragon at image left and feet. Omit neighboring dragon/statue on the right.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 02A",
+      "number": 2,
+      "name": "亢宿",
+      "title": "亢金龙",
+      "group": "dragon",
+      "summary": "竖发束衣，龙盘身侧，神情肃然。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/kang-yuhuang-v1.png",
+        "size": [
+          1087,
+          1447
+        ],
+        "anchors": [
+          {
+            "hip": 72622,
+            "pos": [
+              -402.71879669503375,
+              1732.1314327437417
+            ]
+          },
+          {
+            "hip": 66006,
+            "pos": [
+              1991.3614808927357,
+              530.641517887129
+            ]
+          },
+          {
+            "hip": 72220,
+            "pos": [
+              -300.2691875022212,
+              -492.5164126789328
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/kang-yuhuang-line-v2.png",
+        "size": [
+          1087,
+          1447
+        ],
+        "anchors": [
+          {
+            "hip": 72622,
+            "pos": [
+              -402.71879669503375,
+              1732.1314327437417
+            ]
+          },
+          {
+            "hip": 66006,
+            "pos": [
+              1991.3614808927357,
+              530.641517887129
+            ]
+          },
+          {
+            "hip": 72220,
+            "pos": [
+              -300.2691875022212,
+              -492.5164126789328
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "2c9d114c3fbd573a484b3e7dbe9871c1d97da7cca6fcdd2d81a4846ab64ff6f2",
+        "bytes": 2312724,
+        "derivedFrom": "kang-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 8.9,
+      "sha256": "2733c37bca47e98424c703ce43a49a9fb1a592af4b2ed8bbd90b0c7884345af6",
+      "bytes": 2311949,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E4%BA%A2%E9%87%91%E9%BE%99.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/7/71/%E4%BA%A2%E9%87%91%E9%BE%99.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "d0fd4ad9cb620a78420b24038b4c4c2c05b32b8b",
+        "localFile": "02.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Very tall vertical swept flame hair, pale stern face, small teeth, earring; fully clothed wrapped robes, large tied scarf loop at chest; lowered hand on image left beside a small coiled horned dragon. Preserve the restrained straight pose and enormous hair silhouette.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 03A",
+      "number": 3,
+      "name": "氐宿",
+      "title": "氐土貉",
+      "group": "dragon",
+      "summary": "戴冠持笏，怀托小貉，衣褶垂落。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/di-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 72929,
+            "pos": [
+              1024.5436576125787,
+              1762.3816369665117
+            ]
+          },
+          {
+            "hip": 78400,
+            "pos": [
+              -651.6423543663924,
+              917.46166820973
+            ]
+          },
+          {
+            "hip": 71957,
+            "pos": [
+              1375.5444157943425,
+              -275.27975194770147
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/di-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 72929,
+            "pos": [
+              1024.5436576125787,
+              1762.3816369665117
+            ]
+          },
+          {
+            "hip": 78400,
+            "pos": [
+              -651.6423543663924,
+              917.46166820973
+            ]
+          },
+          {
+            "hip": 71957,
+            "pos": [
+              1375.5444157943425,
+              -275.27975194770147
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "09d5aca2ae6461f8dd0bad09b2b25cfabc751eaafecafd554d5eb80399eb9c32",
+        "bytes": 1553778,
+        "derivedFrom": "di-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10.2,
+      "sha256": "2e655affb1521a99ecf1f20bbf3c33d89d4044e580249c95a859a5efa7079ab0",
+      "bytes": 2255974,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%B0%90%E5%9C%9F%E8%B2%89.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/6/61/%E6%B0%90%E5%9C%9F%E8%B2%89.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "32629b26798322cc55203638ee46d6bd5a76e3db",
+        "localFile": "03.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Calm pale round face under a tall rectangular ornamental official cap; layered wide robes; diagonal flat ritual tablet held on image left; small downward-facing long-snouted mammal supported in the other hand at waist on image right. Do not make a large mount.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 04A",
+      "number": 4,
+      "name": "房宿",
+      "title": "房日兔",
+      "group": "dragon",
+      "summary": "长髯侧望，一手托日，一手抱兔。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/fang-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 80473,
+            "pos": [
+              -670.7267269257195,
+              696.0371589402198
+            ]
+          },
+          {
+            "hip": 78104,
+            "pos": [
+              779.7414207914807,
+              1953.3110716137276
+            ]
+          },
+          {
+            "hip": 76880,
+            "pos": [
+              1580.64837526669,
+              -150.06943535673383
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/fang-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 80473,
+            "pos": [
+              -670.7267269257195,
+              696.0371589402198
+            ]
+          },
+          {
+            "hip": 78104,
+            "pos": [
+              779.7414207914807,
+              1953.3110716137276
+            ]
+          },
+          {
+            "hip": 76880,
+            "pos": [
+              1580.64837526669,
+              -150.06943535673383
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "d925e771eb1daf6597ff43cbfa87f3e0ee15a2de435a858990c0cdb0556d59ec",
+        "bytes": 1940334,
+        "derivedFrom": "fang-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 4.9,
+      "sha256": "010d35ceffd9fb73a18b9fb8729c491dd81a04f342ff0f4b7c647216a1cc606b",
+      "bytes": 2324124,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%88%BF%E6%97%A5%E5%85%94.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/2/24/%E6%88%BF%E6%97%A5%E5%85%94.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "6e0ed7e67c83013070bc00cee344ac370df8a3ae",
+        "localFile": "04.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Pale serene face turned toward image right, long slender pointed beard, high small ornate topknot crown; wide robes and sash; raised palm at image left supports a reddish disc, other hand at image right cradles a small upright rabbit. Preserve the exact two objects and modest animal size.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 05A",
+      "number": 5,
+      "name": "心宿",
+      "title": "心月狐",
+      "group": "dragon",
+      "summary": "披发袒胸，举臂而坐，狐依腿侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/heart-yuhuang-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 80975,
+            "pos": [
+              477.5726526836039,
+              283.03167899736854
+            ]
+          },
+          {
+            "hip": 80911,
+            "pos": [
+              497.9151439646274,
+              1389.66401973608
+            ]
+          },
+          {
+            "hip": 77858,
+            "pos": [
+              1206.8779164515486,
+              560.1366550575409
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/heart-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 80975,
+            "pos": [
+              477.5726526836039,
+              283.03167899736854
+            ]
+          },
+          {
+            "hip": 80911,
+            "pos": [
+              497.9151439646274,
+              1389.66401973608
+            ]
+          },
+          {
+            "hip": 77858,
+            "pos": [
+              1206.8779164515486,
+              560.1366550575409
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "56ffe792d570b68b1c729bbd83b54c2adb63217bd5d81fbddf1ec3f4e731fa4c",
+        "bytes": 1648988,
+        "derivedFrom": "heart-yuhuang-v2.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 13,
+      "sha256": "343eb258d33aaf8ad4250a9c91ba0ee4e9f8425a69ed7ec4ad73d9a57473a0e8",
+      "bytes": 2228079,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%BF%83%E6%9C%88%E7%8B%90.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/a/ad/%E5%BF%83%E6%9C%88%E7%8B%90.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "58e82004badc681145f7fe66f419e1d350d6c3e0",
+        "localFile": "05.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Swept-back hair, open mouth, raised arm, right hand over a small fox, asymmetric seated legs and robe.",
+        "interpretation": "Clipped foot, small fox body and robe ornament are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 06A",
+      "number": 6,
+      "name": "尾宿",
+      "title": "尾火虎",
+      "group": "dragon",
+      "summary": "竖发举拳，披甲而坐，虎伏足下。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/tail-yuhuang-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 87261,
+            "pos": [
+              99.78060411753471,
+              585.1410303563378
+            ]
+          },
+          {
+            "hip": 84720,
+            "pos": [
+              519.4710698562251,
+              1215.6514760925409
+            ]
+          },
+          {
+            "hip": 82396,
+            "pos": [
+              919.6328221104487,
+              392.21887206389846
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/tail-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 87261,
+            "pos": [
+              99.78060411753471,
+              585.1410303563378
+            ]
+          },
+          {
+            "hip": 84720,
+            "pos": [
+              519.4710698562251,
+              1215.6514760925409
+            ]
+          },
+          {
+            "hip": 82396,
+            "pos": [
+              919.6328221104487,
+              392.21887206389846
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "9810c02d47f0b6d6c5d2e4edd2aab24d1b3c50382eb9830a88c49b039350a865",
+        "bytes": 1905756,
+        "derivedFrom": "tail-yuhuang-v2.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 16,
+      "sha256": "014d33586194905231ba71afcb67d5cf91760824aa99bd51e3cf60d88284e1a9",
+      "bytes": 2294806,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%B0%BE%E7%81%AB%E8%99%8E.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/d/d2/%E5%B0%BE%E7%81%AB%E8%99%8E.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "41665fc06446c3868530eceedb32a43a9200488c",
+        "localFile": "06.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Vertical flame-like hair, bulging eyes, raised fist, lamellar armor and circular belly plate, asymmetric seated legs, small tiger low at feet.",
+        "interpretation": "Obscured tiger body, hair tips and armor ornament are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 07A",
+      "number": 7,
+      "name": "箕宿",
+      "title": "箕水豹",
+      "group": "dragon",
+      "summary": "花冠端立，掌托圆物，豹依衣侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/ji-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 87072,
+            "pos": [
+              1657.0280474058973,
+              -97.30521097199134
+            ]
+          },
+          {
+            "hip": 89290,
+            "pos": [
+              667.166022463932,
+              2171.7995373158915
+            ]
+          },
+          {
+            "hip": 92041,
+            "pos": [
+              -545.6805169538026,
+              -243.64025312247946
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/ji-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 87072,
+            "pos": [
+              1657.0280474058973,
+              -97.30521097199134
+            ]
+          },
+          {
+            "hip": 89290,
+            "pos": [
+              667.166022463932,
+              2171.7995373158915
+            ]
+          },
+          {
+            "hip": 92041,
+            "pos": [
+              -545.6805169538026,
+              -243.64025312247946
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "3e1faab78a8cfdf99d1c8afaff73a3362b3f96c82de836777c6e4cb81ce4af77",
+        "bytes": 1704314,
+        "derivedFrom": "ji-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 6.4,
+      "sha256": "f106aab246609557200be140161a61d1609bf94b41793cdd76bd8dfa3090d4db",
+      "bytes": 2181158,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E7%AE%95%E6%B0%B4%E8%B1%B9.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/f/fa/%E7%AE%95%E6%B0%B4%E8%B1%B9.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "99fd7b2ce272246285cab421ce9ac8d73cffc07b",
+        "localFile": "07.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene pale round-faced crowned figure with high floral headdress, full flowing layered robe and narrow trailing ribbons; raised hand at image left supports a round fruit-like object. Small animal visible low at image left is partly cropped. Do not change into a warrior or add a large leopard mount.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 08A",
+      "number": 8,
+      "name": "斗宿",
+      "title": "斗木獬",
+      "group": "tortoise",
+      "summary": "高冠肃立，双手持笏，獬立身侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/dou-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 91014,
+            "pos": [
+              938.2099293969892,
+              1873.0786123639825
+            ]
+          },
+          {
+            "hip": 94141,
+            "pos": [
+              -443.5520427814598,
+              -153.6436028192521
+            ]
+          },
+          {
+            "hip": 89369,
+            "pos": [
+              1762.5835270226398,
+              -24.70519467175557
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/dou-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 91014,
+            "pos": [
+              938.2099293969892,
+              1873.0786123639825
+            ]
+          },
+          {
+            "hip": 94141,
+            "pos": [
+              -443.5520427814598,
+              -153.6436028192521
+            ]
+          },
+          {
+            "hip": 89369,
+            "pos": [
+              1762.5835270226398,
+              -24.70519467175557
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "806389d221bd8b088e87cd1473478a9e33650411f5a4b7a16b5a399005bb1197",
+        "bytes": 1404914,
+        "derivedFrom": "dou-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 6.4,
+      "sha256": "419db30bd64559fe0d7500466ef9d01a446f3014d2704fc8fa7090d89abeac36",
+      "bytes": 2173961,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%96%97%E6%9C%A8%E7%8D%AC.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/0/0d/%E6%96%97%E6%9C%A8%E7%8D%AC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "cbb250d4349f4707d04764e42114fcbd0ce99f49",
+        "localFile": "08.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Stern dark red face looking slightly toward image left, very tall tiered rectangular ceremonial crown, long side hair; wide layered robes; both hands together low at center holding a long vertical ritual tablet. A small horned mythical animal with a bearded face rises on image left. Omit neighboring statues.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 09A",
+      "number": 9,
+      "name": "牛宿",
+      "title": "牛金牛",
+      "group": "tortoise",
+      "summary": "云冠垂袖，斜持长笏，面容平静。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/niu-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 102485,
+            "pos": [
+              -173.3420136964489,
+              2104.728000253179
+            ]
+          },
+          {
+            "hip": 96536,
+            "pos": [
+              2177.2083017215064,
+              553.5246135347649
+            ]
+          },
+          {
+            "hip": 104459,
+            "pos": [
+              -1066.9183186471344,
+              124.57803298444726
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/niu-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 102485,
+            "pos": [
+              -173.3420136964489,
+              2104.728000253179
+            ]
+          },
+          {
+            "hip": 96536,
+            "pos": [
+              2177.2083017215064,
+              553.5246135347649
+            ]
+          },
+          {
+            "hip": 104459,
+            "pos": [
+              -1066.9183186471344,
+              124.57803298444726
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "c5ffa92f7e65cba725db2df6f29beba64fd0c160025454d65e30bbddf8521f1c",
+        "bytes": 1645661,
+        "derivedFrom": "niu-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 7.6,
+      "sha256": "2fc1f682d859b7dbc00ab7a863577e80e5972e95f4917b0eb2606b9f6c336c0a",
+      "bytes": 2119344,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E7%89%9B%E9%87%91%E7%89%9B.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/7/7c/%E7%89%9B%E9%87%91%E7%89%9B.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "26fb27273228882ec28f4a5e32b88bf99a104513",
+        "localFile": "09.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene pale face with delicate earrings, swept high hair under compact ornate crown; cross-collared full robe and belt; one hand open down on image left, other hand at chest on image right holds a long diagonal tablet. No animal is visible in the supplied crop: do not invent a bull.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 10A",
+      "number": 10,
+      "name": "女宿",
+      "title": "女土蝠",
+      "group": "tortoise",
+      "summary": "含笑长髯，举杖承蝠，宽袖垂落。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/nu-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 106278,
+            "pos": [
+              -947.2406305648144,
+              496.9813974129159
+            ]
+          },
+          {
+            "hip": 99473,
+            "pos": [
+              1947.1797314730059,
+              -195.96385761600834
+            ]
+          },
+          {
+            "hip": 101027,
+            "pos": [
+              1277.097399544644,
+              2258.5984805550193
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/nu-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 106278,
+            "pos": [
+              -947.2406305648144,
+              496.9813974129159
+            ]
+          },
+          {
+            "hip": 99473,
+            "pos": [
+              1947.1797314730059,
+              -195.96385761600834
+            ]
+          },
+          {
+            "hip": 101027,
+            "pos": [
+              1277.097399544644,
+              2258.5984805550193
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "9fa750c0c668b99182f157a935d83d6370ff25e7d4a2478d7740c72709cc4cc5",
+        "bytes": 1900444,
+        "derivedFrom": "nu-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 7.6,
+      "sha256": "ce42b75191bcee2e5048104de9416d32010e02201351a391bab45ccb0cddb048",
+      "bytes": 2355225,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%A5%B3%E5%9C%9F%E7%A6%8F.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/1/1d/%E5%A5%B3%E5%9C%9F%E7%A6%8F.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "1229004c1924a5c8f403cbf9e2d6ee613f4a6d10",
+        "localFile": "10.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Smiling mature bearded man in robe and shoulder mantle, small crown on high topknot; thin forked long goatee, face turned image right; raised hand at image right holds a slender stem ending in a cloud curl and spread-wing bat, other palm open low on image left. Preserve the bat on its stem, not a woman invented from the name.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 11A",
+      "number": 11,
+      "name": "虚宿",
+      "title": "虚日鼠",
+      "group": "tortoise",
+      "summary": "披发宽衣，掌中小鼠，抬手作势。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/xu-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 107382,
+            "pos": [
+              -190.15932196552367,
+              1963.808096453837
+            ]
+          },
+          {
+            "hip": 107315,
+            "pos": [
+              -162.52737175112256,
+              -673.3157740670289
+            ]
+          },
+          {
+            "hip": 101692,
+            "pos": [
+              2177.127748761432,
+              1059.4528481487264
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/xu-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 107382,
+            "pos": [
+              -190.15932196552367,
+              1963.808096453837
+            ]
+          },
+          {
+            "hip": 107315,
+            "pos": [
+              -162.52737175112256,
+              -673.3157740670289
+            ]
+          },
+          {
+            "hip": 101692,
+            "pos": [
+              2177.127748761432,
+              1059.4528481487264
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "45422090dcee2635e7217e0f7cd642da86b8ed664cb7b3b70e0a909d3dfc22c5",
+        "bytes": 1838615,
+        "derivedFrom": "xu-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 7.9,
+      "sha256": "f8ddf922afffb7c28d5c1d17d91e8fee45dc823df150103963e3e95cadbcf8fb",
+      "bytes": 2353283,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E8%99%9A%E6%97%A5%E9%BC%A0.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/d/d1/%E8%99%9A%E6%97%A5%E9%BC%A0.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "97311ac673bb38a85435105e12856115ce2a1482",
+        "localFile": "11.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene youthful pale face with simply swept-back hair and long side locks, no ornate crown; layered wide green and madder robes; one hand raised upright near chest in a delicate finger gesture, other sleeve/palm at image left supports a tiny mouse. Keep the small mouse and quiet upright pose.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 12A",
+      "number": 12,
+      "name": "危宿",
+      "title": "危月燕",
+      "group": "tortoise",
+      "summary": "折冠长髯，掌托月轮，燕映圆光。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/wei_moon-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 110273,
+            "pos": [
+              87.2399953849199,
+              2331.861197005177
+            ]
+          },
+          {
+            "hip": 104987,
+            "pos": [
+              2216.1315039685333,
+              581.988411381933
+            ]
+          },
+          {
+            "hip": 112447,
+            "pos": [
+              -767.2675582301317,
+              -336.64222738478725
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/wei_moon-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 110273,
+            "pos": [
+              87.2399953849199,
+              2331.861197005177
+            ]
+          },
+          {
+            "hip": 104987,
+            "pos": [
+              2216.1315039685333,
+              581.988411381933
+            ]
+          },
+          {
+            "hip": 112447,
+            "pos": [
+              -767.2675582301317,
+              -336.64222738478725
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "70af8f4e069ad7be49b7271cfe89cf58bfdbd67f3c34ea1e6d2a6bfab8afb66c",
+        "bytes": 1926593,
+        "derivedFrom": "wei_moon-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 8.3,
+      "sha256": "eb81f8df67bfd9278aa12a3fc21f91cfc19c5aca88c4fb4c449f84479480ea41",
+      "bytes": 2673289,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%8D%B1%E6%9C%88%E7%87%95.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/3/34/%E5%8D%B1%E6%9C%88%E7%87%95.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "c1f81588973192d962089812c4be4e43ad490993",
+        "localFile": "12.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Calm pale bearded man in a tall angular folded ceremonial hat, long straight side hair, ornate cross-collared robes and waist knot; raised palm at image left supports a circular golden disc on a cloud curl, with a swallow silhouette across the disc. The other hand is low under robe. Preserve disc and small bird.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 13A",
+      "number": 13,
+      "name": "室宿",
+      "title": "室火猪",
+      "group": "tortoise",
+      "summary": "赤发侧扬，张口举掌，屈膝而坐。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/shi-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 118131,
+            "pos": [
+              -666.368160841971,
+              575.6811767878328
+            ]
+          },
+          {
+            "hip": 112029,
+            "pos": [
+              982.2528776670241,
+              1972.068660427655
+            ]
+          },
+          {
+            "hip": 109410,
+            "pos": [
+              1532.8406170154474,
+              -164.00640409881834
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/shi-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 118131,
+            "pos": [
+              -666.368160841971,
+              575.6811767878328
+            ]
+          },
+          {
+            "hip": 112029,
+            "pos": [
+              982.2528776670241,
+              1972.068660427655
+            ]
+          },
+          {
+            "hip": 109410,
+            "pos": [
+              1532.8406170154474,
+              -164.00640409881834
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "c446f69ad756fa69a1b933d877403c8534970243ffadb11638ac9e494606e5c1",
+        "bytes": 2324009,
+        "derivedFrom": "shi-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 11.8,
+      "sha256": "82187e434daead962fdc8a29e38802671face88b02d86fd28d732d70f79063c0",
+      "bytes": 2782190,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%AE%A4%E7%81%AB%E7%8C%AA.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/4/40/%E5%AE%A4%E7%81%AB%E7%8C%AA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "92638cadf20b4e5bd975693c5887982c578060b0",
+        "localFile": "13.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Fierce mature male with long red flame hair swept diagonally toward image right, wide eyes and open mouth; decorated necklace and shoulder drapery over classical temple-statue torso; short decorated armor at waist, asymmetric seated legs. Open palm raised at image right; hand at image left holds a flat short implement beside thigh. No pig is visible in the crop, do not invent a mount. Simplify small anatomical details.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 14A",
+      "number": 14,
+      "name": "壁宿",
+      "title": "壁水貐",
+      "group": "tortoise",
+      "summary": "花冠垂缨，举指执物，貐依膝旁。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/bi_water-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 117730,
+            "pos": [
+              1040.3045243053243,
+              1948.0407704582565
+            ]
+          },
+          {
+            "hip": 116310,
+            "pos": [
+              1414.8872966395318,
+              -316.93308465277795
+            ]
+          },
+          {
+            "hip": 4510,
+            "pos": [
+              -587.4858743120411,
+              -78.69640581307556
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/bi_water-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 117730,
+            "pos": [
+              1040.3045243053243,
+              1948.0407704582565
+            ]
+          },
+          {
+            "hip": 116310,
+            "pos": [
+              1414.8872966395318,
+              -316.93308465277795
+            ]
+          },
+          {
+            "hip": 4510,
+            "pos": [
+              -587.4858743120411,
+              -78.69640581307556
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "c92fcdae9977e57de763c3911799bd01e596ea804e87ed1dc17b5ea70fff60dd",
+        "bytes": 1990873,
+        "derivedFrom": "bi_water-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10,
+      "sha256": "266898628d7e3cc195293bdde2bda4148fd37cdcbd2e9d2a153ae3300e387c25",
+      "bytes": 2270252,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%A3%81%E6%B0%B4%E8%B2%90.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/2/2a/%E5%A3%81%E6%B0%B4%E8%B2%90.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "17944b5a7db8d23ff94a0afc36d28bdfc5c91bcc",
+        "localFile": "14.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene feminine pale face, elaborate tall looped floral crown and dressed hair; broad draped robes and jeweled chest ornament; raised hand at image right forms a delicate circle around a small round object, lowered hand at image left rests above a small long-snouted open-mouth mythical animal at the hip. Preserve its scale, do not turn it into a dragon mount.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 15A",
+      "number": 15,
+      "name": "奎宿",
+      "title": "奎木狼",
+      "group": "tiger",
+      "summary": "高冠持笏，长衣垂地，狼立身侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/kui-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 3881,
+            "pos": [
+              706.3169644507243,
+              -352.6728678309035
+            ]
+          },
+          {
+            "hip": 5571,
+            "pos": [
+              189.33310899949868,
+              1839.0513212495084
+            ]
+          },
+          {
+            "hip": 677,
+            "pos": [
+              1722.0344911170341,
+              896.5604772400209
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/kui-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 3881,
+            "pos": [
+              706.3169644507243,
+              -352.6728678309035
+            ]
+          },
+          {
+            "hip": 5571,
+            "pos": [
+              189.33310899949868,
+              1839.0513212495084
+            ]
+          },
+          {
+            "hip": 677,
+            "pos": [
+              1722.0344911170341,
+              896.5604772400209
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "70165dcc80c5c822275595d8d391be22aa1c077746a3e5a2e04745e57494955f",
+        "bytes": 1334857,
+        "derivedFrom": "kui-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10,
+      "sha256": "1406f6f7c948f1605c5b4ad577a0f65193744cfdddd522a3f569e18ca287e054",
+      "bytes": 2206422,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%A5%8E%E6%9C%A8%E7%8B%BC.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/c/c7/%E5%A5%8E%E6%9C%A8%E7%8B%BC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "050527f1b430558f9ee380a3a61efd1fa4a0fef1",
+        "localFile": "15.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Pale calm slightly open-mouth male face, small pointed goatee, very tall rectangular ceremonial crown with top rolled edge; layered wide-sleeve robes; both hands low holding a long vertical ritual tablet. Small slender wolf sits upright on image right behind the hip. Preserve close upright formal pose.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 16A",
+      "number": 16,
+      "name": "娄宿",
+      "title": "娄金狗",
+      "group": "tiger",
+      "summary": "云冠整衣，交手执笏，犬仰身侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/lou-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 12719,
+            "pos": [
+              -625.7715982867466,
+              -83.88164220052076
+            ]
+          },
+          {
+            "hip": 5131,
+            "pos": [
+              1976.4801566818678,
+              631.3399002764764
+            ]
+          },
+          {
+            "hip": 11249,
+            "pos": [
+              -221.95916397691892,
+              1949.8927298151057
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/lou-yuhuang-line-v2.png",
+        "size": [
+          1087,
+          1447
+        ],
+        "anchors": [
+          {
+            "hip": 12719,
+            "pos": [
+              -626.3478152280787,
+              -85.12554794840332
+            ]
+          },
+          {
+            "hip": 5131,
+            "pos": [
+              1978.3001199937294,
+              630.7545779010403
+            ]
+          },
+          {
+            "hip": 11249,
+            "pos": [
+              -222.16354626419047,
+              1950.5215444834437
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "921023836b1cf98bfebf94b81cf1882a10848fecedbaa2da54e05b0b14bdb69a",
+        "bytes": 1863058,
+        "derivedFrom": "lou-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 9.4,
+      "sha256": "20b86da876d97321051b21ec0ac584d3f16adb174e636796e2f2deb7eee911bd",
+      "bytes": 2217498,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%A8%84%E9%87%91%E7%8B%97.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/3/33/%E5%A8%84%E9%87%91%E7%8B%97.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "4d9674ca1a365edec792f8be3e0684195b53c0f3",
+        "localFile": "16.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene feminine pale round face, tall ornate crown with looped side curls, robe with decorated chest ornament and belt; one hand rests over opposite wrist at waist and lowered hand holds a diagonal flat tablet. A small dog stands at image right, muzzle lifted toward the figure. Preserve the dog as a side companion.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 17A",
+      "number": 17,
+      "name": "胃宿",
+      "title": "胃土雉",
+      "group": "tiger",
+      "summary": "巾帽长髯，抬手侧望，雉伏膝前。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/wei_earth-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 15416,
+            "pos": [
+              -217.613272650912,
+              -17.31459290717275
+            ]
+          },
+          {
+            "hip": 14838,
+            "pos": [
+              -131.0729444886257,
+              1680.6868807210044
+            ]
+          },
+          {
+            "hip": 9884,
+            "pos": [
+              1610.0766469000887,
+              1219.4181763448676
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/wei_earth-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 15416,
+            "pos": [
+              -217.613272650912,
+              -17.31459290717275
+            ]
+          },
+          {
+            "hip": 14838,
+            "pos": [
+              -131.0729444886257,
+              1680.6868807210044
+            ]
+          },
+          {
+            "hip": 9884,
+            "pos": [
+              1610.0766469000887,
+              1219.4181763448676
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "ba5e4063a1464617bfb6c614add75bd82c4e6f069e18ee62604e05fa0b6ec49f",
+        "bytes": 1948936,
+        "derivedFrom": "wei_earth-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 9.4,
+      "sha256": "f9de90db6e83d524f9f7dc98864e08e8ab604b29c11686b1459ed6c20647b363",
+      "bytes": 2702581,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E8%83%83%E5%9C%9F%E9%9B%89.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/8/82/%E8%83%83%E5%9C%9F%E9%9B%89.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "4b2cd4d79af03051f17c8efef336623c0520d3a1",
+        "localFile": "17.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Mature male with folded soft cloth cap, long beard and smiling open mouth, face turns image left; broad decorated robe and tied chest scarf; hand high at image right holds a slender strand/implement by cheek; low hand at image left rests on a long-tailed pheasant in the lap. Preserve seated broad-knee silhouette.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 18A",
+      "number": 18,
+      "name": "昴宿",
+      "title": "昴日鸡",
+      "group": "tiger",
+      "summary": "高冠含笑，袖承日轮，鸡影映圆。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/mao-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 15110,
+            "pos": [
+              1459.8853002242354,
+              1094.0295994171313
+            ]
+          },
+          {
+            "hip": 19990,
+            "pos": [
+              -367.66022915946127,
+              1153.1151126699417
+            ]
+          },
+          {
+            "hip": 17448,
+            "pos": [
+              594.1496237760625,
+              -291.50603177942844
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/mao-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 15110,
+            "pos": [
+              1459.8853002242354,
+              1094.0295994171313
+            ]
+          },
+          {
+            "hip": 19990,
+            "pos": [
+              -367.66022915946127,
+              1153.1151126699417
+            ]
+          },
+          {
+            "hip": 17448,
+            "pos": [
+              594.1496237760625,
+              -291.50603177942844
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "b403b0dc866ea063c24e43bd921d40ef875557af5f7b912581e30cf53cf6bf03",
+        "bytes": 1327694,
+        "derivedFrom": "mao-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 8.7,
+      "sha256": "958b6cfc3b22916b88d0b12ae6e667562186c565ae503d7c55caa42449204860",
+      "bytes": 2112162,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%98%B4%E6%97%A5%E9%B8%A1.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/d/d2/%E6%98%B4%E6%97%A5%E9%B8%A1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "438bc43eb9587f872fcf1682d717b07e46e3787d",
+        "localFile": "18.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene pale figure with tall rectangular official crown and rolled top edge, slight open smile; flowing robes and broad cuffs; image-left raised sleeve/palm supports a reddish sun disc with a rooster relief and cloud base; other hand is lifted near the chin in a graceful finger gesture. Preserve that rooster-on-disc, not a separate giant rooster.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 19A",
+      "number": 19,
+      "name": "毕宿",
+      "title": "毕月乌",
+      "group": "tiger",
+      "summary": "举臂仰望，乌栖掌上，长衣随身。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/bi_moon-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 20205,
+            "pos": [
+              706.8761949535052,
+              809.0627455242886
+            ]
+          },
+          {
+            "hip": 21735,
+            "pos": [
+              90.64577174348167,
+              1234.7137377810745
+            ]
+          },
+          {
+            "hip": 20641,
+            "pos": [
+              538.3194413193814,
+              -11.840133651271174
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/bi_moon-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 20205,
+            "pos": [
+              706.8761949535052,
+              809.0627455242886
+            ]
+          },
+          {
+            "hip": 21735,
+            "pos": [
+              90.64577174348167,
+              1234.7137377810745
+            ]
+          },
+          {
+            "hip": 20641,
+            "pos": [
+              538.3194413193814,
+              -11.840133651271174
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "9efa4e73b0d962b0f689c0bc982e14c337d8e7f11e5e767f441ababec3bebdd0",
+        "bytes": 1280600,
+        "derivedFrom": "bi_moon-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 8.7,
+      "sha256": "f107ae0a84ee1cbbae64bda2537962b1f7a032b4e92cbd1c909b8508d556410f",
+      "bytes": 2095879,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%AF%95%E6%9C%88%E4%B9%8C.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/b/ba/%E6%AF%95%E6%9C%88%E4%B9%8C.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "36cceb1008aa7c6ff8f1c64cc7be1d4868e3e749",
+        "localFile": "19.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Mature smiling man with small topknot, long narrow goatee, eyes gazing upward toward image right; long layered embroidered robe; arm extended almost vertically up at image right with a small dark crow perched on open palm, opposite hand held near chest. Preserve this tall reaching silhouette.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 20A",
+      "number": 20,
+      "name": "觜宿",
+      "title": "觜火猴",
+      "group": "tiger",
+      "summary": "披发张目，双手执物，猴立身后。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/zi-yuhuang-v1.png",
+        "size": [
+          1087,
+          1447
+        ],
+        "anchors": [
+          {
+            "hip": 28614,
+            "pos": [
+              -390.27319511100313,
+              703.6786990448807
+            ]
+          },
+          {
+            "hip": 24817,
+            "pos": [
+              1127.3706985993051,
+              1710.7060340837545
+            ]
+          },
+          {
+            "hip": 25499,
+            "pos": [
+              830.0743032329569,
+              -469.3938024894062
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/zi-yuhuang-line-v2.png",
+        "size": [
+          1087,
+          1447
+        ],
+        "anchors": [
+          {
+            "hip": 28614,
+            "pos": [
+              -390.27319511100313,
+              703.6786990448807
+            ]
+          },
+          {
+            "hip": 24817,
+            "pos": [
+              1127.3706985993051,
+              1710.7060340837545
+            ]
+          },
+          {
+            "hip": 25499,
+            "pos": [
+              830.0743032329569,
+              -469.3938024894062
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "4c5b23ddfddd6c5fa270b9200d5690e9dcc7e291f0e38104936f70c5a9f00951",
+        "bytes": 2456035,
+        "derivedFrom": "zi-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 7.7,
+      "sha256": "fdfbcfc7a825a6e139b918ba30bbe970e9aac6f8a1a398b1f76c031e12ec0e1b",
+      "bytes": 3004293,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E8%A7%9C%E7%81%AB%E7%8C%B4.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/7/72/%E8%A7%9C%E7%81%AB%E7%8C%B4.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "b520f6a3c2d3f964138524e63d2a7a1fcbaf8785",
+        "localFile": "20.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Fierce red-faced mature man with pale wind-swept flame hair, huge eyes and open mouth, necklace and broad shoulder ribbons over classical temple-statue torso; seated with knees apart and drapery/armor covering waist and legs; both clenched hands low near waist, one with short narrow implement. A SMALL MONKEY at image right raises one hand over its own forehead. Include monkey, exclude neighboring figures. Simplify small anatomical detail.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 21A",
+      "number": 21,
+      "name": "参宿",
+      "title": "参水猿",
+      "group": "tiger",
+      "summary": "云冠侧望，双臂拢于腰前，衣纹层叠。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/shen-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 25473,
+            "pos": [
+              863.8173910706264,
+              134.34517256136238
+            ]
+          },
+          {
+            "hip": 26199,
+            "pos": [
+              574.2485556992336,
+              1418.6478758718013
+            ]
+          },
+          {
+            "hip": 27750,
+            "pos": [
+              -39.617360265824345,
+              309.3925868316798
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/shen-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 25473,
+            "pos": [
+              863.8173910706264,
+              134.34517256136238
+            ]
+          },
+          {
+            "hip": 26199,
+            "pos": [
+              574.2485556992336,
+              1418.6478758718013
+            ]
+          },
+          {
+            "hip": 27750,
+            "pos": [
+              -39.617360265824345,
+              309.3925868316798
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "d1f965888f0adec7078a96fcc974b0141d48f96b524a3735bf149d99194cf1c6",
+        "bytes": 1517338,
+        "derivedFrom": "shen-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 7.7,
+      "sha256": "c472a4c210ccf1d73eb7d5db8b93631f08179b2ca75385b6c0acbe8b4a853339",
+      "bytes": 2114873,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%8F%82%E6%B0%B4%E7%8C%BF%E8%A7%82%E6%9C%9B%E9%AC%BC%E9%87%91%E7%BE%8A.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/8/86/%E5%8F%82%E6%B0%B4%E7%8C%BF%E8%A7%82%E6%9C%9B%E9%AC%BC%E9%87%91%E7%BE%8A.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "77a58f6a8d252b780aa3d31873492ee0625de3cc",
+        "localFile": "21.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "CRITICAL photo 1 has TWO principal statues. Adapt ONLY the statue on the RIGHT, looking left toward the other statue: serene rounded face, tall ornate curled crown, long fully covering layered robe, jeweled chest motif, forearms gathered at waist on the right edge. EXCLUDE the whole LEFT statue and the small child it carries; that is 鬼金羊, not this subject. The right statue's lower hem and small companion are cropped/unclear; complete a restrained robe hem but do not invent an ape or import the child.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 22A",
+      "number": 22,
+      "name": "井宿",
+      "title": "井木犴",
+      "group": "bird",
+      "summary": "圆冠含笑，横掌于胸，犴立身侧。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/jing-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 29434,
+            "pos": [
+              1128.7345300590305,
+              1006.3619442519176
+            ]
+          },
+          {
+            "hip": 35350,
+            "pos": [
+              -112.73415729889423,
+              971.1934534077609
+            ]
+          },
+          {
+            "hip": 32311,
+            "pos": [
+              516.0434442037856,
+              12.737745577681585
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/jing-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 29434,
+            "pos": [
+              1128.7345300590305,
+              1006.3619442519176
+            ]
+          },
+          {
+            "hip": 35350,
+            "pos": [
+              -112.73415729889423,
+              971.1934534077609
+            ]
+          },
+          {
+            "hip": 32311,
+            "pos": [
+              516.0434442037856,
+              12.737745577681585
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "14acde3d8491941a8b16d46adce713d29dd3ecbc46928992807a7f2ebe8b6560",
+        "bytes": 1260630,
+        "derivedFrom": "jing-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 13.9,
+      "sha256": "8a43be111927b722f5116e2c3b0a87a87813ccbabe5d729272ae5384d04f1e86",
+      "bytes": 2116873,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E4%BA%95%E6%9C%A8%E7%8A%B4.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/b/bf/%E4%BA%95%E6%9C%A8%E7%8A%B4.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "947baaf44a3e8ebd8560cd46035a7fbc3c032e66",
+        "localFile": "22.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Pale smiling calm figure with low rounded ceremonial cap and scalloped folded crown band, wide robe; one forearm crosses chest, open palm held horizontally toward image left; other hand rests low by lap. Small upright long-snouted animal at image right, in shadow, raises its head. Exclude monkey belonging to neighboring statue at far image left.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 23A",
+      "number": 23,
+      "name": "鬼宿",
+      "title": "鬼金羊",
+      "group": "bird",
+      "summary": "双环花冠，抬掌托像，宽袖垂带。",
+      "adaptationNote": "掌中小像的衣袍为当代绘画处理。",
+      "image": {
+        "file": "chinese-art/gui-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 44798,
+            "pos": [
+              -194.00425613974016,
+              1603.9896499843462
+            ]
+          },
+          {
+            "hip": 44818,
+            "pos": [
+              -116.14405217167702,
+              -312.32662961798366
+            ]
+          },
+          {
+            "hip": 37908,
+            "pos": [
+              1784.1190775782618,
+              782.0383878060833
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/gui-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 44798,
+            "pos": [
+              -194.00425613974016,
+              1603.9896499843462
+            ]
+          },
+          {
+            "hip": 44818,
+            "pos": [
+              -116.14405217167702,
+              -312.32662961798366
+            ]
+          },
+          {
+            "hip": 37908,
+            "pos": [
+              1784.1190775782618,
+              782.0383878060833
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "b29b6924b2f6a5e05c9ffeeb8f0a2f0f086978d385368dec31bffd990e15744c",
+        "bytes": 1728189,
+        "derivedFrom": "gui-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10.9,
+      "sha256": "5ef812a7539d8b550fac71db88257a78d81e7ff23eaf92f42bf9aaae3eb9377d",
+      "bytes": 2166428,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E9%AC%BC%E9%87%91%E7%BE%8A.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/3/31/%E9%AC%BC%E9%87%91%E7%BE%8A.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "4d8812bba79281daf8cb8aa65ef5214892bda00c",
+        "localFile": "23.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene rounded feminine face, ornate crown with TWO wide side loops, richly draped fully covering robe, large chest necklace and teal waist knot; right side of image arm raised palm up carrying a SMALL CHILD STATUETTE in side profile, hands held together at its chest, with its simple traditional vest and waist wrap as in the reference. Other hand open at waist. This is a dignified nonsexual religious sculpture group. Preserve the small statuette and its traditional modest garment; no additional children or animals.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction. The small attendant's opaque tunic is a contemporary adaptation, not evidence of the original sculpture's garment.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 24A",
+      "number": 24,
+      "name": "柳宿",
+      "title": "柳土獐",
+      "group": "bird",
+      "summary": "甲衣卷肩，屈膝而坐，双手倒提小兽。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/liu-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 43970,
+            "pos": [
+              394.50729266565963,
+              -367.64238101517714
+            ]
+          },
+          {
+            "hip": 41307,
+            "pos": [
+              1207.2878792752142,
+              1619.1055005966566
+            ]
+          },
+          {
+            "hip": 46776,
+            "pos": [
+              -511.92836545547635,
+              1335.8035476987216
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/liu-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 43970,
+            "pos": [
+              394.50729266565963,
+              -367.64238101517714
+            ]
+          },
+          {
+            "hip": 41307,
+            "pos": [
+              1207.2878792752142,
+              1619.1055005966566
+            ]
+          },
+          {
+            "hip": 46776,
+            "pos": [
+              -511.92836545547635,
+              1335.8035476987216
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "6b2938b47e44375151bc12dc304f1b3adfbc30916d0c871d32ad6238d19c7e14",
+        "bytes": 1825346,
+        "derivedFrom": "liu-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10.6,
+      "sha256": "e3f1e9dee6c2b3a15e94e4a9bceebfc0bd7cee03f28dc0cdadd407ccef38e8c6",
+      "bytes": 2558476,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%9F%B3%E5%9C%9F%E7%8D%90.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/5/5f/%E6%9F%B3%E5%9C%9F%E7%8D%90.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "af9db593aead13c727902a2349ae61ebe24d736c",
+        "localFile": "24.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Fierce red-faced mature armored warrior, low folded crest/cap and swept pale hair, large round eyes; seated asymmetrically with one bent knee raised; lamellar armor, sculptural pointed shoulder guard. Both hands hold a small long-snouted animal UPSIDE DOWN by one hind leg in front of torso, exactly as in the sculpture; no blood, wounds or gore. Keep the non-graphic sculptural shape and hand positions. Omit other neighboring animals at far lower left.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 25A",
+      "number": 25,
+      "name": "星宿",
+      "title": "星日马",
+      "group": "bird",
+      "summary": "折冠垂袖，抬手作势，袖托日轮。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/xing-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 47310,
+            "pos": [
+              259.5774428308383,
+              -570.5282117521556
+            ]
+          },
+          {
+            "hip": 49809,
+            "pos": [
+              -627.8133106461004,
+              1465.0066123454142
+            ]
+          },
+          {
+            "hip": 43067,
+            "pos": [
+              1737.4668064142054,
+              1552.0170857223204
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/xing-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 47310,
+            "pos": [
+              259.5774428308383,
+              -570.5282117521556
+            ]
+          },
+          {
+            "hip": 49809,
+            "pos": [
+              -627.8133106461004,
+              1465.0066123454142
+            ]
+          },
+          {
+            "hip": 43067,
+            "pos": [
+              1737.4668064142054,
+              1552.0170857223204
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "c2bcce7349e27ce1d3c9a8fec8b3a44b2ffcd483d1aed38393b9d878cfc07a72",
+        "bytes": 1165944,
+        "derivedFrom": "xing-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 9.5,
+      "sha256": "d74cb6a0b7882732d4c3d997cbda75fe79a00bd99ecf082879b0e39094644854",
+      "bytes": 1789503,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E6%98%9F%E6%97%A5%E9%A9%AC.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/5/52/%E6%98%9F%E6%97%A5%E9%A9%AC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "0fa4ea485b361de1f82682bf6faab8f9f422a99a",
+        "localFile": "25.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Calm warm pale clean-shaven face, tall folded fan-like ceremonial hat with several broad segments; simple long cross-collared robe; one hand raised in a delicate three-finger gesture near cheek, other sleeve supports a reddish round disc with a small pale animal relief on a cloud base at image right. Preserve the compact relief as shown; do not add a life-sized horse.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 26A",
+      "number": 26,
+      "name": "张宿",
+      "title": "张月鹿",
+      "group": "bird",
+      "summary": "侧身含笑，掌托月轮，鹿仰身旁。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/zhang-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 48559,
+            "pos": [
+              874.8845750707256,
+              1899.7009824264242
+            ]
+          },
+          {
+            "hip": 46390,
+            "pos": [
+              1671.1444984595005,
+              -76.3056086780694
+            ]
+          },
+          {
+            "hip": 53740,
+            "pos": [
+              -911.4116469554828,
+              1065.767760872848
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/zhang-yuhuang-line-v2.png",
+        "size": [
+          1087,
+          1447
+        ],
+        "anchors": [
+          {
+            "hip": 48559,
+            "pos": [
+              875.6901778102015,
+              1900.2835800161354
+            ]
+          },
+          {
+            "hip": 46390,
+            "pos": [
+              1672.6833055483214,
+              -77.54253833615223
+            ]
+          },
+          {
+            "hip": 53740,
+            "pos": [
+              -912.2508841994564,
+              1065.5824641517363
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "4424cbb6d1a50d46c6024e97e7cbb8e234fab1f453db0089acc4e3f233976cd3",
+        "bytes": 1683550,
+        "derivedFrom": "zhang-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 9.5,
+      "sha256": "a591d9a5aad5c5b376c2a86a6bce3c99e9bf2b3cefb963cf0efb4995920190d6",
+      "bytes": 2031953,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E5%BC%A0%E6%9C%88%E9%B9%BF.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/c/ca/%E5%BC%A0%E6%9C%88%E9%B9%BF.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "7a9ddd4daee061d2cc09e890f0ee4a66bc5e2016",
+        "localFile": "26.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Mature smiling man with small high topknot/crown, wispy side whiskers along jaw, long cross-collared robes; raised palm at image left holds a tall narrow pale oval disc on a cloud curl, opposite hand lowered in finger gesture; small deer head and neck at image right, looking up from beside the hip. Preserve this side-facing posture and small deer.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 27A",
+      "number": 27,
+      "name": "翼宿",
+      "title": "翼火蛇",
+      "group": "bird",
+      "summary": "三目披发，高举长蛇，张掌侧望。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/yi-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 56633,
+            "pos": [
+              86.8186334887688,
+              -189.23792609905857
+            ]
+          },
+          {
+            "hip": 56280,
+            "pos": [
+              236.02431430884957,
+              1782.364866032602
+            ]
+          },
+          {
+            "hip": 51069,
+            "pos": [
+              1819.7347327598216,
+              562.9004970344562
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/yi-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 56633,
+            "pos": [
+              86.8186334887688,
+              -189.23792609905857
+            ]
+          },
+          {
+            "hip": 56280,
+            "pos": [
+              236.02431430884957,
+              1782.364866032602
+            ]
+          },
+          {
+            "hip": 51069,
+            "pos": [
+              1819.7347327598216,
+              562.9004970344562
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "c316e73e3a7bd5be87889f4db9c59c1101536136984c3a888c5e3cb9a8e7af63",
+        "bytes": 2429094,
+        "derivedFrom": "yi-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10.8,
+      "sha256": "f97dcb2ffec116cad57ff58cc470a2a4813b31454c95ff884e3dcdcdf8c8ba87",
+      "bytes": 2722548,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E7%BF%BC%E7%81%AB%E8%9B%87.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/8/8e/%E7%BF%BC%E7%81%AB%E8%9B%87.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "f22a79797cc8bf9288ac662d7fd428029739a33f",
+        "localFile": "27.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Fierce mature man with THREE EYES including a clear central forehead eye, open mouth, long dark hair blown toward image right; necklace, flowing shoulder ribbons, round dragon belly armor and covered waist/upper legs. Arm high at image left holds a LONG SNAKE, curved across upper picture with its head hanging downward at far left; other hand raised open on image right. Preserve the snake, third eye and asymmetrical seated legs; no wounds or gore, no sensual detail.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    },
+    {
+      "cultureId": "CON chinese_song_dynasty 28A",
+      "number": 28,
+      "name": "轸宿",
+      "title": "轸水蚓",
+      "group": "bird",
+      "summary": "云冠侧首，双手作势，长袖舒展。",
+      "adaptationNote": "",
+      "image": {
+        "file": "chinese-art/zhen-yuhuang-v1.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 62131,
+            "pos": [
+              44.968050491266965,
+              1527.3066433552249
+            ]
+          },
+          {
+            "hip": 56802,
+            "pos": [
+              1612.708163704515,
+              13.880648540250792
+            ]
+          },
+          {
+            "hip": 61740,
+            "pos": [
+              96.15891841488293,
+              -545.0834385401026
+            ]
+          }
+        ]
+      },
+      "skyImage": {
+        "file": "chinese-art/zhen-yuhuang-line-v2.png",
+        "size": [
+          1086,
+          1448
+        ],
+        "anchors": [
+          {
+            "hip": 62131,
+            "pos": [
+              44.968050491266965,
+              1527.3066433552249
+            ]
+          },
+          {
+            "hip": 56802,
+            "pos": [
+              1612.708163704515,
+              13.880648540250792
+            ]
+          },
+          {
+            "hip": 61740,
+            "pos": [
+              96.15891841488293,
+              -545.0834385401026
+            ]
+          }
+        ]
+      },
+      "skyVariant": {
+        "kind": "transparent-luminous-line-art",
+        "sha256": "adf8aa7850185eff9d72cfa7ba4ded6562f3871c3aaefb6ded27321a5d8e19be",
+        "bytes": 1857413,
+        "derivedFrom": "zhen-yuhuang-v1.png",
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+      },
+      "authoredAngularWidth": 10.8,
+      "sha256": "565e81371aff7a3ca0953432213196c2685d9aac367631c47485911a6bf936b1",
+      "bytes": 2327744,
+      "creator": "LuBirth — AI-assisted contemporary drawn adaptation",
+      "created": "2026-10-22",
+      "license": "CC-BY-SA-4.0",
+      "photograph": {
+        "page": "https://commons.wikimedia.org/wiki/File:%E8%BD%B8%E6%B0%B4%E8%9A%93.jpg",
+        "original": "https://upload.wikimedia.org/wikipedia/commons/3/3d/%E8%BD%B8%E6%B0%B4%E8%9A%93.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "originalSha1": "bac214a8466417a5e99dd5329078f3a26f30cd97",
+        "localFile": "28.jpg",
+        "identification": "Source photographer label; not an independent museum attribution.",
+        "author": "Patrick20242023",
+        "license": "CC-BY-SA-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "sourceRefs": [
+        "yuhuang-photographs",
+        "song-lines",
+        "hyg-stars"
+      ],
+      "verification": {
+        "observed": "Serene but slightly furrowed feminine round pale face turned toward image left, high ornate curling floral crown and dressed dark hair; layered robes with large cuffs; BOTH hands raised in distinct delicate finger-circle gestures, one further out at image left and the other close to the chest. No worm is visible; do not invent a giant worm or animal.",
+        "interpretation": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction.",
+        "registration": "Authored celestial placement. Three HIP control points; auxiliary controls are not asterism membership. Portrait pixel aspect preserved in tangent-plane registration.",
+        "remaining": "Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified."
+      }
+    }
+  ]
+}

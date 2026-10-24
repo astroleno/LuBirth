@@ -1,0 +1,560 @@
+{
+  "producer": "Stellarium desktop 26.3",
+  "settings": {
+    "nutation": true,
+    "annualAberration": false,
+    "parallax": false,
+    "refraction": false,
+    "calendar": "proleptic Gregorian labels; numeric JD(UT) supplied",
+    "altitudeMetres": 0
+  },
+  "sampleCount": 60,
+  "modernMaxArcsec": 5.59595734144106,
+  "ancientMaxArcsec": 412.7868384317973,
+  "ancientOtherStarsMaxArcsec": 5.2883970009715595,
+  "rotationMaxArcsec": 2.4779435733012165,
+  "historicalCatalogStatus": "NOT_ALIGNED: historical catalog differences exceed 10 arcsec",
+  "limitations": [
+    "Geometric comparison: refraction, annual aberration and parallax disabled in desktop reference",
+    "Not a claim of sub-minute ancient pointing: historical UT/DeltaT and catalog/binary uncertainties remain",
+    "Stellarium models binary orbits for HIP 32349/71683; HYG linear propagation does not"
+  ],
+  "cases": [
+    {
+      "id": "shanghai-2026",
+      "utc": "2026-10-21T13:00",
+      "jd": 2461335.0416666665,
+      "latitude": 31.2304,
+      "longitude": 121.4737,
+      "stars": [
+        {
+          "hip": 11767,
+          "catalogDifferenceArcsec": 0.05342312042436923,
+          "transformDifferenceArcsec": 0.05478952178817353,
+          "desktopAzimuth": 0.6348979970000905,
+          "desktopAltitude": 31.53806356339986,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 32349,
+          "catalogDifferenceArcsec": 2.577886655368585,
+          "transformDifferenceArcsec": 0.10798599075841545,
+          "desktopAzimuth": 92.35903790387104,
+          "desktopAltitude": -29.802739715613978,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 91262,
+          "catalogDifferenceArcsec": 0.10945788392056748,
+          "transformDifferenceArcsec": 0.1069511641847341,
+          "desktopAzimuth": 297.790441467451,
+          "desktopAltitude": 35.82195428666628,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 69673,
+          "catalogDifferenceArcsec": 0.1098042355991708,
+          "transformDifferenceArcsec": 0.10838967074955247,
+          "desktopAzimuth": 311.0059117529682,
+          "desktopAltitude": -21.976408650122764,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 65474,
+          "catalogDifferenceArcsec": 0.1141330731539901,
+          "transformDifferenceArcsec": 0.0931772717227105,
+          "desktopAzimuth": 293.6892705993641,
+          "desktopAltitude": -51.89573452709281,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 24436,
+          "catalogDifferenceArcsec": 0.09532970520464253,
+          "transformDifferenceArcsec": 0.10145880703807222,
+          "desktopAzimuth": 95.72782708083213,
+          "desktopAltitude": -6.344772292876198,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 27989,
+          "catalogDifferenceArcsec": 0.10241137211173645,
+          "transformDifferenceArcsec": 0.08913485422995822,
+          "desktopAzimuth": 77.00346902717125,
+          "desktopAltitude": -6.859200580578874,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 80763,
+          "catalogDifferenceArcsec": 0.011975113437660978,
+          "transformDifferenceArcsec": 0.05925167157801552,
+          "desktopAzimuth": 250.61800455938518,
+          "desktopAltitude": -20.30556744944989,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 113368,
+          "catalogDifferenceArcsec": 0.1020194142968571,
+          "transformDifferenceArcsec": 0.10192285194386684,
+          "desktopAzimuth": 181.67687291128595,
+          "desktopAltitude": 29.269236864292218,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 71683,
+          "catalogDifferenceArcsec": 5.593142695699613,
+          "transformDifferenceArcsec": 0.024776382439096162,
+          "desktopAzimuth": 213.21859344075108,
+          "desktopAltitude": -44.26145046577276,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 30343,
+          "catalogDifferenceArcsec": 0.024537995063886226,
+          "transformDifferenceArcsec": 0.07356170244373596,
+          "desktopAzimuth": 60.68029884888933,
+          "desktopAltitude": -3.8804101573081127,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 3179,
+          "catalogDifferenceArcsec": 0.03932347230399216,
+          "transformDifferenceArcsec": 0.05293551615150445,
+          "desktopAzimuth": 26.21480065747113,
+          "desktopAltitude": 59.56115368013872,
+          "knownBinaryModelDifference": false
+        }
+      ]
+    },
+    {
+      "id": "sydney-2026",
+      "utc": "2026-10-21T13:00",
+      "jd": 2461335.0416666665,
+      "latitude": -33.8688,
+      "longitude": 151.2093,
+      "stars": [
+        {
+          "hip": 11767,
+          "catalogDifferenceArcsec": 0.04413230025423338,
+          "transformDifferenceArcsec": 0.051558986459208006,
+          "desktopAzimuth": 0.37879774681284234,
+          "desktopAltitude": -33.33132166583238,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 32349,
+          "catalogDifferenceArcsec": 2.583642485176997,
+          "transformDifferenceArcsec": 0.09596931983659368,
+          "desktopAzimuth": 101.62574704530529,
+          "desktopAltitude": 12.981374502756196,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 91262,
+          "catalogDifferenceArcsec": 0.10583045186953079,
+          "transformDifferenceArcsec": 0.0955843660312456,
+          "desktopAzimuth": 301.24037852025714,
+          "desktopAltitude": -25.16189087528718,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 69673,
+          "catalogDifferenceArcsec": 0.10389868448564335,
+          "transformDifferenceArcsec": 0.09591765777816831,
+          "desktopAzimuth": 231.8118953510129,
+          "desktopAltitude": -68.15463610312727,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 65474,
+          "catalogDifferenceArcsec": 0.10643466151206789,
+          "transformDifferenceArcsec": 0.08082430961791798,
+          "desktopAzimuth": 187.51156294795328,
+          "desktopAltitude": -44.53221356725956,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 24436,
+          "catalogDifferenceArcsec": 0.08721421970924424,
+          "transformDifferenceArcsec": 0.08939096749895424,
+          "desktopAzimuth": 81.31003859142021,
+          "desktopAltitude": 27.0918363941094,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 27989,
+          "catalogDifferenceArcsec": 0.09186486859241011,
+          "transformDifferenceArcsec": 0.078460919009587,
+          "desktopAzimuth": 74.15536834037006,
+          "desktopAltitude": 9.754370414379512,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 80763,
+          "catalogDifferenceArcsec": 0.014941480824491817,
+          "transformDifferenceArcsec": 0.05017618811920859,
+          "desktopAzimuth": 225.85597599003643,
+          "desktopAltitude": -12.319326289015729,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 113368,
+          "catalogDifferenceArcsec": 0.08736773178079911,
+          "transformDifferenceArcsec": 0.09200958592908537,
+          "desktopAzimuth": 270.6839200547726,
+          "desktopAltitude": 63.01255451708557,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 71683,
+          "catalogDifferenceArcsec": 5.59595734144106,
+          "transformDifferenceArcsec": 0.020968928206232623,
+          "desktopAzimuth": 191.5470461039504,
+          "desktopAltitude": 6.850503364895241,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 30343,
+          "catalogDifferenceArcsec": 0.01320770554736402,
+          "transformDifferenceArcsec": 0.06513806492961309,
+          "desktopAzimuth": 65.86399837555172,
+          "desktopAltitude": -4.551671338786443,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 3179,
+          "catalogDifferenceArcsec": 0.03282300851820061,
+          "transformDifferenceArcsec": 0.04604970120800832,
+          "desktopAzimuth": 356.87803939012116,
+          "desktopAltitude": -0.6827363691095476,
+          "knownBinaryModelDifference": false
+        }
+      ]
+    },
+    {
+      "id": "north70-2026",
+      "utc": "2026-10-21T13:00",
+      "jd": 2461335.0416666665,
+      "latitude": 70,
+      "longitude": 0,
+      "stars": [
+        {
+          "hip": 11767,
+          "catalogDifferenceArcsec": 0.049297969797822735,
+          "transformDifferenceArcsec": 0.054431850223380776,
+          "desktopAzimuth": 359.9466469060051,
+          "desktopAltitude": 69.37703529274548,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 32349,
+          "catalogDifferenceArcsec": 2.5695662455381263,
+          "transformDifferenceArcsec": 0.11274633079860284,
+          "desktopAzimuth": 296.4031027584289,
+          "desktopAltitude": -26.819091316815193,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 91262,
+          "catalogDifferenceArcsec": 0.11534846466115425,
+          "transformDifferenceArcsec": 0.11072875476498295,
+          "desktopAzimuth": 108.41721671886445,
+          "desktopAltitude": 48.05565683159078,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 69673,
+          "catalogDifferenceArcsec": 0.11901475682442386,
+          "transformDifferenceArcsec": 0.1131034013806809,
+          "desktopAzimuth": 193.06462197440442,
+          "desktopAltitude": 38.623217258738464,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 65474,
+          "catalogDifferenceArcsec": 0.12282173230332327,
+          "transformDifferenceArcsec": 0.0978575309957756,
+          "desktopAzimuth": 203.0463590624656,
+          "desktopAltitude": 7.110678194928695,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 24436,
+          "catalogDifferenceArcsec": 0.10630163209625985,
+          "transformDifferenceArcsec": 0.1066429074934308,
+          "desktopAzimuth": 322.57948147610637,
+          "desktopAltitude": -24.476640938530743,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 27989,
+          "catalogDifferenceArcsec": 0.11023166542211503,
+          "transformDifferenceArcsec": 0.0942854020601405,
+          "desktopAzimuth": 315.8825419029777,
+          "desktopAltitude": -7.011122164918342,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 80763,
+          "catalogDifferenceArcsec": 0.006058368161474148,
+          "transformDifferenceArcsec": 0.06414641934086875,
+          "desktopAzimuth": 159.5277840412835,
+          "desktopAltitude": -7.8697728539548235,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 113368,
+          "catalogDifferenceArcsec": 0.1039500138469165,
+          "transformDifferenceArcsec": 0.10568785800422106,
+          "desktopAzimuth": 72.50349106904568,
+          "desktopAltitude": -37.616322037770516,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 71683,
+          "catalogDifferenceArcsec": 5.588344015429394,
+          "transformDifferenceArcsec": 0.024973029063033343,
+          "desktopAzimuth": 182.97793549007912,
+          "desktopAltitude": -40.9888166329446,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 30343,
+          "catalogDifferenceArcsec": 0.03445462982828091,
+          "transformDifferenceArcsec": 0.0782086114007167,
+          "desktopAzimuth": 313.18572998178234,
+          "desktopAltitude": 9.288812811220835,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 3179,
+          "catalogDifferenceArcsec": 0.039227088576843615,
+          "transformDifferenceArcsec": 0.05422769472576466,
+          "desktopAzimuth": 23.613670034405473,
+          "desktopAltitude": 39.08114419148995,
+          "knownBinaryModelDifference": false
+        }
+      ]
+    },
+    {
+      "id": "hangzhou-1076",
+      "utc": "1076-09-01T13:00",
+      "jd": 2114305.0416666665,
+      "latitude": 30.2741,
+      "longitude": 120.1551,
+      "stars": [
+        {
+          "hip": 11767,
+          "catalogDifferenceArcsec": 1.2203310190258214,
+          "transformDifferenceArcsec": 1.1646027312255467,
+          "desktopAzimuth": 6.069606127805575,
+          "desktopAltitude": 32.8590647700825,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 32349,
+          "catalogDifferenceArcsec": 140.61739853464493,
+          "transformDifferenceArcsec": 0.27550631705730844,
+          "desktopAzimuth": 63.28143219538691,
+          "desktopAltitude": -63.06823374564764,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 91262,
+          "catalogDifferenceArcsec": 1.1216703210657404,
+          "transformDifferenceArcsec": 0.6545346722066628,
+          "desktopAzimuth": 298.1061896942529,
+          "desktopAltitude": 68.29595640062708,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 69673,
+          "catalogDifferenceArcsec": 0.42550769848398967,
+          "transformDifferenceArcsec": 1.1329179751657896,
+          "desktopAzimuth": 292.34640935808983,
+          "desktopAltitude": 9.869940541689882,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 65474,
+          "catalogDifferenceArcsec": 2.1244809472861332,
+          "transformDifferenceArcsec": 1.1713761732007932,
+          "desktopAzimuth": 273.0419197406209,
+          "desktopAltitude": -17.503485293907428,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 24436,
+          "catalogDifferenceArcsec": 0.6139539283138157,
+          "transformDifferenceArcsec": 0.6201074496038598,
+          "desktopAzimuth": 75.92426808837926,
+          "desktopAltitude": -40.5751918308504,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 27989,
+          "catalogDifferenceArcsec": 0.09015873681753783,
+          "transformDifferenceArcsec": 0.5127921136244233,
+          "desktopAzimuth": 52.441891800625676,
+          "desktopAltitude": -36.9727817849143,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 80763,
+          "catalogDifferenceArcsec": 2.3992591137674237,
+          "transformDifferenceArcsec": 0.9404946428670239,
+          "desktopAzimuth": 235.26680708343414,
+          "desktopAltitude": 9.218764904755032,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 113368,
+          "catalogDifferenceArcsec": 1.6495760068124405,
+          "transformDifferenceArcsec": 1.0408538627414996,
+          "desktopAzimuth": 149.99435261043087,
+          "desktopAltitude": 17.300503347223792,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 71683,
+          "catalogDifferenceArcsec": 207.46868613238018,
+          "transformDifferenceArcsec": 1.1682007214061427,
+          "desktopAzimuth": 217.37125145345738,
+          "desktopAltitude": -25.28510392374665,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 30343,
+          "catalogDifferenceArcsec": 1.733922517941432,
+          "transformDifferenceArcsec": 0.6295565082274222,
+          "desktopAzimuth": 35.98885898071789,
+          "desktopAltitude": -27.9052993960557,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 3179,
+          "catalogDifferenceArcsec": 1.2101898958426847,
+          "transformDifferenceArcsec": 1.148978242106127,
+          "desktopAzimuth": 46.22948058580113,
+          "desktopAltitude": 40.41336798855878,
+          "knownBinaryModelDifference": false
+        }
+      ]
+    },
+    {
+      "id": "shanghai-0050",
+      "utc": "0050-01-01T12:30",
+      "jd": 1739323.0208333335,
+      "latitude": 31.2304,
+      "longitude": 121.4737,
+      "stars": [
+        {
+          "hip": 11767,
+          "catalogDifferenceArcsec": 2.643021954706808,
+          "transformDifferenceArcsec": 2.3978675554843583,
+          "desktopAzimuth": 347.5491092945266,
+          "desktopAltitude": 36.23675921042162,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 32349,
+          "catalogDifferenceArcsec": 288.1868912513749,
+          "transformDifferenceArcsec": 0.9720948448083079,
+          "desktopAzimuth": 144.3226869767809,
+          "desktopAltitude": 34.70335075435443,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 91262,
+          "catalogDifferenceArcsec": 1.7042767691799015,
+          "transformDifferenceArcsec": 1.35107842420167,
+          "desktopAzimuth": 333.963137080758,
+          "desktopAltitude": -13.850041020707485,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 69673,
+          "catalogDifferenceArcsec": 1.1990993141957254,
+          "transformDifferenceArcsec": 2.4779435733012165,
+          "desktopAzimuth": 34.348076964748365,
+          "desktopAltitude": -18.631522082162277,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 65474,
+          "catalogDifferenceArcsec": 4.3729892217610855,
+          "transformDifferenceArcsec": 2.3840167868334308,
+          "desktopAzimuth": 69.5160989312634,
+          "desktopAltitude": -30.74888639606409,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 24436,
+          "catalogDifferenceArcsec": 1.5285553102193246,
+          "transformDifferenceArcsec": 1.7973243232626388,
+          "desktopAzimuth": 172.00452685292575,
+          "desktopAltitude": 46.0012470297233,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 27989,
+          "catalogDifferenceArcsec": 0.7614261388473248,
+          "transformDifferenceArcsec": 1.6899037384654008,
+          "desktopAzimuth": 152.83955051700295,
+          "desktopAltitude": 60.86212307505277,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 80763,
+          "catalogDifferenceArcsec": 5.2883970009715595,
+          "transformDifferenceArcsec": 2.3377215685871646,
+          "desktopAzimuth": 44.072701837867946,
+          "desktopAltitude": -74.8839513032624,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 113368,
+          "catalogDifferenceArcsec": 3.332278052796446,
+          "transformDifferenceArcsec": 2.1146129896030823,
+          "desktopAzimuth": 236.84902616046529,
+          "desktopAltitude": -22.032431665642537,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 71683,
+          "catalogDifferenceArcsec": 412.7868384317973,
+          "transformDifferenceArcsec": 2.4521590062571077,
+          "desktopAzimuth": 137.12959387929112,
+          "desktopAltitude": -55.32696211019948,
+          "knownBinaryModelDifference": true
+        },
+        {
+          "hip": 30343,
+          "catalogDifferenceArcsec": 4.268809396462646,
+          "transformDifferenceArcsec": 1.839549822104621,
+          "desktopAzimuth": 120.71731539332735,
+          "desktopAltitude": 71.84680722122616,
+          "knownBinaryModelDifference": false
+        },
+        {
+          "hip": 3179,
+          "catalogDifferenceArcsec": 2.1762703622177675,
+          "transformDifferenceArcsec": 2.222481446721986,
+          "desktopAzimuth": 305.9099005297059,
+          "desktopAltitude": 39.13681634879549,
+          "knownBinaryModelDifference": false
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "officialRelease": "https://github.com/Stellarium/stellarium/releases/tag/v26.3",
+    "macOSArchive": "Stellarium-26.3-qt6-macOS.zip",
+    "officialArchiveSha256": "919579d2e5537089796e7fb925d8f2d07926dae657a147b60cb756cb391aba8b",
+    "archiveChecksumVerifiedBeforeRunning": true,
+    "execution": "Official desktop executable, isolated temporary --user-dir and --config-file",
+    "fixtureSha256": "c4d0b84a3192c61ffb7d55f9dee5022474cb9f0313f155062fe53371f1028d90",
+    "exportScriptSha256": "8965774e38263659cc93afec99e2a793ccebeba7ce147b755fcdae5f9f349c81",
+    "binaryModelSource": "https://github.com/Stellarium/stellarium/blob/v26.3/src/core/modules/Star.hpp",
+    "binaryParametersSource": "https://github.com/Stellarium/stellarium/blob/v26.3/stars/hip_gaia3/binary_orbitparam.dat"
+  }
+}

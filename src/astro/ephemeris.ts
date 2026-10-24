@@ -1,5 +1,6 @@
 import { AstroTime, Body, Observer, SiderealTime, Equator as EquatorFn, Horizon as HorizonFn, Illumination as IlluminationFn, Search } from 'astronomy-engine';
 import { logger } from '../utils/logger';
+import { parseAbsoluteInstant } from '../history/observation';
 
 // 导入验证函数
 import { validateAstronomicalConstants, validatePhysicalLimits, validateSeasonalConsistency } from './constants';
@@ -421,6 +422,10 @@ export function offsetHoursFromLongitude(lon: number): number {
 }
 
 export function toUTCFromLocal(localISO: string, lon: number): Date {
+  // New observation flows have already resolved their time convention. An explicit
+  // offset is an absolute instant and must never be shifted again by longitude.
+  const absolute = parseAbsoluteInstant(localISO);
+  if (absolute) return absolute;
   // localISO like '1993-08-01T11:00'
   // Parse the string as if it were in the specified timezone (not browser's timezone)
   const offset = offsetHoursFromLongitude(lon);

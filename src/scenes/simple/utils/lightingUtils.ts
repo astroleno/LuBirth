@@ -68,8 +68,10 @@ export function seasonalSunDirWorldYUp(
   fixedYawDeg?: number // 可选：锁定世界XZ平面方位角（度），仅改变仰角
 ) {
   const dayOfYear = (d: Date) => {
-    const start = Date.UTC(d.getUTCFullYear(), 0, 1);
-    return Math.floor((d.getTime() - start) / 86400000) + 1;
+    const start = new Date(0);
+    start.setUTCFullYear(d.getUTCFullYear(), 0, 1);
+    start.setUTCHours(0, 0, 0, 0);
+    return Math.floor((d.getTime() - start.getTime()) / 86400000) + 1;
   };
   const fracDayUTC = (utc.getUTCHours() + utc.getUTCMinutes() / 60 + utc.getUTCSeconds() / 3600) / 24;
   // 将相位校准到夏至（北半球约第172天）

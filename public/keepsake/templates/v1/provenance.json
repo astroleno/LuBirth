@@ -1,0 +1,13 @@
+{
+  "sourceJob": "87a4631e-4753-45b5-92c4-317d3d8f2d00",
+  "createdAt": "2026-10-24T11:58:28Z",
+  "style": "No.012 / preset writer 640",
+  "model": "lyric-1",
+  "text": "天地初见\n天地与你\n与古人同望",
+  "sourceFiles": {
+    "source-strokes.zip": "a2e30293a625f8ad28f879490de1b1906d417b8c381cf1b1c57e836e5fece1ba",
+    "source-scene.zip": "e288c041776a7278ab5551028dfb286da562b7e4c641a9b6e2d8a194d1b6b0c4",
+    "source-page.png": "b4af39891b004ec3ea63e54f96b7260d80cef9252eea5bc833bf578d576a0011"
+  },
+  "derivative": "Original atlas alpha and affine transforms; per-glyph SVG masks; original visible label; byte-exact source PNG AIGC and XMP chunks."
+}

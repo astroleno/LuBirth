@@ -1,0 +1,40 @@
+#
+#   VizieR Astronomical Server vizier.cds.unistra.fr
+#    Date: 2026-10-21T15:21:45 [V7.6.1]
+#   In case of problem, please report to:	cds-question@unistra.fr
+#
+#
+#Coosys	J2000:	eq_FK5 J2000
+#INFO	service_protocol=ASU	  IVOID of the protocol through which the data was retrieved
+#INFO	request_date=2026-10-21T15:21:45	  Query execution date
+#INFO	request=https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=I%2F239%2Fhip_main&HIP=55203%2C78727&-out=HIP%2CRAhms%2CDEdms%2CHD%2CCCDM%2CMultFlag&-out.max=10	  Full request URL
+#INFO	contact=cds-question@unistra.fr	  Email or URL to contact publisher
+#INFO	server_software=VizieR/7.6.1	  Software version
+#INFO	publisher=CDS	  Data centre that produced the VOTable
+
+#RESOURCE=yCat_1239
+#Name: I/239
+#Title: The Hipparcos and Tycho Catalogues (ESA 1997)
+#INFO	ivoid=ivo://cds.vizier/i/239	    IVOID of underlying data collection
+#INFO	data_ivoid=ivo://cds.vizier/i/239	    IVOID of underlying data collection
+#INFO	creator=ESA 1997	    First author or institution
+#INFO	cites=1997HIP...C......0E	    Article or Data origin sources
+#INFO	reference_url=https://cdsarc.cds.unistra.fr/viz-bin/cat/I/239	    Dataset landing page
+#INFO	publication_date=2021-11-18	    Date of first publication in the data centre
+#INFO	rights_uri=https://cds.unistra.fr/vizier-org/licences_vizier.html	    Licence URI
+#Coosys	H_1991.250:	ICRS
+#Table	I_239_hip_main:
+#Name: I/239/hip_main
+#Title: The Hipparcos Main Catalogue
+#Column	HIP	(I6)	Identifier (HIP number) (H1)	[ucd=meta.id;meta.main]
+#Column	RAhms	(A11)	Right ascension in h m s, ICRS (J1991.25) (H3)	[ucd=pos.eq.ra]
+#Column	DEdms	(A11)	Declination in deg ' ", ICRS (J1991.25) (H4)	[ucd=pos.eq.dec]
+#Column	HD	(I6)	[1/359083]? HD number <III/135> (H71)	[ucd=meta.id.cross]
+#Column	CCDM	(A10)	CCDM identifier (H55)	[ucd=meta.id.cross]
+#Column	MultFlag	(A1)	[CGOVX] Double/Multiple Systems flag (H59)	[ucd=meta.code]
+HIP	RAhms	DEdms	HD	CCDM	MultFlag
+ 	 	 	 	 	
+------	-----------	-----------	------	----------	-
+ 55203	11 18 11.24	+31 31 50.8	 98230	11182+3132	
+ 78727	16 04 21.63	-11 22 24.8	144069	16044-1123	
+

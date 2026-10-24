@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>二十八宿 · 星形与人物编排检视</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080e17;color:#e7dfcf;font:14px/1.65 -apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif}header,main,footer{max-width:1440px;margin:auto;padding:24px 28px}h1{font-size:26px;font-weight:400;letter-spacing:.1em;margin:4px 0 12px}p{color:#9caabd;margin:6px 0}a{color:#b8c9dd;text-underline-offset:4px}nav,.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0}button,select{border:1px solid #506074;border-radius:10px;background:#101d2c;color:#e0d9cb;font:inherit;padding:8px 12px;min-height:44px}button[aria-pressed=true]{background:#33435a;border-color:#c3b696}label{display:flex;align-items:center;gap:6px;min-height:44px}canvas{width:100%;height:auto;display:block;background:#060c16;border-radius:12px}#notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:18px 28px;margin-top:24px}article{border-top:1px solid #ffffff20;padding-top:12px}article h2{font-weight:400;font-size:16px;margin:0 0 8px}small{color:#8e9fb4}footer{font-size:12px;padding-bottom:40px}#status{min-height:24px}main{padding-top:0}@media(max-width:600px){header,main,footer{padding:18px}h1{font-size:21px}canvas{border-radius:6px}button,select{font-size:12px}}
+</style>
+<header><p>LuBirth · 玉皇庙图绘 · 二十八宿逐幅编排</p><h1>星形与人物，一起看</h1>
+<p>天北向上、天东在左。四象依真实天球位置展开；人物的角度与星点对应为当代编排。</p>
+<a href="../../../sky-spike.html?view=yuhuang">进入交互星空 ↗</a> · <a href="artwork-gallery.html">看 28 × 2 原图 ↗</a>
+<nav aria-label="四象天区"><button data-group="dragon" aria-pressed="true">东方 · 青龙</button><button data-group="tortoise" aria-pressed="false">北方 · 玄武</button><button data-group="tiger" aria-pressed="false">西方 · 白虎</button><button data-group="bird" aria-pressed="false">南方 · 朱雀</button></nav>
+<div class="controls"><label>视图 <select id="figure"><option value="all">同看七宿</option></select></label><label>显示 <select id="format"><option value="sky">天区编排</option><option value="members">全星链与原图</option><option value="landmarks">原图对应点</option></select></label><label>图绘 <select id="variant"><option value="line">夜空细线</option><option value="prototype">淡彩原型</option></select></label><label>编排 <select id="placement"><option value="after">当前编排</option><option value="pass2">28 宿迭代前</option><option value="pass1">四宿调整前</option><option value="before">最初统一朝北</option></select></label><label><input id="guides" type="checkbox" checked> 星形与配准点</label></div>
+<label><input id="neighbors" type="checkbox"> 合看前后两宿</label><p id="status" role="status">正在载入…</p></header>
+<main><canvas id="sky" width="1320" height="780" aria-label="四象星官与玉皇庙图绘的位置对照"></canvas><div id="notes"></div></main>
+<footer>绘图直接使用独立 spike 的三点投影函数，不改变星位与星官连线。天区图中橙色为两个选取的对应点，蓝色为其余本宿恒星；原图对照中 A / B 标出这两个点。辅助投影星不加入星官连线。相片与衍生图绘 CC BY-SA 4.0，摄影 Patrick20242023，转绘 LuBirth。</footer>
+<script type="module" src="./placement-review.js"></script>
+</html>

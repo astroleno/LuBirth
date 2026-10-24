@@ -1,0 +1,8 @@
+.moon-placement-control{min-width:0;margin:8px 0 18px;padding:0;border:0;color:inherit}
+.moon-placement-control legend{font-size:12px;color:#b9c4d3;margin-bottom:4px}
+.moon-placement-options{display:flex;flex-wrap:wrap;gap:8px 18px}
+.moon-placement-options label{display:flex!important;align-items:center;gap:8px;min-height:44px;margin:0!important;font-size:13px!important;white-space:nowrap}
+.moon-placement-control .moon-placement-options input[type=radio]{flex:0 0 16px;width:16px;height:16px;min-height:0;padding:0;margin:0;accent-color:#c6d7ec}
+.moon-placement-control p{font-size:12px!important;color:#a5b3c6!important;line-height:1.6;margin:3px 0 8px!important}
+.moon-placement-control small{display:block;color:#aebed2;font-size:12px;margin-top:8px}
+.moon-placement-control input:focus-visible{outline:2px solid #c4d9f4;outline-offset:3px}

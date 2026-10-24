@@ -69,7 +69,9 @@ function calculateMoonRotation(date: Date): number {
  * 获取一年中的第几天
  */
 function getDayOfYear(date: Date): number {
-  const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const start = new Date(0);
+  start.setUTCFullYear(date.getUTCFullYear(), 0, 1);
+  start.setUTCHours(0, 0, 0, 0);
   const diff = date.getTime() - start.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }

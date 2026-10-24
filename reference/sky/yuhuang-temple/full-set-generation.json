@@ -1,0 +1,667 @@
+{
+  "schema": 1,
+  "created": "2026-10-22",
+  "scope": "28 complete full-color prototypes, followed by 28 finer transparent line-art variants, in standalone sky spike only.",
+  "styleReference": "src/spikes/sky/data/chinese-art/heart-yuhuang-v2.png",
+  "prompt": "Use case: style-transfer / historical cultural illustration. Image 1 is the EXACT SUBJECT reference: a photographed Yuhuang Temple celestial statue. Image 2 is a STYLE reference only, the approved painted illustration from this set; DO NOT copy its pose, face, animal or costume. Turn only the main specified statue in photo 1 into an elegant Chinese fine-line / light-mineral-color full-figure drawing matching image 2. Preserve its facial expression and apparent age, headgear/hair, hand positions, handedness, robe/armor structure and the associated animal WHERE ACTUALLY VISIBLE. Match the particular statue rather than inventing a generic deity. Retain subtle mineral sage green, ivory, ochre and faded madder colors, delicate warm dark contours, softly painted details, unified moderate color intensity. Do not copy camera shadows, chipped paint, wall, plinth, signage, watermarks or adjacent figures. Genuinely transparent background, full figure centered with 5% clear breathing room including crown/hair, fingers and garment hem. Portrait canvas aspect 3:4. Do not crop the head or hands. If the photograph cuts the bottom off, complete only a restrained robe hem/feet consistent with the visible silhouette; no new props or animals. No stars, sky, labels, text, border, frame or backdrop. Dignified educational temple-art adaptation; not a photoreal sculpture render. Keep this subject-specific constraint:",
+  "specifications": [
+    {
+      "n": 1,
+      "slug": "jiao",
+      "title": "角木蛟",
+      "name": "角宿",
+      "observed": "Tall upright rectangular official crown; fierce dark red face with large round eyes; left arm raised on image right holding a small round object; other sleeve across chest; long robes over armor, coiling scaled dragon at image left and feet. Omit neighboring dragon/statue on the right.",
+      "summary": "高冠怒目，举臂执珠，蛟盘身侧。",
+      "file": "jiao-yuhuang-v1.png",
+      "skyFile": "jiao-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 2,
+      "slug": "kang",
+      "title": "亢金龙",
+      "name": "亢宿",
+      "observed": "Very tall vertical swept flame hair, pale stern face, small teeth, earring; fully clothed wrapped robes, large tied scarf loop at chest; lowered hand on image left beside a small coiled horned dragon. Preserve the restrained straight pose and enormous hair silhouette.",
+      "summary": "竖发束衣，龙盘身侧，神情肃然。",
+      "file": "kang-yuhuang-v1.png",
+      "skyFile": "kang-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 3,
+      "slug": "di",
+      "title": "氐土貉",
+      "name": "氐宿",
+      "observed": "Calm pale round face under a tall rectangular ornamental official cap; layered wide robes; diagonal flat ritual tablet held on image left; small downward-facing long-snouted mammal supported in the other hand at waist on image right. Do not make a large mount.",
+      "summary": "戴冠持笏，怀托小貉，衣褶垂落。",
+      "file": "di-yuhuang-v1.png",
+      "skyFile": "di-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 4,
+      "slug": "fang",
+      "title": "房日兔",
+      "name": "房宿",
+      "observed": "Pale serene face turned toward image right, long slender pointed beard, high small ornate topknot crown; wide robes and sash; raised palm at image left supports a reddish disc, other hand at image right cradles a small upright rabbit. Preserve the exact two objects and modest animal size.",
+      "summary": "长髯侧望，一手托日，一手抱兔。",
+      "file": "fang-yuhuang-v1.png",
+      "skyFile": "fang-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 5,
+      "slug": "heart",
+      "title": "心月狐",
+      "name": "心宿",
+      "observed": "Swept-back hair, open mouth, raised arm, right hand over a small fox, asymmetric seated legs and robe.",
+      "summary": "披发袒胸，举臂而坐，狐依腿侧。",
+      "inference": "Clipped foot, small fox body and robe ornament are interpreted; not a conservation reconstruction.",
+      "file": "heart-yuhuang-v2.png",
+      "width": 13,
+      "skyFile": "heart-yuhuang-line-v2.png"
+    },
+    {
+      "n": 6,
+      "slug": "tail",
+      "title": "尾火虎",
+      "name": "尾宿",
+      "observed": "Vertical flame-like hair, bulging eyes, raised fist, lamellar armor and circular belly plate, asymmetric seated legs, small tiger low at feet.",
+      "summary": "竖发举拳，披甲而坐，虎伏足下。",
+      "inference": "Obscured tiger body, hair tips and armor ornament are interpreted; not a conservation reconstruction.",
+      "file": "tail-yuhuang-v2.png",
+      "width": 16,
+      "skyFile": "tail-yuhuang-line-v2.png"
+    },
+    {
+      "n": 7,
+      "slug": "ji",
+      "title": "箕水豹",
+      "name": "箕宿",
+      "observed": "Serene pale round-faced crowned figure with high floral headdress, full flowing layered robe and narrow trailing ribbons; raised hand at image left supports a round fruit-like object. Small animal visible low at image left is partly cropped. Do not change into a warrior or add a large leopard mount.",
+      "summary": "花冠端立，掌托圆物，豹依衣侧。",
+      "file": "ji-yuhuang-v1.png",
+      "skyFile": "ji-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 8,
+      "slug": "dou",
+      "title": "斗木獬",
+      "name": "斗宿",
+      "observed": "Stern dark red face looking slightly toward image left, very tall tiered rectangular ceremonial crown, long side hair; wide layered robes; both hands together low at center holding a long vertical ritual tablet. A small horned mythical animal with a bearded face rises on image left. Omit neighboring statues.",
+      "summary": "高冠肃立，双手持笏，獬立身侧。",
+      "file": "dou-yuhuang-v1.png",
+      "skyFile": "dou-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 9,
+      "slug": "niu",
+      "title": "牛金牛",
+      "name": "牛宿",
+      "observed": "Serene pale face with delicate earrings, swept high hair under compact ornate crown; cross-collared full robe and belt; one hand open down on image left, other hand at chest on image right holds a long diagonal tablet. No animal is visible in the supplied crop: do not invent a bull.",
+      "summary": "云冠垂袖，斜持长笏，面容平静。",
+      "file": "niu-yuhuang-v1.png",
+      "skyFile": "niu-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 10,
+      "slug": "nu",
+      "title": "女土蝠",
+      "name": "女宿",
+      "observed": "Smiling mature bearded man in robe and shoulder mantle, small crown on high topknot; thin forked long goatee, face turned image right; raised hand at image right holds a slender stem ending in a cloud curl and spread-wing bat, other palm open low on image left. Preserve the bat on its stem, not a woman invented from the name.",
+      "summary": "含笑长髯，举杖承蝠，宽袖垂落。",
+      "file": "nu-yuhuang-v1.png",
+      "skyFile": "nu-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 11,
+      "slug": "xu",
+      "title": "虚日鼠",
+      "name": "虚宿",
+      "observed": "Serene youthful pale face with simply swept-back hair and long side locks, no ornate crown; layered wide green and madder robes; one hand raised upright near chest in a delicate finger gesture, other sleeve/palm at image left supports a tiny mouse. Keep the small mouse and quiet upright pose.",
+      "summary": "披发宽衣，掌中小鼠，抬手作势。",
+      "file": "xu-yuhuang-v1.png",
+      "skyFile": "xu-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 12,
+      "slug": "wei_moon",
+      "title": "危月燕",
+      "name": "危宿",
+      "observed": "Calm pale bearded man in a tall angular folded ceremonial hat, long straight side hair, ornate cross-collared robes and waist knot; raised palm at image left supports a circular golden disc on a cloud curl, with a swallow silhouette across the disc. The other hand is low under robe. Preserve disc and small bird.",
+      "summary": "折冠长髯，掌托月轮，燕映圆光。",
+      "file": "wei_moon-yuhuang-v1.png",
+      "skyFile": "wei_moon-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 13,
+      "slug": "shi",
+      "title": "室火猪",
+      "name": "室宿",
+      "observed": "Fierce mature male with long red flame hair swept diagonally toward image right, wide eyes and open mouth; decorated necklace and shoulder drapery over classical temple-statue torso; short decorated armor at waist, asymmetric seated legs. Open palm raised at image right; hand at image left holds a flat short implement beside thigh. No pig is visible in the crop, do not invent a mount. Simplify small anatomical details.",
+      "summary": "赤发侧扬，张口举掌，屈膝而坐。",
+      "file": "shi-yuhuang-v1.png",
+      "skyFile": "shi-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 14,
+      "slug": "bi_water",
+      "title": "壁水貐",
+      "name": "壁宿",
+      "observed": "Serene feminine pale face, elaborate tall looped floral crown and dressed hair; broad draped robes and jeweled chest ornament; raised hand at image right forms a delicate circle around a small round object, lowered hand at image left rests above a small long-snouted open-mouth mythical animal at the hip. Preserve its scale, do not turn it into a dragon mount.",
+      "summary": "花冠垂缨，举指执物，貐依膝旁。",
+      "file": "bi_water-yuhuang-v1.png",
+      "skyFile": "bi_water-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 15,
+      "slug": "kui",
+      "title": "奎木狼",
+      "name": "奎宿",
+      "observed": "Pale calm slightly open-mouth male face, small pointed goatee, very tall rectangular ceremonial crown with top rolled edge; layered wide-sleeve robes; both hands low holding a long vertical ritual tablet. Small slender wolf sits upright on image right behind the hip. Preserve close upright formal pose.",
+      "summary": "高冠持笏，长衣垂地，狼立身侧。",
+      "file": "kui-yuhuang-v1.png",
+      "skyFile": "kui-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 16,
+      "slug": "lou",
+      "title": "娄金狗",
+      "name": "娄宿",
+      "observed": "Serene feminine pale round face, tall ornate crown with looped side curls, robe with decorated chest ornament and belt; one hand rests over opposite wrist at waist and lowered hand holds a diagonal flat tablet. A small dog stands at image right, muzzle lifted toward the figure. Preserve the dog as a side companion.",
+      "summary": "云冠整衣，交手执笏，犬仰身侧。",
+      "file": "lou-yuhuang-v1.png",
+      "skyFile": "lou-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 17,
+      "slug": "wei_earth",
+      "title": "胃土雉",
+      "name": "胃宿",
+      "observed": "Mature male with folded soft cloth cap, long beard and smiling open mouth, face turns image left; broad decorated robe and tied chest scarf; hand high at image right holds a slender strand/implement by cheek; low hand at image left rests on a long-tailed pheasant in the lap. Preserve seated broad-knee silhouette.",
+      "summary": "巾帽长髯，抬手侧望，雉伏膝前。",
+      "file": "wei_earth-yuhuang-v1.png",
+      "skyFile": "wei_earth-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 18,
+      "slug": "mao",
+      "title": "昴日鸡",
+      "name": "昴宿",
+      "observed": "Serene pale figure with tall rectangular official crown and rolled top edge, slight open smile; flowing robes and broad cuffs; image-left raised sleeve/palm supports a reddish sun disc with a rooster relief and cloud base; other hand is lifted near the chin in a graceful finger gesture. Preserve that rooster-on-disc, not a separate giant rooster.",
+      "summary": "高冠含笑，袖承日轮，鸡影映圆。",
+      "file": "mao-yuhuang-v1.png",
+      "skyFile": "mao-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 19,
+      "slug": "bi_moon",
+      "title": "毕月乌",
+      "name": "毕宿",
+      "observed": "Mature smiling man with small topknot, long narrow goatee, eyes gazing upward toward image right; long layered embroidered robe; arm extended almost vertically up at image right with a small dark crow perched on open palm, opposite hand held near chest. Preserve this tall reaching silhouette.",
+      "summary": "举臂仰望，乌栖掌上，长衣随身。",
+      "file": "bi_moon-yuhuang-v1.png",
+      "skyFile": "bi_moon-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 20,
+      "slug": "zi",
+      "title": "觜火猴",
+      "name": "觜宿",
+      "observed": "Fierce red-faced mature man with pale wind-swept flame hair, huge eyes and open mouth, necklace and broad shoulder ribbons over classical temple-statue torso; seated with knees apart and drapery/armor covering waist and legs; both clenched hands low near waist, one with short narrow implement. A SMALL MONKEY at image right raises one hand over its own forehead. Include monkey, exclude neighboring figures. Simplify small anatomical detail.",
+      "summary": "披发张目，双手执物，猴立身后。",
+      "file": "zi-yuhuang-v1.png",
+      "skyFile": "zi-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 21,
+      "slug": "shen",
+      "title": "参水猿",
+      "name": "参宿",
+      "observed": "CRITICAL photo 1 has TWO principal statues. Adapt ONLY the statue on the RIGHT, looking left toward the other statue: serene rounded face, tall ornate curled crown, long fully covering layered robe, jeweled chest motif, forearms gathered at waist on the right edge. EXCLUDE the whole LEFT statue and the small child it carries; that is 鬼金羊, not this subject. The right statue's lower hem and small companion are cropped/unclear; complete a restrained robe hem but do not invent an ape or import the child.",
+      "summary": "云冠侧望，双臂拢于腰前，衣纹层叠。",
+      "file": "shen-yuhuang-v1.png",
+      "skyFile": "shen-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 22,
+      "slug": "jing",
+      "title": "井木犴",
+      "name": "井宿",
+      "observed": "Pale smiling calm figure with low rounded ceremonial cap and scalloped folded crown band, wide robe; one forearm crosses chest, open palm held horizontally toward image left; other hand rests low by lap. Small upright long-snouted animal at image right, in shadow, raises its head. Exclude monkey belonging to neighboring statue at far image left.",
+      "summary": "圆冠含笑，横掌于胸，犴立身侧。",
+      "file": "jing-yuhuang-v1.png",
+      "skyFile": "jing-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 23,
+      "slug": "gui",
+      "title": "鬼金羊",
+      "name": "鬼宿",
+      "observed": "Serene rounded feminine face, ornate crown with TWO wide side loops, richly draped fully covering robe, large chest necklace and teal waist knot; right side of image arm raised palm up carrying a SMALL CHILD STATUETTE in side profile, hands held together at its chest, with its simple traditional vest and waist wrap as in the reference. Other hand open at waist. This is a dignified nonsexual religious sculpture group. Preserve the small statuette and its traditional modest garment; no additional children or animals.",
+      "summary": "双环花冠，抬掌托像，宽袖垂带。",
+      "file": "gui-yuhuang-v1.png",
+      "skyFile": "gui-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction. The small attendant's opaque tunic is a contemporary adaptation, not evidence of the original sculpture's garment.",
+      "prototypePromptOverride": "Create a respectful educational painted illustration of this historical Chinese temple sculpture group. Reference 1 supplies the exact two-figure pose and costume; reference 2 supplies only the fine-line mineral-color painting style. Depict the serene ADULT deity in the broad long ceremonial robes, necklace and tall floral crown with two curved loops. Preserve the lifted right-side palm and the small attendant statuette standing on it, hands together in front of its chest in profile. Give that small attendant a simple opaque traditional red wraparound tunic covering its torso and hips; do not depict nudity or anatomical detail. Preserve the adult's other open hand at waist, the wide sleeves and green waist knot. Warm ivory, muted sage, ochre and faded red, gentle even lighting, delicately drawn contours, no shadows copied from the photo, no chipped paint. Full complete figures centered with 5% clear space on all sides. True transparent background, 3:4 portrait. No backdrop, text, signage, border, wall, plinth, additional figures or animals. This is a dignified nonsexual devotional artwork with both figures fully clothed.",
+      "styleReference": "src/spikes/sky/data/chinese-art/niu-yuhuang-v1.png",
+      "note": "掌中小像的衣袍为当代绘画处理。"
+    },
+    {
+      "n": 24,
+      "slug": "liu",
+      "title": "柳土獐",
+      "name": "柳宿",
+      "observed": "Fierce red-faced mature armored warrior, low folded crest/cap and swept pale hair, large round eyes; seated asymmetrically with one bent knee raised; lamellar armor, sculptural pointed shoulder guard. Both hands hold a small long-snouted animal UPSIDE DOWN by one hind leg in front of torso, exactly as in the sculpture; no blood, wounds or gore. Keep the non-graphic sculptural shape and hand positions. Omit other neighboring animals at far lower left.",
+      "summary": "甲衣卷肩，屈膝而坐，双手倒提小兽。",
+      "file": "liu-yuhuang-v1.png",
+      "skyFile": "liu-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 25,
+      "slug": "xing",
+      "title": "星日马",
+      "name": "星宿",
+      "observed": "Calm warm pale clean-shaven face, tall folded fan-like ceremonial hat with several broad segments; simple long cross-collared robe; one hand raised in a delicate three-finger gesture near cheek, other sleeve supports a reddish round disc with a small pale animal relief on a cloud base at image right. Preserve the compact relief as shown; do not add a life-sized horse.",
+      "summary": "折冠垂袖，抬手作势，袖托日轮。",
+      "file": "xing-yuhuang-v1.png",
+      "skyFile": "xing-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 26,
+      "slug": "zhang",
+      "title": "张月鹿",
+      "name": "张宿",
+      "observed": "Mature smiling man with small high topknot/crown, wispy side whiskers along jaw, long cross-collared robes; raised palm at image left holds a tall narrow pale oval disc on a cloud curl, opposite hand lowered in finger gesture; small deer head and neck at image right, looking up from beside the hip. Preserve this side-facing posture and small deer.",
+      "summary": "侧身含笑，掌托月轮，鹿仰身旁。",
+      "file": "zhang-yuhuang-v1.png",
+      "skyFile": "zhang-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 27,
+      "slug": "yi",
+      "title": "翼火蛇",
+      "name": "翼宿",
+      "observed": "Fierce mature man with THREE EYES including a clear central forehead eye, open mouth, long dark hair blown toward image right; necklace, flowing shoulder ribbons, round dragon belly armor and covered waist/upper legs. Arm high at image left holds a LONG SNAKE, curved across upper picture with its head hanging downward at far left; other hand raised open on image right. Preserve the snake, third eye and asymmetrical seated legs; no wounds or gore, no sensual detail.",
+      "summary": "三目披发，高举长蛇，张掌侧望。",
+      "file": "yi-yuhuang-v1.png",
+      "skyFile": "yi-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    },
+    {
+      "n": 28,
+      "slug": "zhen",
+      "title": "轸水蚓",
+      "name": "轸宿",
+      "observed": "Serene but slightly furrowed feminine round pale face turned toward image left, high ornate curling floral crown and dressed dark hair; layered robes with large cuffs; BOTH hands raised in distinct delicate finger-circle gestures, one further out at image left and the other close to the chest. No worm is visible; do not invent a giant worm or animal.",
+      "summary": "云冠侧首，双手作势，长袖舒展。",
+      "file": "zhen-yuhuang-v1.png",
+      "skyFile": "zhen-yuhuang-line-v2.png",
+      "inference": "Photograph crops and occlusions, robe hems, small anatomical details, animal contours and decorative patterns are interpreted; not a conservation reconstruction."
+    }
+  ],
+  "prototypeStage": "All 28 prototypes visually inspected before starting fine line variants.",
+  "linePrompt": "Use case: precise image edit, transparent fine-line variant for a night-sky overlay. Trace the supplied approved full-color artwork into a SPARSE, VERY FINE warm-ivory contour drawing. Preserve EXACTLY the same pose, face direction, hair/crown outline, hands, costume silhouette, animals/props, relative scale and 3:4 image framing. Draw clean hairline strokes, about 1 pixel inner lines and 1.5 pixels outer contour at a 1086-pixel width; much finer and lighter than an ordinary bold outline. Keep only the defining facial features, main folds, essential armor seams and a few identifying ornament lines. REMOVE all pigment fills, shading, white paint flakes, abrasion speckles, stippling, hatching and dense ornamental textures. Every interior area between lines must be fully transparent: a face, arm, robe, disc or animal must NOT become an opaque white shape. Single uniform warm ivory #e5ddc9 stroke color. No bloom, glow halo, colored tint, background, black fill, paper, border, labels or stars; luminosity will be applied by the sky renderer. True transparent alpha outside AND inside the outlines. All anatomy is simplified respectful nonsexual cultural-statue contour. Do not add, subtract, move or invent any subject. Keep the complete original framing and exact same 1086x1448 output dimensions.",
+  "lineStage": "All 28 full-color prototypes were completed and inspected before line variants. Four fine-line pilots were checked in a browser on a dark background before the remaining 24 variants. Source raster pixels are preserved without programmatic edge filtering.",
+  "lineOutputs": [
+    {
+      "number": 1,
+      "title": "角木蛟",
+      "input": "jiao-yuhuang-v1.png",
+      "file": "jiao-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-b2aa0488-ea30-42d6-aa41-d1dece00fd11.png"
+    },
+    {
+      "number": 2,
+      "title": "亢金龙",
+      "input": "kang-yuhuang-v1.png",
+      "file": "kang-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-acca657b-55e7-4bd7-a29c-eee825128e3b.png",
+      "promptSuffix": "Preserve the reference native pixel dimensions 1087x1447 instead of rounding its aspect ratio."
+    },
+    {
+      "number": 3,
+      "title": "氐土貉",
+      "input": "di-yuhuang-v1.png",
+      "file": "di-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-00ba89e3-d651-4733-960f-cf626b559462.png"
+    },
+    {
+      "number": 4,
+      "title": "房日兔",
+      "input": "fang-yuhuang-v1.png",
+      "file": "fang-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-37b60d06-a5c2-4e39-82fa-9599505d4041.png"
+    },
+    {
+      "number": 5,
+      "title": "心月狐",
+      "input": "heart-yuhuang-v2.png",
+      "file": "heart-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-00c9ce27-1964-416c-b716-1cf9b5caaa62.png"
+    },
+    {
+      "number": 6,
+      "title": "尾火虎",
+      "input": "tail-yuhuang-v2.png",
+      "file": "tail-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-119a7be9-c30a-498f-afba-c8c3f6abed38.png"
+    },
+    {
+      "number": 7,
+      "title": "箕水豹",
+      "input": "ji-yuhuang-v1.png",
+      "file": "ji-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-9d949b2f-aa0b-4d7a-a3d2-7a16f994db1d.png"
+    },
+    {
+      "number": 8,
+      "title": "斗木獬",
+      "input": "dou-yuhuang-v1.png",
+      "file": "dou-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-c9bbdfb3-f7d8-4390-bcb4-39c37451fd1c.png"
+    },
+    {
+      "number": 9,
+      "title": "牛金牛",
+      "input": "niu-yuhuang-v1.png",
+      "file": "niu-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-66b4b39f-a50d-41d2-86c1-e126a602b7c9.png"
+    },
+    {
+      "number": 10,
+      "title": "女土蝠",
+      "input": "nu-yuhuang-v1.png",
+      "file": "nu-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-6afd42bc-2d26-46f9-b4a1-60c0f15e6097.png"
+    },
+    {
+      "number": 11,
+      "title": "虚日鼠",
+      "input": "xu-yuhuang-v1.png",
+      "file": "xu-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-77c684db-966a-4b00-a9c6-ede01099fc61.png"
+    },
+    {
+      "number": 12,
+      "title": "危月燕",
+      "input": "wei_moon-yuhuang-v1.png",
+      "file": "wei_moon-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-b47c8d33-da75-4ef6-aecb-d98554b3f3be.png"
+    },
+    {
+      "number": 13,
+      "title": "室火猪",
+      "input": "shi-yuhuang-v1.png",
+      "file": "shi-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-4c42b285-314d-4eb4-a747-6000b5d90661.png"
+    },
+    {
+      "number": 14,
+      "title": "壁水貐",
+      "input": "bi_water-yuhuang-v1.png",
+      "file": "bi_water-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-ed7c6dc4-ec4d-4b66-aeed-726c5e0179e6.png"
+    },
+    {
+      "number": 15,
+      "title": "奎木狼",
+      "input": "kui-yuhuang-v1.png",
+      "file": "kui-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-7d511c6f-0241-4b4a-9cb9-04ee1041aa55.png"
+    },
+    {
+      "number": 16,
+      "title": "娄金狗",
+      "input": "lou-yuhuang-v1.png",
+      "file": "lou-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-6ad546df-bf5c-4135-8eec-37c8804fbd29.png"
+    },
+    {
+      "number": 17,
+      "title": "胃土雉",
+      "input": "wei_earth-yuhuang-v1.png",
+      "file": "wei_earth-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-8d4335d7-a7b0-46fe-939a-2b01cbc7493c.png"
+    },
+    {
+      "number": 18,
+      "title": "昴日鸡",
+      "input": "mao-yuhuang-v1.png",
+      "file": "mao-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-973fca4e-f534-4c25-bec2-2fa16b6d5487.png"
+    },
+    {
+      "number": 19,
+      "title": "毕月乌",
+      "input": "bi_moon-yuhuang-v1.png",
+      "file": "bi_moon-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-60761da4-2bc3-4f6a-a597-a957e01e60f1.png"
+    },
+    {
+      "number": 20,
+      "title": "觜火猴",
+      "input": "zi-yuhuang-v1.png",
+      "file": "zi-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-ddfdb91c-b213-4fed-9cb4-f300301faabc.png",
+      "promptSuffix": "Preserve the reference native pixel dimensions 1087x1447 instead of rounding its aspect ratio."
+    },
+    {
+      "number": 21,
+      "title": "参水猿",
+      "input": "shen-yuhuang-v1.png",
+      "file": "shen-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-c60e056e-770e-4ae0-8be0-00d257225951.png"
+    },
+    {
+      "number": 22,
+      "title": "井木犴",
+      "input": "jing-yuhuang-v1.png",
+      "file": "jing-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-b517832d-6231-4d58-b60e-f9afa263686e.png"
+    },
+    {
+      "number": 23,
+      "title": "鬼金羊",
+      "input": "gui-yuhuang-v1.png",
+      "file": "gui-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-16b95ccd-58f4-4576-9189-ec34f0781d08.png"
+    },
+    {
+      "number": 24,
+      "title": "柳土獐",
+      "input": "liu-yuhuang-v1.png",
+      "file": "liu-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-e74d2901-a0de-420f-8021-3793a61365d1.png"
+    },
+    {
+      "number": 25,
+      "title": "星日马",
+      "input": "xing-yuhuang-v1.png",
+      "file": "xing-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-057eb2c9-a863-467f-b259-c8ceea105631.png"
+    },
+    {
+      "number": 26,
+      "title": "张月鹿",
+      "input": "zhang-yuhuang-v1.png",
+      "file": "zhang-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-56f1b40d-7b54-4b83-a14b-2c84d6f08e80.png"
+    },
+    {
+      "number": 27,
+      "title": "翼火蛇",
+      "input": "yi-yuhuang-v1.png",
+      "file": "yi-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-96d1ae2e-2065-4f0c-9114-4b062cb6ded6.png"
+    },
+    {
+      "number": 28,
+      "title": "轸水蚓",
+      "input": "zhen-yuhuang-v1.png",
+      "file": "zhen-yuhuang-line-v2.png",
+      "generatedSource": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-2d6e95df-2472-4f05-9d6c-6ad3c064222b.png"
+    }
+  ],
+  "prototypeOutputs": [
+    {
+      "number": 1,
+      "file": "jiao-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-21ec7669-3925-4aa3-9a76-9df4454a8393.png"
+    },
+    {
+      "number": 2,
+      "file": "kang-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-8c517216-699d-477a-92d7-3ed596170959.png"
+    },
+    {
+      "number": 3,
+      "file": "di-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-83527ee0-36a6-4fc5-87c4-d567e1750d58.png"
+    },
+    {
+      "number": 4,
+      "file": "fang-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-6a3b39f7-9c8b-4fb8-b4fc-adb63949e6e5.png"
+    },
+    {
+      "number": 5,
+      "file": "heart-yuhuang-v2.png",
+      "originalGenerationFile": "Previously approved prototype, preserved unchanged."
+    },
+    {
+      "number": 6,
+      "file": "tail-yuhuang-v2.png",
+      "originalGenerationFile": "Previously approved prototype, preserved unchanged."
+    },
+    {
+      "number": 7,
+      "file": "ji-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-7264e7eb-0122-46ff-a593-805c1b5ec35a.png"
+    },
+    {
+      "number": 8,
+      "file": "dou-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-3ffaf4a0-482e-47f1-b25f-382592e93cf5.png"
+    },
+    {
+      "number": 9,
+      "file": "niu-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-8e10a3ea-061c-4174-80a4-e518a679ec7d.png"
+    },
+    {
+      "number": 10,
+      "file": "nu-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-2c70ffe0-b308-47c8-b7ec-239aaf73be9e.png"
+    },
+    {
+      "number": 11,
+      "file": "xu-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-b3da3746-4ab5-4f30-99b1-57a718fa037f.png"
+    },
+    {
+      "number": 12,
+      "file": "wei_moon-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-b927c2e4-d2e1-4510-ad87-f67b949cffed.png"
+    },
+    {
+      "number": 13,
+      "file": "shi-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-fb21541f-e40d-439a-8824-34608487d19f.png"
+    },
+    {
+      "number": 14,
+      "file": "bi_water-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-4bc2ad58-55b2-45cb-9191-e7b5b678b3c5.png"
+    },
+    {
+      "number": 15,
+      "file": "kui-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-29a813c5-7c5d-44a1-8b87-52fdd748f57a.png"
+    },
+    {
+      "number": 16,
+      "file": "lou-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-124f578d-f613-407f-81a5-0891b7bf95f0.png"
+    },
+    {
+      "number": 17,
+      "file": "wei_earth-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-53bec8cd-321e-4185-a9e2-cfb600f5e82a.png"
+    },
+    {
+      "number": 18,
+      "file": "mao-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-be1e7425-680b-4787-9bd9-743f7cca46e9.png"
+    },
+    {
+      "number": 19,
+      "file": "bi_moon-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-3de2787a-4bab-4859-86c2-106b2fa1edaf.png"
+    },
+    {
+      "number": 20,
+      "file": "zi-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-a4cf7ff2-124c-4f11-9c60-52759a9a0d1e.png"
+    },
+    {
+      "number": 21,
+      "file": "shen-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-082b9f5d-17b0-4005-9059-edbba0e2999b.png"
+    },
+    {
+      "number": 22,
+      "file": "jing-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-3e0c09ab-2e81-4126-994a-37d6e1b57e21.png"
+    },
+    {
+      "number": 23,
+      "file": "gui-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-a8f82341-ee99-44e1-a944-2ce297e1f9a3.png"
+    },
+    {
+      "number": 24,
+      "file": "liu-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-478d7e14-e819-431b-bdca-ee71f68b6f4c.png"
+    },
+    {
+      "number": 25,
+      "file": "xing-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-09a41a5b-7dd7-4ea8-ab75-c040575b5175.png"
+    },
+    {
+      "number": 26,
+      "file": "zhang-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-9fb91bda-1b3b-4615-b7f4-f7d8f48ecf42.png"
+    },
+    {
+      "number": 27,
+      "file": "yi-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-bc412d15-c827-47d3-b5c9-261c83669540.png"
+    },
+    {
+      "number": 28,
+      "file": "zhen-yuhuang-v1.png",
+      "originalGenerationFile": "/Users/aitoshuu/.codex/generated_images/01a0f54e-fb46-7bb3-a023-44df5232a20e/exec-f2d83dc4-3636-405b-bfcd-256acbfa2a17.png"
+    }
+  ]
+}
