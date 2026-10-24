@@ -48,10 +48,12 @@ function ext(path) { return path.slice(path.lastIndexOf('.')).toLowerCase(); }
 function parseArgs(argv) {
   const options = {};
   for (let i = 0; i < argv.length; i += 2) {
-    if (!['--output', '--source-ref'].includes(argv[i]) || !argv[i + 1]) fail('usage: package-release.mjs --output <directory> [--source-ref <HEAD-commit>]');
+    if (!['--output', '--source-ref', '--assets-host'].includes(argv[i]) || !argv[i + 1]) fail('usage: package-release.mjs --output <directory> [--source-ref <HEAD-commit>] [--assets-host assets.aitoshuu.me|media.aitoshuu.me]');
     options[argv[i].slice(2)] = argv[i + 1];
   }
   if (!options.output) fail('--output is required');
+  options.assetsHost = options['assets-host'] || 'assets.aitoshuu.me';
+  if (!['assets.aitoshuu.me', 'media.aitoshuu.me'].includes(options.assetsHost)) fail('--assets-host is outside the approved CDN hosts');
   return options;
 }
 
@@ -64,6 +66,8 @@ async function main() {
   const files = (await Promise.all(sourceInputs.map(name => walk(join(root, name))))).flat()
     .filter(file => !isPrototype(relative(join(root, 'public'), file).split(sep).join('/'))).sort();
   const sourceHash = createHash('sha256');
+  // Delivery choices must not reuse an immutable release ID with different URLs.
+  sourceHash.update(`assets-host\0${options.assetsHost}\0`);
   for (const file of files) {
     sourceHash.update(relative(root, file)); sourceHash.update('\0');
     sourceHash.update(await readFile(file)); sourceHash.update('\0');
@@ -72,7 +76,7 @@ async function main() {
   if (options['source-ref'] && git('status', '--porcelain', '--', ...sourceInputs, ...sourceExclusions)) fail('--source-ref requires clean release inputs');
   const releaseId = `lubirth-${sourceDigest.slice(0, 16)}`;
   const objectPrefix = `${prefix}${releaseId}/`;
-  const assetsBase = `https://assets.aitoshuu.me/${objectPrefix}`;
+  const assetsBase = `https://${options.assetsHost}/${objectPrefix}`;
   const mediaBase = `https://media.aitoshuu.me/${objectPrefix}`;
   await mkdir(output);
   const buildDir = join(output, '.build');

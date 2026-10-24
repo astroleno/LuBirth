@@ -53,11 +53,17 @@ async function main() {
   if (!process.argv[2]) throw new Error('usage: verify-cdn-release.mjs <package directory> [--system-http]');
   const manifest = JSON.parse(await readFile(join(root, 'manifests/release-manifest.json'), 'utf8'));
   if (manifest.site !== 'LuBirth' || !/^lubirth-[0-9a-f]{16}$/.test(manifest.releaseId)) throw new Error('invalid release manifest');
+  const prefix = `releases/aitoshuu-me/${manifest.releaseId}/`;
+  const assetsBases = ['assets.aitoshuu.me', 'media.aitoshuu.me'].map(host => `https://${host}/${prefix}`);
+  if (manifest.objectPrefix !== prefix || !assetsBases.includes(manifest.assetsBase)
+      || manifest.mediaBase !== `https://media.aitoshuu.me/${prefix}`) throw new Error('CDN base outside approved release scope');
   const entries = manifest.entries.filter(entry => ['assets', 'media'].includes(entry.channel));
+  if (!entries.length || entries.some(entry => !entry.objectKey?.startsWith(prefix)
+      || entry.objectKey.includes('..') || entry.objectKey.includes('\\') || /[?#]/.test(entry.objectKey))) throw new Error('CDN object outside approved release scope');
   const problems = [];
   let timingAllowed = 0;
   for (const entry of entries) {
-    const host = entry.channel === 'media' ? 'media.aitoshuu.me' : 'assets.aitoshuu.me';
+    const host = new URL(entry.channel === 'media' ? manifest.mediaBase : manifest.assetsBase).hostname;
     const url = new URL(`https://${host}/${entry.objectKey}`);
     try {
       const response = await requestCDN(url, { headers: { Origin: 'https://aitoshuu.me' }, signal: AbortSignal.timeout(30000) });

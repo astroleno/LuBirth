@@ -55,7 +55,10 @@ def load_plan(root: Path) -> tuple[str, list[dict]]:
         raise RuntimeError("invalid LuBirth release manifest")
     object_prefix = f"{PREFIX}{release_id}/"
     if (manifest.get("objectPrefix") != object_prefix
-            or manifest.get("assetsBase") != f"https://assets.aitoshuu.me/{object_prefix}"
+            or manifest.get("assetsBase") not in {
+                f"https://assets.aitoshuu.me/{object_prefix}",
+                f"https://media.aitoshuu.me/{object_prefix}",
+            }
             or manifest.get("mediaBase") != f"https://media.aitoshuu.me/{object_prefix}"):
         raise RuntimeError("manifest CDN origin is outside the approved scope")
     plan = []
