@@ -17,7 +17,10 @@ export default function MoonPresentation({ celestial, observer, frame, placement
   const lighting = useMemo(() => ({ key: observer.key, portraitLight: observer.portraitLight,
     phaseFraction: observer.phaseFraction, phaseAngleDeg: observer.phaseAngleDeg, cycleAngleDeg: celestial.cycleAngleDeg }), [observer, celestial]);
   const position = geometry.position.map((value, axis) => value + (placement === 'physical' ? earthPosition[axis] : 0)) as [number, number, number];
+  // Use the sky portrait's parallel projection: a nearby enlarged sphere otherwise
+  // changes the visible illuminated fraction, especially for crescents.
   return <Moon {...props} position={position} radius={geometry.radius}
     enableScreenAnchor={geometry.screenAnchor} useCameraLockedPhase={geometry.screenAnchor}
+    screenSpacePortrait={geometry.screenAnchor}
     celestialLighting={lighting} sunDirWorldForShading={sunDirection} />;
 }

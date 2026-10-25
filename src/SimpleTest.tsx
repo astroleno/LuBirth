@@ -452,6 +452,7 @@ function SceneContent({
         axis: rotation ? new THREE.Vector3(0,1,0).applyQuaternion(rotation).toArray() : null,
         shaderSunDirection: earthMaterial?.uniforms.lightDir?.value.toArray(),
         moonSunDirectionView: moonMaterial?.uniforms.sunDirView?.value.toArray(),
+        portraitProjection: moonMaterial?.uniforms.portraitProjection?.value,
         directionalLights: scene.getObjectsByProperty('isDirectionalLight', true).length,
         moonPosition: moon?.getWorldPosition(new THREE.Vector3()).toArray(), moonRadius: moon?.geometry.boundingSphere?.radius,
         moonScale: moon?.scale.toArray(), moonFrameKey: moon?.userData.frameKey,
