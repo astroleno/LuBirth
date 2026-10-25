@@ -1,9 +1,11 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import SimpleTest from './SimpleTest';
 import './glass.css';
 
-createRoot(document.getElementById('root')!).render(<App />);
+const params = new URLSearchParams(window.location.search);
+createRoot(document.getElementById('root')!).render(params.get('dev') === '1' ? <SimpleTest /> : <App />);
 
 // Font files are visual polish rather than a prerequisite for the first scene.
 // Load them once the base Earth/Moon frame is ready so they do not compete with
@@ -44,7 +46,6 @@ for (const name of [
     return (window as any)[name](...args);
   };
 }
-const params = new URLSearchParams(window.location.search);
 if (params.get('autotest') === '1' || params.get('fulltest') === '1') {
   void loadDiagnostics().then(async () => {
     if (params.get('autotest') === '1') await (window as any).runSolarAutoTests();

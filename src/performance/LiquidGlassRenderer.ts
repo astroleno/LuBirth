@@ -392,7 +392,7 @@ export class LiquidGlassRenderer {
   private markDirty = () => { this.dirty = true; };
 
   constructor(private canvas: HTMLCanvasElement) {
-    this.root = (canvas.closest('.canvas-wrap') ?? canvas.parentElement) as HTMLElement;
+    this.root = (canvas.closest('[data-experience-root]') ?? canvas.closest('.canvas-wrap') ?? canvas.parentElement) as HTMLElement;
     this.controls = new GlassControlInteractions(this.root);
     this.fallbackTexture.needsUpdate = true;
     this.uiMesh.frustumCulled = false;
@@ -447,8 +447,8 @@ export class LiquidGlassRenderer {
       if (!this.observed.has(element)) this.observer.observe(element);
     }
     for (const { element, box, controls } of regions) {
-      const content = this.root.classList.contains('mobile-layout')
-        ? element.querySelector<HTMLElement>('#client-panel-content') : null;
+      const content = element.querySelector<HTMLElement>('.experience-panel-content') ?? (this.root.classList.contains('mobile-layout')
+        ? element.querySelector<HTMLElement>('#client-panel-content') : null);
       const clip = content?.getBoundingClientRect() ?? box;
       const clipLeft = Math.max(box.left, clip.left);
       const clipRight = Math.min(box.right, clip.right);

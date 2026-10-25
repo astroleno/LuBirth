@@ -7,9 +7,10 @@ import './keepsake.css';
 
 type ImageResult = { url: string; blob: Blob; templateId: TemplateId };
 const aborted = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';
-export default function KeepsakeEditor({ draft, onBack, onClose }: {
-  draft: KeepsakeDraft; onBack: () => void; onClose: () => void;
+export default function KeepsakeEditor({ draft, onBack, onClose, unified = false }: {
+  draft: KeepsakeDraft; onBack: () => void; onClose: () => void; unified?: boolean;
 }) {
+  const [format, setFormat] = React.useState<'original' | 'card'>(unified ? 'original' : 'card');
   const [options, setOptions] = React.useState(() => initialCardOptions(draft));
   const [image, setImage] = React.useState<ImageResult | null>(null);
   const [error, setError] = React.useState(''), [working, setWorking] = React.useState(false);
@@ -29,6 +30,10 @@ export default function KeepsakeEditor({ draft, onBack, onClose }: {
     const controller = new AbortController();
     let url: string | null = null;
     setImage(null); setError('');
+    if (format === 'original') {
+      batch.current?.abort(); batch.current = null; setBatchProgress(0); setWorking(false);
+      return () => controller.abort();
+    }
     if (!prepared) { setWorking(false); return () => controller.abort(); }
     setWorking(true);
     // Coalesce slider/typing changes; one settled preview owns one temporary URL.
@@ -40,7 +45,7 @@ export default function KeepsakeEditor({ draft, onBack, onClose }: {
         .finally(() => { if (!controller.signal.aborted) setWorking(false); });
     }, 120);
     return () => { clearTimeout(timer); controller.abort(); if (url) URL.revokeObjectURL(url); };
-  }, [draft, options, prepared]);
+  }, [draft, options, prepared, format]);
   React.useEffect(() => {
     if (zipUrl.current) URL.revokeObjectURL(zipUrl.current);
     zipUrl.current = null;
@@ -64,16 +69,20 @@ export default function KeepsakeEditor({ draft, onBack, onClose }: {
     } catch (reason) { if (!controller.signal.aborted && !aborted(reason)) setError((reason as Error).message); }
     finally { if (batch.current === controller) { batch.current = null; setBatchProgress(0); } }
   };
-  return <div className="keepsake-editor">
-    <header className="keepsake-heading"><button ref={focus} className="btn" onClick={onBack}>← 返回截图</button>
-      <div><p>LuBirth · 留住这一刻</p><h2>制作纪念卡</h2></div><button className="btn" onClick={onClose}>关闭</button></header>
+  return <div className={'keepsake-editor' + (unified ? ' is-unified' : '')}>
+    <header className="keepsake-heading">{unified ? <nav className="keepsake-format" aria-label="留念格式">
+      <button ref={focus} aria-pressed={format === 'original'} onClick={() => setFormat('original')}>原图</button>
+      <button aria-pressed={format === 'card'} onClick={() => setFormat('card')}>纪念卡</button>
+    </nav> : <button ref={focus} className="btn" onClick={onBack}>← 返回截图</button>}
+      <div>{!unified && <p>LuBirth · 留住这一刻</p>}<h2>{unified ? '留住这一刻' : '制作纪念卡'}</h2></div><button className="btn" onClick={onClose}>关闭</button></header>
     <div className="keepsake-workspace">
       <section className="keepsake-preview" aria-label="纪念卡预览" aria-busy={working}>
-        {image ? <img src={image.url} alt={KEEPSAKE_TEMPLATES.find(template => template.id === options.templateId)!.text + ' · 地月纪念卡'} />
+        {format === 'original' ? <img src={draft.sceneImage} alt="已冻结的地月截图" />
+          : image ? <img src={image.url} alt={KEEPSAKE_TEMPLATES.find(template => template.id === options.templateId)!.text + ' · 地月纪念卡'} />
           : <><img src={draft.sceneImage} alt="已冻结的地月截图" /><p role="status">{working ? '正在合成纪念卡…' : '手写模板准备中，原始截图仍可保存。'}</p></>}
       </section>
       <div className="keepsake-side"><section className="keepsake-controls" aria-label="纪念卡设置">
-        <fieldset disabled={batchProgress > 0}><legend>选择寄语</legend>
+        {format === 'card' ? <><fieldset disabled={batchProgress > 0}><legend>选择寄语</legend>
           <div className="keepsake-templates">{KEEPSAKE_TEMPLATES.map(template => <label key={template.id}>
             <input type="radio" name="keepsake-template" value={template.id} checked={options.templateId === template.id}
               onChange={() => update('templateId', template.id)} /><span>{template.text}<small>{template.description}</small></span>
@@ -89,16 +98,18 @@ export default function KeepsakeEditor({ draft, onBack, onClose }: {
         </fieldset>
         <p className="keepsake-note">取景已经保留。切换场景不会改写这张卡片，图片在你的浏览器内合成。</p>
         {draft.observation.source.kind === 'history' && <p className="keepsake-note">历史卡会保留日期与演示时刻说明。</p>}
-        {error && <p className="keepsake-error" role="alert">{error}</p>}
+        {error && <p className="keepsake-error" role="alert">{error}</p>}</>
+          : <p className="keepsake-note">当前地月画面已经保留。直接保存原图，或选择「纪念卡」添加手写寄语。</p>}
       </section>
         <div className="keepsake-downloads">
-          {image && !working && !batchProgress ? <a className="btn btn-primary" href={image.url}
+          {format === 'original' ? <a className="btn btn-primary" href={draft.sceneImage} download="LuBirth.png">保存原图</a>
+            : image && !working && !batchProgress ? <a className="btn btn-primary" href={image.url}
             download={`LuBirth-${KEEPSAKE_TEMPLATES.find(template => template.id === image.templateId)!.text}-${draft.observation.civilDate}.png`}>保存 PNG</a>
             : <button className="btn btn-primary" disabled>{working ? '正在合成…' : '保存 PNG'}</button>}
-          {zip ? <a className="btn" href={zip} download={`LuBirth-三套纪念卡-${draft.observation.civilDate}.zip`}>保存三套 ZIP</a>
-            : <button className="btn" disabled={!allPrepared || working || !!batchProgress} onClick={saveAll}>导出三套</button>}
+          {format === 'card' && (zip ? <a className="btn" href={zip} download={`LuBirth-三套纪念卡-${draft.observation.civilDate}.zip`}>保存三套 ZIP</a>
+            : <button className="btn" disabled={!allPrepared || working || !!batchProgress} onClick={saveAll}>导出三套</button>)}
           {batchProgress > 0 && <><p role="status">正在准备第 {batchProgress} / 3 张</p><button className="btn" onClick={() => batch.current?.abort()}>取消</button></>}
-          {image && <p className="keepsake-note"><a href={image.url} target="_blank" rel="noreferrer">查看大图</a> · 手机上可长按预览图片保存</p>}
+          {(image || format === 'original') && <p className="keepsake-note"><a href={format === 'original' ? draft.sceneImage : image!.url} target="_blank" rel="noreferrer">查看大图</a> · 手机上可长按预览图片保存</p>}
         </div>
       </div>
     </div>

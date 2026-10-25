@@ -30,6 +30,8 @@ import type { MoonPlacement } from '../../history/journeyStore';
 import { directionToSkyView, observationKey } from '../../history/viewBridge';
 import type { ViewTransfer } from '../../history/viewBridge';
 import { MoonPlacementControl } from '../../components/MoonPlacementControl';
+import { SceneControlsOutlet } from '../../components/experience/SceneControlsOutlet';
+import type { SceneUIHost } from '../../components/experience/SceneUI';
 import { SolarSystemObjects } from './SolarSystemObjects';
 import './sky.css';
 
@@ -97,11 +99,12 @@ class SkyBoundary extends Component<{ children: React.ReactNode }, { failed: boo
 }
 export type SkyViewState = { settings: Settings; orientation: SkyView; pane: Pane };
 export default function SkySpike({ observation, cultureVersion, onCultureChange, onEditObservation, initialState, onStateChange,
-  celestial, moonPlacement: controlledPlacement, onMoonPlacementChange, entryTransfer,
+  celestial, moonPlacement: controlledPlacement, onMoonPlacementChange, entryTransfer, chrome,
 }: {
   observation?: Observation; cultureVersion?: CultureVersion; onCultureChange?: (version: CultureVersion) => void;
   onEditObservation?: () => void; initialState?: SkyViewState; onStateChange?: (value: SkyViewState) => void;
   celestial?: CelestialState; moonPlacement?: MoonPlacement; onMoonPlacementChange?: (value: MoonPlacement) => void; entryTransfer?: ViewTransfer;
+  chrome?: SceneUIHost;
 } = {}) {
   const mobile = useMobileLayout();
   const [settings, setSettings] = useState<Settings>(() => ({ ...INITIAL, ...initialState?.settings, system: cultureVersion || initialState?.settings.system || INITIAL.system })), [utcDraft, setUtcDraft] = useState(INITIAL.utc);
@@ -110,6 +113,10 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
   const changeMoonPlacement = onMoonPlacementChange || journeyStore.setMoonPlacement;
   const [error, setError] = useState(''), [search, setSearch] = useState('');
   const [pane, setPane] = useState<Pane>(initialState?.pane || null), [pendingFocus, setPendingFocus] = useState<string | null>(!observation && initialPreview && !initialState ? 'chinese-samples' : null);
+  useEffect(() => {
+    if (chrome?.section === 'sky') setPane(current => current && ['catalog','artworks','detail','reference','sources'].includes(current) ? current : 'catalog');
+    else if (chrome?.section === 'appearance') setPane(current => current === 'diagnostics' ? current : 'appearance');
+  }, [chrome?.section]);
   const [orientation, setOrientation] = useState<SkyView>(initialState?.orientation || { ...NORTH_VIEW }), [dpr, setDpr] = useState(1);
   const view = useRef<SkyView>(orientation), overlay = useRef<HTMLDivElement>(null), dock = useRef<HTMLElement>(null);
   const location = observation?.observer || PLACES[settings.place], system = SKY_SYSTEMS[settings.system], chinese = settings.system !== 'modern';
@@ -164,11 +171,14 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       const artCenter=illustrationDirection(item.image,frame,item.image.size[0]/2,item.image.size[1]/2);
       if(artCenter && (!settings.ground || artCenter[1]>=0))p=artCenter;
     }
-    const panelHeight = dock.current?.getBoundingClientRect().height ?? 64;
+    const panelBounds = (chrome?.target?.closest('.experience-panel') ?? dock.current)?.getBoundingClientRect();
+    const sidePanel = !!chrome && !!panelBounds && panelBounds.left > innerWidth * .45;
+    const panelHeight = sidePanel ? 0 : panelBounds?.height ?? 64;
+    const rightSpace = sidePanel && panelBounds ? innerWidth - panelBounds.left : 0;
     const azimuth = Math.atan2(p[0], -p[2]), altitude = Math.asin(p[1]);
     const drawings = id === 'chinese-samples' ? items.filter(item => /0[56]A$/.test(item.id) && item.image) : settings.art && item?.image ? [item] : [];
     let fov = 70;
-    const topSpace = innerWidth < 600 ? 180 : 90, bottomSpace = panelHeight + 24 + (drawings.length && settings.lines ? 40 : 0);
+    const topSpace = chrome ? 74 : innerWidth < 600 ? 180 : 90, bottomSpace = panelHeight + 24 + (drawings.length && settings.lines ? 40 : 0);
     if (drawings.length) {
       const right = [Math.cos(azimuth), 0, Math.sin(azimuth)];
       const up = [-Math.sin(azimuth) * Math.sin(altitude), Math.cos(altitude), Math.cos(azimuth) * Math.sin(altitude)];
@@ -176,14 +186,16 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       const corners = drawings.flatMap(({ image }) => [[0, 0], [0, 1], [1, 0], [1, 1]]
         .map(([x, y]) => illustrationDirection(image!, frame, x * image!.size[0], y * image!.size[1])))
         .filter((point): point is [number, number, number] => !!point && dot(point, p!) > .01);
-      const horizontal = Math.max(...corners.map(point => Math.abs(dot(point, right) / dot(point, p!)))) / (innerWidth / innerHeight);
+      const horizontal = Math.max(...corners.map(point => Math.abs(dot(point, right) / dot(point, p!)))) / (innerWidth / innerHeight)
+        * innerWidth / Math.max(180, innerWidth - rightSpace);
       const vertical = Math.max(...corners.map(point => Math.abs(dot(point, up) / dot(point, p!))))
         * innerHeight / Math.max(180, innerHeight - topSpace - bottomSpace);
       fov = THREE.MathUtils.clamp(2 * Math.atan(Math.max(horizontal, vertical) * 1.12) * 180 / Math.PI,
         chinese && id!=='chinese-samples' ? 25 : 40, 100);
     }
     const offset = Math.atan(Math.tan(THREE.MathUtils.degToRad(fov / 2)) * (bottomSpace - topSpace) / innerHeight) * 180 / Math.PI;
-    showView({ azimuth: (azimuth * 180 / Math.PI + 360) % 360,
+    const horizontalOffset = Math.atan(Math.tan(THREE.MathUtils.degToRad(fov / 2)) * rightSpace / innerHeight) * 180 / Math.PI;
+    showView({ azimuth: (azimuth * 180 / Math.PI + horizontalOffset + 360) % 360,
       altitude: THREE.MathUtils.clamp(altitude * 180 / Math.PI - offset, -85, 85), fov });
   };
   const choose = (id: string, nextPane: Pane = 'detail') => {
@@ -191,8 +203,9 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
     setSettings(previous => ({ ...previous, culture: id,
       group: target && previous.group !== 'all' ? cultureGroup(target) : previous.group }));
     setPane(id === 'all' ? 'catalog' : nextPane); setPendingFocus(id);
+    chrome?.open('sky');
   };
-  const closePane = () => { setPane(null); if (selectedArtwork) setPendingFocus(selectedArtwork.cultureId); };
+  const closePane = () => { setPane(null); chrome?.close(); if (selectedArtwork) setPendingFocus(selectedArtwork.cultureId); };
   const stepArtwork = (direction: number) => {
     const index = artworkSequence.findIndex(entry => entry.cultureId === selectedArtwork?.cultureId);
     const next = artworkSequence[(index + direction + artworkSequence.length) % artworkSequence.length];
@@ -212,20 +225,24 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
   useEffect(() => {
     if (cultureVersion && cultureVersion !== version) {
       setSettings(previous => ({ ...previous, system: cultureVersion, group: 'all', culture: 'all' }));
-      setSearch(''); setPane(null);
+      setSearch(''); setPane(chrome?.section === 'sky' ? 'catalog' : chrome?.section === 'appearance' ? 'appearance' : null);
     }
   }, [cultureVersion, version]);
   useEffect(() => { onStateChange?.({ settings, orientation, pane }); }, [settings, orientation, pane, onStateChange]);
-  useEffect(() => { dock.current?.querySelector('.sky-pane-content')?.scrollTo({ top: 0 }); }, [pane, selectedArtwork?.cultureId]);
+  useEffect(() => {
+    dock.current?.querySelector('.sky-pane-content')?.scrollTo({ top: 0 });
+    if (chrome) dock.current?.closest('.experience-panel-content')?.scrollTo({ top: 0 });
+  }, [pane, selectedArtwork?.cultureId]);
   useEffect(() => {
     const resize = () => setDpr(resolutionCeiling(innerWidth, innerHeight, devicePixelRatio, mobile ? 1.5 : 2, 1_500_000));
     resize(); window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize);
   }, [mobile]);
   useEffect(() => () => disposeArtCache(), []);
   useEffect(() => {
+    if (chrome) return;
     const key = (event: KeyboardEvent) => { if (event.key === 'Escape' && pane) closePane(); };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
-  }, [pane, selectedArtwork]);
+  }, [pane, selectedArtwork, chrome]);
   useEffect(() => {
     (window as any).__skySpike = {
       get ready() { return skyMetrics.getSnapshot().renders > 0; }, get metrics() { return skyMetrics.getSnapshot(); },
@@ -254,16 +271,17 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
     : pane === 'observation' ? '此时，此地' : pane === 'appearance' ? '星光与图绘' : pane === 'sources' ? '这片星空的出处'
     : pane === 'reference' ? (selectedArtwork?.title || '图绘') + ' · 实物对照' : pane === 'diagnostics' ? '运行记录'
       : selectedArtwork ? selectedArtwork.title + ' · ' + selectedArtwork.name : selected?.name || '星空';
-  return <main className="sky-spike" data-portrait={pane === 'detail' && !!selectedArtwork || undefined}>
+  const artworkOpen = (!chrome || chrome.section === 'sky') && pane === 'detail' && !!selectedArtwork;
+  return <main className="sky-spike" data-portrait={artworkOpen || undefined}>
     <SkyBoundary><div className="sky-canvas"><Scene frame={frame} settings={settings} items={items} daylight={daylight} dpr={dpr}
       view={view} orientation={orientation} labels={labels} overlay={overlay} onView={setOrientation} moonPlacement={moonPlacement} /></div></SkyBoundary>
     <div ref={overlay} className="sky-labels">{labels.map(label => label.cardinal
       ? <span key={label.id} data-label-id={label.id} data-cardinal="true" hidden aria-hidden="true">{label.name}</span>
       : <button key={label.id} data-label-id={label.id} data-selected={label.id === settings.culture || undefined} hidden
-        tabIndex={pane === 'detail' && selectedArtwork ? -1 : 0}
+        tabIndex={artworkOpen ? -1 : 0}
         onClick={() => choose(label.id)} aria-label={'查看'+(label.subtitle?label.subtitle+' · ':'')+label.name}>
         <span className="sky-label-title">{label.name}</span>{label.subtitle&&<span className="sky-label-subtitle">{label.subtitle}</span>}</button>)}</div>
-    <header className="sky-heading"><p>LuBirth <span>{observation ? '此时 · 此地 · 此天' : '独立星空试验'}</span></p><h1>星河有迹</h1>
+    {!chrome && <header className="sky-heading"><p>LuBirth <span>{observation ? '此时 · 此地 · 此天' : '独立星空试验'}</span></p><h1>星河有迹</h1>
       <div>{location.name} · {(sharedUtc || settings.utc).replace('T', ' ').replace(/\.\d+Z$/, '').replace(/Z$/, '')} UTC</div>
       <small>{versionInfo.name}{version === 'song' && settings.art ? ' · 当代人物图绘' : ''}</small>
       {version === 'song' && <button className="sky-feature-link" onClick={openArtworkCatalog}>玉皇庙图绘 · 浏览二十八宿 ↗</button>}
@@ -273,12 +291,18 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       {moonPlacement === 'physical' && frame.observer.moon.altitudeDeg < 0 && <p className="sky-help" role="status">
         月球此时在地平线下。{settings.ground && <button className="sky-feature-link" onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>}
       </p>}
-    </header>
-    <section className="sky-dock" ref={dock} data-expanded={!!pane} data-artwork={pane === 'detail' && !!selectedArtwork || undefined} aria-label="星空控制">
+    </header>}
+    {chrome && (daylight <= .025 || moonPlacement === 'physical' && frame.observer.moon.altitudeDeg < 0) && <div className="experience-sky-notes" role="status" data-sky-obstruction>
+      {daylight <= .025 && <p>{frame.sunAlt >= 0 ? '当地正值白昼，星光暂被日光遮蔽。' : '当地天色尚亮，星光暂被日光遮蔽。'}</p>}
+      {moonPlacement === 'physical' && frame.observer.moon.altitudeDeg < 0 && <p>月球此时在地平线下。{settings.ground && <button onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>}</p>}
+    </div>}
+    <SceneControlsOutlet host={chrome ? chrome.target : undefined} active={!!chrome?.section}>
+    <section className={chrome ? 'sky-controls-embedded' : 'sky-dock'} ref={dock} data-expanded={!!pane} data-artwork={pane === 'detail' && !!selectedArtwork || undefined} aria-label="星空控制">
       {pane && <div className="sky-pane" id="sky-pane">
-        <div className="sky-pane-heading"><h2>{title}</h2><button aria-label="收起面板" onClick={closePane}>×</button></div>
+        <div className="sky-pane-heading"><h2>{title}</h2>{!chrome && <button aria-label="收起面板" onClick={closePane}>×</button>}</div>
         <div className="sky-pane-content">
           {pane === 'catalog' && <>
+            {chrome && version === 'song' && <button className="sky-feature-link" onClick={openArtworkCatalog}>玉皇庙图绘 · 浏览二十八宿 ↗</button>}
             {chinese && <div className="sky-field-row"><label htmlFor="sky-group">天区</label><select id="sky-group" value={settings.group} onChange={e => setSettings(s => ({ ...s, group: e.target.value, culture: 'all' }))}>
               {CHINESE_GROUPS.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
               {version === 'song' && <label className="sky-check"><input id="sky-mansions" type="checkbox" checked={settings.system === 'mansions'} onChange={e => setSettings(s => ({ ...s, system: e.target.checked ? 'mansions' : 'song', group: 'all', culture: 'all' }))} />仅二十八宿</label>}</div>}
@@ -286,8 +310,8 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
             <label className="sky-sr-only" htmlFor="sky-culture">选择星座或星官</label><select id="sky-culture" value={settings.culture} onChange={e => choose(e.target.value)}>
               <option value="all">浏览全部 · {options.length} 条绘图记录</option>{options.map(item => <option key={item.id} value={item.id}>{item.name}{CHINESE_ARTWORK.has(item.id) ? ' · ' + CHINESE_ARTWORK.get(item.id)!.title : ''}</option>)}</select>
             <p className="sky-help">{chinese ? '远望看三垣与主宿，放大后逐渐展开其余星官。点击天空中的名称可查看出处。' : '视野内的星座图绘随天空一起展开。点击名称查看单个星座。'}</p>
-            <p className="sky-help">{versionInfo.description}</p>
-            <div className="sky-actions">{version === 'song' && <><button onClick={openArtworkCatalog}>浏览二十八尊原型</button><button onClick={sample}>同看心月狐与尾火虎</button></>}<button onClick={() => setPane('sources')}>数据与出处 ↗</button></div>
+            {!chrome && <p className="sky-help">{versionInfo.description}</p>}
+            <div className="sky-actions">{version === 'song' && <>{!chrome && <button onClick={openArtworkCatalog}>浏览二十八尊原型</button>}<button onClick={sample}>同看心月狐与尾火虎</button></>}<button onClick={() => setPane('sources')}>数据与出处 ↗</button></div>
           </>}
           {pane === 'artworks' && <>
             <p className="sky-help">夜空看细线轮廓，点选看完整淡彩原型。按四象排列，共 {artworkSequence.length} 尊。</p>
@@ -374,16 +398,17 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
           </>}
         </div>
       </div>}
-      <nav className="sky-toolbar" aria-label="星图工具">
+      {!chrome && <nav className="sky-toolbar" aria-label="星图工具">
         <label className="sky-sr-only" htmlFor="sky-system">星空文化</label><select id="sky-system" value={version} onChange={e => {
           onCultureChange?.(e.target.value as CultureVersion);
           setSettings(s => ({ ...s, system: e.target.value as SkySystem, group: 'all', culture: 'all' })); setSearch(''); if (pane === 'detail' || pane === 'reference') setPane('catalog');
         }}><option value="song">宋代星官</option><option value="chenzhuo">陈卓体系 · 三世纪</option><option value="yuan">元代星官</option><option value="modern">现代 88 星座</option></select>
         {([['catalog', '星官'], ['observation', '观测'], ['appearance', '画面']] as const).map(([key, name]) => <button key={key} aria-controls="sky-pane" aria-expanded={pane === key} data-active={pane === key} onClick={() => setPane(pane === key ? null : key)}>{key === 'catalog' && !chinese ? '星座' : name}</button>)}
         <span className="sky-toolbar-caption">拖动转向 · 滚轮缩放</span>
-      </nav>
+      </nav>}
     </section>
-    <footer className="sky-footer"><span>{mobile ? '拖动转向 · 双指缩放' : '同一片天空，不同的故事'}</span>
-      <span>方位 {orientation.azimuth.toFixed(0)}° · 仰角 {orientation.altitude.toFixed(0)}° · 视场 {orientation.fov.toFixed(0)}°</span></footer>
+    </SceneControlsOutlet>
+    {!chrome && <footer className="sky-footer"><span>{mobile ? '拖动转向 · 双指缩放' : '同一片天空，不同的故事'}</span>
+      <span>方位 {orientation.azimuth.toFixed(0)}° · 仰角 {orientation.altitude.toFixed(0)}° · 视场 {orientation.fov.toFixed(0)}°</span></footer>}
   </main>;
 }

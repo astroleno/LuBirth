@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -17,6 +18,7 @@ import type { Vec3 } from './astro/referenceFrames';
 import type { EarthSceneFrame } from './astro/referenceFrames';
 import type { CultureVersion, MoonPlacement } from './history/journeyStore';
 import { MoonPlacementControl } from './components/MoonPlacementControl';
+import type { EarthUIActions, SceneUIHost } from './components/experience/SceneUI';
 import MoonPresentation from './scenes/simple/api/components/MoonPresentation';
 
 const AstronomicalSky = React.lazy(() => import('./scenes/simple/api/components/AstronomicalSky'));
@@ -945,12 +947,14 @@ export type EarthViewState = {
 export default function SimpleTest({ observation, observationControls, initialState, onStateChange,
   celestial: sharedCelestial, observerState: sharedObserver, moonPlacement = 'portrait', cultureVersion = 'song',
   onMoonPlacementChange, onEnterSky, onLocateMoon, entryTransfer, onEntryTransferConsumed,
+  chrome, onUIReady,
 }: {
   observation?: Observation; observationControls?: React.ReactNode; initialState?: EarthViewState;
   onStateChange?: (value: EarthViewState) => void;
   celestial?: CelestialState; observerState?: ObserverState; moonPlacement?: MoonPlacement; cultureVersion?: CultureVersion;
   onMoonPlacementChange?: (value: MoonPlacement) => void; onEnterSky?: () => void; onLocateMoon?: () => void;
   entryTransfer?: ViewTransfer; onEntryTransferConsumed?: () => void;
+  chrome?: SceneUIHost; onUIReady?: (actions: EarthUIActions | null) => void;
 } = {}) {
   const mobile = useMobileLayout();
   const [quality, setQuality] = useState<Quality>(initialState?.quality || 'balanced');
@@ -1052,7 +1056,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
       }
     };
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !document.querySelector('.screenshot-preview')) exitFullscreen();
+      if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('.screenshot-preview')) exitFullscreen();
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('keydown', onEscape);
@@ -1061,6 +1065,10 @@ export default function SimpleTest({ observation, observationControls, initialSt
       document.removeEventListener('keydown', onEscape);
     };
   }, [exitFullscreen]);
+  React.useEffect(() => {
+    onUIReady?.({ setImmersed: value => value ? setUiHidden(true) : exitFullscreen() });
+    return () => onUIReady?.(null);
+  }, [onUIReady, exitFullscreen]);
   const [isAlignedAndZoomed, setIsAlignedAndZoomed] = useState(initialState?.isAlignedAndZoomed ?? false);
   const reducedMotion = useReducedMotion();
   const parallax = useParallaxInput(isAlignedAndZoomed && !reducedMotion);
@@ -1674,10 +1682,36 @@ export default function SimpleTest({ observation, observationControls, initialSt
 
   // 保持首屏：晨昏线居中（不自动对齐出生点；改为用户手动触发）
 
+  const clientAppearanceControls = <>
+    {onMoonPlacementChange && <MoonPlacementControl value={moonPlacement} onChange={onMoonPlacementChange}
+      onLocate={onLocateMoon} belowHorizon={observerState.moon.altitudeDeg < 0} />}
+    <label className="sky-culture-toggle"><input type="checkbox" checked={composition.showSkyCulture !== false}
+      onChange={event => updateValue('showSkyCulture', event.target.checked)} />星官连线与图绘</label>
+    <div className="visual-settings-toggles">
+      <label><input type="checkbox" checked={!!composition.useClouds} onChange={event => updateValue('useClouds', event.target.checked)} />云层</label>
+      <label><input type="checkbox" checked={!!composition.showStars} onChange={event => updateValue('showStars', event.target.checked)} />星空</label>
+      <label><input type="checkbox" checked={composition.showMoon ?? true} onChange={event => updateValue('showMoon', event.target.checked)} />月球</label>
+      <label><input type="checkbox" checked={!!composition.showBirthPointMarker} onChange={event => updateValue('showBirthPointMarker', event.target.checked)} />出生地标记</label>
+    </div>
+    <label className="quality-control"><span>画面品质</span><select className="input" aria-label="画面品质" value={quality} onChange={event => setQuality(event.target.value as Quality)}>
+      <option value="balanced">均衡</option><option value="battery">省电</option><option value="detail">细腻</option>
+    </select></label>
+    {chrome && mobile && isAlignedAndZoomed && <div className="motion-controls" aria-live="polite">
+      {reducedMotion ? <small>已跟随系统减少动态效果</small> : <><span>体感视差</span>
+        {parallax.supported && parallax.mode !== 'motion' && <button type="button" onClick={parallax.startMotion} disabled={parallax.mode === 'waiting'}>
+          {parallax.mode === 'waiting' ? '连接感应中…' : parallax.mode === 'idle' ? '开启体感' : '重试体感'}</button>}
+        {parallax.mode === 'motion' && <><button type="button" onClick={parallax.recenter}>重校准</button><button type="button" onClick={parallax.stopMotion}>关闭体感</button></>}
+        {!parallax.supported && <small>此设备不支持体感</small>}
+        {parallax.mode === 'denied' && <small>未获得体感权限</small>}{parallax.mode === 'unavailable' && <small>未收到感应数据</small>}
+      </>}
+    </div>}
+    <a className="moon-credit" href="https://svs.gsfc.nasa.gov/14959/" target="_blank" rel="noopener noreferrer">月球模型：NASA Goddard ↗</a>
+  </>;
+
   return (
     <div ref={fullscreenRootRef} className={`canvas-wrap glass-ui${mobile ? " mobile-layout" : ""}${panelExpanded && !uiHidden ? " panel-expanded" : ""}${uiHidden ? " ui-hidden" : ""}${fullscreenMode ? " fullscreen-mode" : ""}${quality === 'battery' ? ' glass-battery' : ''}`}>
       {/* 音乐播放器 - 跟随UI隐藏状态做动画 */}
-      <div className="music-player" data-liquid-glass data-glass-variant="compact" hidden={uiHidden} style={{
+      {!chrome && <div className="music-player" data-liquid-glass data-glass-variant="compact" hidden={uiHidden} style={{
         position: 'fixed', 
         top: uiHidden ? '-60px' : '10px',  // 隐藏时向上移出屏幕，显示时移回原位
         right: '16px',  // 与panel对齐 
@@ -1702,7 +1736,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
             />
           </React.Suspense>
         ) : null}
-      </div>
+      </div>}
       
       <div className="scene-viewport">
       <Canvas
@@ -1757,8 +1791,8 @@ export default function SimpleTest({ observation, observationControls, initialSt
           debugMode={debugMode}
           profile={profile}
           parallaxTarget={parallax.target}
-          panelExpanded={panelExpanded}
-          uiHidden={uiHidden}
+          panelExpanded={chrome ? false : panelExpanded}
+          uiHidden={chrome ? true : uiHidden}
         />
         <NoTiltProbe />
         <AlignOnDemand 
@@ -1775,14 +1809,14 @@ export default function SimpleTest({ observation, observationControls, initialSt
       
         
       {/* 控制面板 - 使用与原版本一致的样式 */}
-      {uiHidden && (
+      {!chrome && uiHidden && (
         <div className="restore-ui" data-liquid-glass data-glass-variant="compact" style={{ position:'absolute', top: 10, right: 10, zIndex: 40 }}>
           <SceneScreenshot />
           {!fullscreenMode && <button className="btn" onClick={enterFullscreen}>全屏</button>}
           <button className="btn" onClick={exitFullscreen}>显示设置</button>
         </div>
       )}
-      {uiHidden && observation?.source.kind === 'history' && <div className="history-portrait-caption" aria-label="历史地月合照说明">
+      {!chrome && uiHidden && observation?.source.kind === 'history' && <div className="history-portrait-caption" aria-label="历史地月合照说明">
         <p>{observation.source.label}</p>
         <p>{observation.civilDate} · {observation.clock} · {observation.observer.name}</p>
         <small>{observation.timeSelection.origin === 'event-default-20' ? '默认当地 20:00 演示' : '所选当地时刻演示'}
@@ -1790,7 +1824,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
       </div>}
 
       {/* Preserve the form and its loaded location data while fullscreen hides controls. */}
-      <div hidden={uiHidden}>
+      {!chrome && <div hidden={uiHidden}>
           {isDevMode ? (
             <div className="panel">
           {/* 顶部控制栏 */}
@@ -3816,72 +3850,20 @@ export default function SimpleTest({ observation, observationControls, initialSt
               <details className="visual-settings">
                 <summary>画面设置</summary>
                 <div className="visual-settings-content">
-                  {onMoonPlacementChange && <MoonPlacementControl value={moonPlacement} onChange={onMoonPlacementChange}
-                    onLocate={onLocateMoon} belowHorizon={observerState.moon.altitudeDeg < 0} />}
-                  <label className="sky-culture-toggle"><input type="checkbox" checked={composition.showSkyCulture !== false}
-                    onChange={e => updateValue('showSkyCulture', e.target.checked)} />星官连线与图绘</label>
-                  <div className="visual-settings-toggles">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={!!composition.useClouds}
-                      onChange={(e) => {
-                        updateValue('useClouds', e.target.checked);
-                      }}
-                      style={{ filter: 'grayscale(100%) brightness(0.8)' }}
-                    />
-                    云层
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={!!composition.showStars}
-                      onChange={(e) => updateValue('showStars', e.target.checked)}
-                      style={{ filter: 'grayscale(100%) brightness(0.8)' }}
-                    />
-                    星空
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={composition.showMoon ?? true}
-                      onChange={(e) => updateValue('showMoon', e.target.checked)}
-                      style={{ filter: 'grayscale(100%) brightness(0.8)' }}
-                    />
-                    月球
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={!!composition.showBirthPointMarker}
-                      onChange={(e) => updateValue('showBirthPointMarker', e.target.checked)}
-                      style={{ filter: 'grayscale(100%) brightness(0.8)' }}
-                    />
-                    出生地标记
-                  </label>
-                  </div>
-                  <label className="quality-control">
-                    <span className="label">画面品质</span>
-                    <select className="input" value={quality} onChange={event => setQuality(event.target.value as Quality)}>
-                      <option value="balanced">均衡</option>
-                      <option value="battery">省电</option>
-                      <option value="detail">细腻</option>
-                    </select>
-                  </label>
+                  {clientAppearanceControls}
                   <div className="scene-actions" style={{ display: 'flex', gap: 8 }}>
                     <SceneScreenshot />
                     <button className="btn" onClick={() => setUiHidden(true)} style={{ flex: 1 }}>隐藏 UI</button>
                     <button className="btn" onClick={enterFullscreen} style={{ flex: 1 }}>全屏查看</button>
                   </div>
-                  <a className="moon-credit" href="https://svs.gsfc.nasa.gov/14959/" target="_blank" rel="noopener noreferrer"
-                    title="月球模型来源：NASA's Goddard Space Flight Center">月球模型：NASA Goddard ↗</a>
                 </div>
               </details>
               </div>
               {/* 开发者模式入口：已按需求在客户端隐藏 */}
             </div>
           )}
-      </div>
+      </div>}
+      {chrome?.target && chrome.section === 'appearance' && createPortal(<div className="visual-settings-content">{clientAppearanceControls}</div>, chrome.target)}
 
       {/* 客户端模式底部说明文案已按需求移除 */}
     </div>

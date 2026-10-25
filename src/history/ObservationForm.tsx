@@ -47,7 +47,9 @@ export function ObservationSummary({ observation }: { observation: Observation }
   </div>;
 }
 
-export default function ObservationForm({ initial, onSave }: { initial: Observation; onSave: (observation: Observation) => void }) {
+export default function ObservationForm({ initial, onSave, submitLabel = '保存出生时刻' }: {
+  initial: Observation; onSave: (observation: Observation) => void; submitLabel?: string;
+}) {
   const id = useId();
   const [date, setDate] = useState(initial.civilDate), [clock, setClock] = useState(initial.clock.slice(0, 5));
   const [observer, setObserver] = useState<ObserverPlace | null>(initial.observer);
@@ -67,7 +69,7 @@ export default function ObservationForm({ initial, onSave }: { initial: Observat
     <OffsetField value={offset} onChange={setOffset} />
     {initial.source.kind === 'example' && <p className="journey-hint">上面是示例信息。填写并保存后，才会成为你的出生基准。</p>}
     {error && <p className="journey-error" role="alert">{error}</p>}
-    <button className="journey-primary" type="submit">保存出生时刻</button>
+    <button className="journey-primary" type="submit">{submitLabel}</button>
     {saved && <p className="journey-status" role="status">出生时刻已保存，地月与观天共用这份时间地点。</p>}
   </form>;
 }

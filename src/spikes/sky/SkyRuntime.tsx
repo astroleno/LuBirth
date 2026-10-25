@@ -71,7 +71,7 @@ export function SkyRuntime({ view, revision, labels, overlay, measuring, ground,
   useEffect(() => { invalidate(); }, [revision, ground, invalidate]);
   useEffect(() => {
     const observer = new ResizeObserver(() => { lastProjection.current = ''; invalidate(); });
-    document.querySelectorAll('.sky-dock, .sky-heading, .sky-footer').forEach(element => observer.observe(element));
+    document.querySelectorAll('.sky-dock, .sky-heading, .sky-footer, [data-sky-obstruction]').forEach(element => observer.observe(element));
     return () => observer.disconnect();
   }, [invalidate]);
   useEffect(() => {
@@ -166,7 +166,7 @@ export function SkyRuntime({ view, revision, labels, overlay, measuring, ground,
       if (perspective.fov !== v.fov) { perspective.fov = v.fov; perspective.updateProjectionMatrix(); }
       const az = THREE.MathUtils.degToRad(v.azimuth), alt = THREE.MathUtils.degToRad(v.altitude);
       camera.lookAt(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt)); camera.updateMatrixWorld();
-      const obstructions = Array.from(document.querySelectorAll('.sky-dock, .sky-heading, .sky-footer'))
+      const obstructions = Array.from(document.querySelectorAll('.sky-dock, .sky-heading, .sky-footer, [data-sky-obstruction]'))
         .filter(element=>getComputedStyle(element).visibility!=='hidden').map(element => element.getBoundingClientRect())
         .filter(r=>r.width>0 && r.height>0).map(r=>({x:r.left,y:r.top,w:r.width,h:r.height}));
       if (moonBounds) obstructions.push(moonBounds);

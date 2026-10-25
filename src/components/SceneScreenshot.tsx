@@ -5,7 +5,7 @@ import { captureKeepsakeDraft, type KeepsakeDraft } from '../keepsake/draft';
 
 const KeepsakeEditor = React.lazy(() => import('./keepsake/KeepsakeEditor'));
 
-export function SceneScreenshot() {
+export function SceneScreenshot({ label = '截图', unified = false }: { label?: string; unified?: boolean }) {
   const [image, setImage] = React.useState<string | null>(null);
   const [capturePending, setCapturePending] = React.useState(false);
   const [draft, setDraft] = React.useState<KeepsakeDraft | null>(null);
@@ -75,8 +75,8 @@ export function SceneScreenshot() {
         setImage(captured);
       } catch { alert('截图失败，请稍后重试。'); }
       finally { setCapturePending(false); }
-    }}>{capturePending ? '准备截图…' : '截图'}</button>
-    {image && createPortal(<div ref={dialogRef} className="screenshot-preview" role="dialog" aria-modal="true" aria-label={editing ? '制作纪念卡' : '地月截图'} onClick={close} onKeyDown={event => {
+    }}>{capturePending ? '准备截图…' : label}</button>
+    {image && createPortal(<div ref={dialogRef} className="screenshot-preview" role="dialog" aria-modal="true" aria-label={unified ? '留住这一刻' : editing ? '制作纪念卡' : '地月截图'} onClick={close} onKeyDown={event => {
       if (event.key !== 'Tab') return;
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),summary')]
         .filter(element => element.getClientRects().length);
@@ -85,9 +85,9 @@ export function SceneScreenshot() {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }}>
-      {editing && draft ? <div style={{width:'100%',display:'grid',placeItems:'center',minHeight:0}} onClick={event => event.stopPropagation()}>
+      {(editing || unified) && draft ? <div style={{width:'100%',display:'grid',placeItems:'center',minHeight:0}} onClick={event => event.stopPropagation()}>
         <React.Suspense fallback={<p role="status">正在打开纪念卡…</p>}><KeepsakeEditor draft={draft}
-          onBack={() => setEditing(false)} onClose={close} /></React.Suspense>
+          unified={unified} onBack={() => setEditing(false)} onClose={close} /></React.Suspense>
       </div> : <div className="screenshot-content" onClick={e => e.stopPropagation()}>
         <img src={image} alt="当前地球与月球画面" />
         <p>手机可长按图片保存</p>

@@ -61,18 +61,23 @@ function HistoricalObservation({ record, onObserve }: { record: HistoryRecord; o
   </form>;
 }
 
-export default function JourneyPanel({ initialTab = 'history', onClose, onObserve, onCulture }: {
+export default function JourneyPanel({ initialTab = 'history', onClose, onObserve, onCulture, embedded = false, activeTab, onTabChange }: {
   initialTab?: JourneyTab; onClose: () => void; onObserve: (value: Observation) => void; onCulture: () => void;
+  embedded?: boolean; activeTab?: JourneyTab; onTabChange?: (tab: JourneyTab) => void;
 }) {
   const state = useSyncExternalStore(journeyStore.subscribe, journeyStore.getSnapshot);
-  const [tab, setTab] = useState<JourneyTab>(initialTab), [query, setQuery] = useState(''), [filter, setFilter] = useState<HistoryFilter>('all');
+  const [localTab, setLocalTab] = useState<JourneyTab>(initialTab), [query, setQuery] = useState(''), [filter, setFilter] = useState<HistoryFilter>('all');
+  const tab = activeTab ?? localTab;
+  const setTab = (next: JourneyTab) => { if (activeTab === undefined) setLocalTab(next); onTabChange?.(next); };
   const [period, setPeriod] = useState('all'), [selectedId, setSelectedId] = useState<string | null>(null);
+  const previousSelection = useRef(selectedId);
   const panel = useRef<HTMLElement>(null), scroll = useRef<HTMLDivElement>(null);
   const selected = records.find(record => record.id === selectedId);
   const today = localToday();
   const matches = useMemo(() => selectHistory(records, { query, filter, period, birth: state.birth, favorites: state.favorites, today }),
     [query, filter, period, state.birth, state.favorites, today]);
   useEffect(() => {
+    if (embedded) return;
     const prior = document.activeElement as HTMLElement | null;
     panel.current?.focus();
     const key = (event: KeyboardEvent) => {
@@ -89,19 +94,23 @@ export default function JourneyPanel({ initialTab = 'history', onClose, onObserv
     panel.current?.addEventListener('keydown', key);
     const current = panel.current;
     return () => { current?.removeEventListener('keydown', key); if (prior && document.contains(prior)) prior.focus(); };
-  }, [onClose]);
+  }, [onClose, embedded]);
   useEffect(() => {
     scroll.current?.scrollTo({ top: 0 });
+    if (embedded) scroll.current?.closest('.experience-panel-content')?.scrollTo({ top: 0 });
     // Selecting a record removes its focused list button. Keep subsequent Tab
     // presses inside the dialog instead of leaving focus on the document body.
-    if (!panel.current?.contains(document.activeElement)) panel.current?.focus();
-  }, [selectedId, tab]);
+    const selectionChanged = previousSelection.current !== selectedId;
+    previousSelection.current = selectedId;
+    if ((!embedded || selectionChanged) && !panel.current?.contains(document.activeElement)) panel.current?.focus();
+  }, [selectedId, tab, embedded]);
   const outdated = state.current.source.kind === 'history' && records.find(record => record.id === state.current.source.recordId)?.provenance.recordHash !== state.current.source.recordHash;
-  return <aside ref={panel} className="journey-panel" role="dialog" aria-modal="true" aria-labelledby="journey-title" tabIndex={-1}>
-    <header className="journey-heading"><div><p>LuBirth · 与古人同望</p><h2 id="journey-title">{tab === 'birth' ? '我的出生时刻' : tab === 'cultures' ? '古人的星空' : '古今同源'}</h2></div>
+  const Root = embedded ? 'section' : 'aside';
+  return <Root ref={panel} className={embedded ? 'journey-content' : 'journey-panel'} role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={embedded ? undefined : 'journey-title'} tabIndex={-1}>
+    {!embedded && <><header className="journey-heading"><div><p>LuBirth · 与古人同望</p><h2 id="journey-title">{tab === 'birth' ? '我的出生时刻' : tab === 'cultures' ? '古人的星空' : '古今同源'}</h2></div>
       <button onClick={onClose} aria-label="关闭古今同源面板">×</button></header>
     <nav className="journey-tabs" aria-label="联动内容">{([['history','人物与日期'],['cultures','古星图'],['birth','我的出生']] as const).map(([value,label]) =>
-      <button key={value} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>)}</nav>
+      <button key={value} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>)}</nav></>}
     <div className="journey-scroll" ref={scroll}>
       {state.storageWarning && <p className="journey-hint" role="status">{state.storageWarning}</p>}
       {outdated && <p className="journey-notice">这条资料已更新。当前画面保留你之前选择的演示参数，请重新打开记录核对日期与地点。</p>}
@@ -150,5 +159,5 @@ export default function JourneyPanel({ initialTab = 'history', onClose, onObserv
         <p className="journey-coverage">当前覆盖 {manifest.monthDays} 个公历月日，年代以近代为主。资料持续补充；日期、时刻与地点的确定程度在各条详情中说明。</p>
       </>)}
     </div>
-  </aside>;
+  </Root>;
 }

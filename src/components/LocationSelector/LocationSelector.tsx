@@ -202,7 +202,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
         // Keep that result mounted until click; outside pointers/window blur dismiss it separately.
         if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) setShowSearchResults(false);
       }} onKeyDown={event => {
-        if (event.key === 'Escape') {
+        if (event.key === 'Escape' && showSearchResults) {
+          event.preventDefault(); event.stopPropagation();
           searchInputRef.current?.focus();
           setShowSearchResults(false);
         }
