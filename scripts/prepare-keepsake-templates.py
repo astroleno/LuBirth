@@ -117,6 +117,7 @@ def main():
         write_labelled_png(OUT / f'{identifier}.png', body, chunks)
         manifest['templates'].append({'id': identifier, 'text': text, 'width': width, 'height': height,
             'inkRect': [0, 0, width, ink_height], 'card': f'{identifier}.svg', 'loading': f'{identifier}-loading.svg',
+            'loadingDurationMs': round((.12 + (len(glyphs) - 1) * (1.6 / len(glyphs)) + .65) * 1000),
             'png': f'{identifier}.png', 'label': {'path': 'inko-label.png', 'width': label.width,
                 'height': label.height, 'textHeight': label_text_height},
             'sourceJob': scene['job']['id'], 'metadata': chunks})

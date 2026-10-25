@@ -11,6 +11,7 @@ export type HandwritingAsset = {
   inkRect: [number, number, number, number];
   card: string;
   loading: string;
+  loadingDurationMs: number;
   png: string;
   sourceJob: string;
   label: { path: string; width: number; height: number; textHeight: number };

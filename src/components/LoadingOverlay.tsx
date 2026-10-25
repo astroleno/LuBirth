@@ -31,6 +31,9 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
   const [progress, setProgress] = React.useState(() => (window as any).__lubirthAssetProgress ?? { loaded: 0, total: 2 });
   const [slow, setSlow] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
+  const [sceneReady, setSceneReady] = React.useState(false);
+  const [handwritingComplete, setHandwritingComplete] = React.useState(false);
+  const completeHandwriting = React.useCallback(() => setHandwritingComplete(true), []);
   React.useEffect(() => {
     const update = (event: Event) => setProgress((event as CustomEvent).detail);
     const error = () => setFailed(true);
@@ -61,61 +64,31 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
     }
   }, [fadeMs]);
 
-  // 监听“就绪事件”→ 等待最小展示时间 → 预热 N 帧 → 淡出
+  // Resource readiness and the handwriting timeline run independently.
   React.useEffect(() => {
-    try {
-      let rafId: number | null = null;
-      let readyTimer: ReturnType<typeof setTimeout>;
-      let scheduled = false;
-      let prewarmCount = 0;
+    const onReady = () => setSceneReady(true);
+    window.addEventListener(readyEventName, onReady);
+    if ((window as any).__lubirthAssetsReady) onReady();
+    const maxTimer = setTimeout(() => setSlow(true), durationMs);
+    return () => {
+      window.removeEventListener(readyEventName, onReady);
+      clearTimeout(maxTimer);
+    };
+  }, [durationMs, readyEventName]);
 
-      const maybeFinish = () => {
-        // 预热帧循环
-        const pump = () => {
-          prewarmCount++;
-          if (prewarmCount >= prewarmFrames) {
-            startFadeOut();
-          } else {
-            rafId = requestAnimationFrame(pump);
-          }
-        };
-        rafId = requestAnimationFrame(pump);
-      };
-
-      const onReady = () => {
-        if (scheduled) return;
-        scheduled = true;
-        // 等待最小展示时长
-        const elapsed = performance.now() - mountedAtRef.current;
-        const wait = Math.max(0, minShowMs - elapsed);
-        readyTimer = setTimeout(maybeFinish, wait);
-      };
-
-      window.addEventListener(readyEventName, onReady as EventListener, { once: true });
-
-      // 如果事件在组件挂载前已触发，则立即按已就绪处理
-      try {
-        const already = (window as any).__lubirthAssetsReady;
-        if (already) onReady();
-      } catch {}
-
-      // 网络较慢时保持真实状态，同时提供退出加载层的入口。
-      const maxTimer = setTimeout(() => {
-        setSlow(true);
-      }, durationMs);
-
-      return () => {
-        try {
-          window.removeEventListener(readyEventName, onReady as EventListener);
-          if (rafId) cancelAnimationFrame(rafId);
-          clearTimeout(maxTimer);
-          clearTimeout(readyTimer);
-        } catch {}
-      };
-    } catch (e) {
-      console.error('[LoadingOverlay] setup ready listener failed:', e);
-    }
-  }, [durationMs, minShowMs, prewarmFrames, readyEventName, startFadeOut]);
+  // Reveal only after both are complete; never cut a fast-load animation short.
+  React.useEffect(() => {
+    if (!sceneReady || !handwritingComplete) return;
+    let rafId: number;
+    let prewarmCount = 0;
+    const pump = () => {
+      if (++prewarmCount >= prewarmFrames) startFadeOut();
+      else rafId = requestAnimationFrame(pump);
+    };
+    const timer = setTimeout(() => { rafId = requestAnimationFrame(pump); },
+      Math.max(0, minShowMs - (performance.now() - mountedAtRef.current)));
+    return () => { clearTimeout(timer); cancelAnimationFrame(rafId); };
+  }, [sceneReady, handwritingComplete, minShowMs, prewarmFrames, startFadeOut]);
 
   if (!visible) return null;
 
@@ -127,10 +100,10 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
       style={{ ['--fadeMs' as any]: `${fadeMs}ms`, transitionDuration: `${fadeMs}ms` }}
     >
       <div className="lubirth-loading-container">
-        <LoadingHandwriting />
+        <LoadingHandwriting onComplete={completeHandwriting} reducedMotion={reducedMotion} />
         <span className="sr-only">地月基础画面已加载 {progress.loaded} / {progress.total}。</span>
         {(failed || slow) && <div className="loading-caption">
-          <p>{failed ? '部分画面未能加载' : '连接较慢，地月画面仍在加载…'}</p>
+          <p>{failed ? '部分画面未能加载' : sceneReady ? '开场文字仍在准备…' : '连接较慢，地月画面仍在加载…'}</p>
           <div className="loading-actions"><button className="btn" onClick={() => window.location.reload()}>重新加载</button>{' '}<button className="btn" onClick={startFadeOut}>先进入场景</button></div>
         </div>}
       </div>

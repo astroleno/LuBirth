@@ -173,7 +173,7 @@ export default function App() {
           <button ref={immersionButton} onClick={() => setImmersed(!immersed)}>{immersed ? '显示菜单' : '沉浸'}</button>
         </div>
       </header>
-      {/* 基础地月画面稳定后尽快露出场景。 */}
+      {/* 基础画面就绪且手写动画完成后露出场景。 */}
       {earthStarted && <div hidden={view !== 'earth'}><LoadingOverlay
         durationMs={mobile ? 6000 : 4000}
         minShowMs={mobile ? 300 : 650}

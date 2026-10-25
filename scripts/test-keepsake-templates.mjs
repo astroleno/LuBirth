@@ -75,6 +75,11 @@ try {
       for (const name of [asset.card, asset.loading, asset.png, asset.label.path])
         assert.ok((await fs.stat('public/keepsake/templates/v1/' + name)).size > 0);
       const svg = await fs.readFile('public/keepsake/templates/v1/' + asset.loading, 'utf8');
+      const revealMs = Number(svg.match(/animation:ink-reveal ([\d.]+)s/)[1]) * 1000;
+      const delays = [...svg.matchAll(/animation-delay:([\d.]+)s/g)].map(match => Number(match[1]) * 1000);
+      assert.equal(delays.length, [...text].length);
+      assert.equal(asset.loadingDurationMs, Math.round(Math.max(...delays) + revealMs),
+        'The loading gate must cover the final character, including its delay');
       assert.match(svg, /prefers-reduced-motion:reduce/);
       assert.match(svg, /InkoEdited/);
       assert.match(svg, /ProduceID/);
