@@ -12,6 +12,23 @@
 
 ## 🚀 快速开始
 
+### 公网地址与大小写规则（交接约定）
+
+**统一主地址：[https://aitoshuu.me/LuBirth/](https://aitoshuu.me/LuBirth/)。公开路径固定使用驼峰 `LuBirth`，并以 `/` 结尾。**
+
+| 入口 | 访问规则 |
+| --- | --- |
+| `aitoshuu.me/LuBirth/` | 主地址，直接提供应用 |
+| `tongye.me/LuBirth`、`tongye.me/LuBirth/` | 通过 HTTP 308 跳转到主地址，地址栏同步显示主地址 |
+| 两个域名的 `/lubirth`、`/lubirth/` 及其他大小写变体 | 保持可访问，通过 HTTP 308 统一到 `/LuBirth/` |
+| `aitoshuu.me/LuBirth` | 通过 HTTP 308 补齐末尾 `/` |
+
+跳转必须保留子路径和查询参数；浏览器继承原链接的锚点（`#...`，不会发送给服务器）。例如，`https://tongye.me/lubirth?scene=sky&history=1#case-check` 最终显示为 `https://aitoshuu.me/LuBirth/?scene=sky&history=1#case-check`。
+
+新增导航、分享链接、canonical、Open Graph、结构化数据、`llms.txt`、`sitemap.xml` 和本地 Vite 默认 `base` 均统一使用 `/LuBirth/`。小写路径仅作为公网兼容入口，不再作为新的主地址。
+
+维护入口：[主站路由](deploy/nginx/aitoshuu-lubirth-routes.inc)、[转发站路由](deploy/nginx/tongye-lubirth-routes.inc)、[公网发布校验](deploy/verify-public-release.mjs)。调整路由后须验证两个域名、大小写兼容、末尾斜杠、子路径、查询参数与锚点，确认无跳转循环；已验证行为见[上线验收记录](docs/deployment/lubirth-camel-route-2026-10-26.md)。
+
 ### 地月与当地天空联动
 
 地月和观天共用一份 UTC 与地点。太阳保持固定方位，仰角随真实太阳赤纬变化；地球、恒星背景和真实月球通过同一个天文坐标变换对齐。地轴保持直立，相机与星空独立于地球。
@@ -55,7 +72,7 @@ npm run build
 
 手机面板使用独立的可见构图区域；相机控制模块持有该区域的投影，避免自适应分辨率或品质切换将宽高比覆盖为整块画布，造成地月画面被拉伸。`getLuBirthPerformance().projectionAspect` 可与画布的 CSS 宽高比对照检查。
 
-本地构建产物位于 `dist/`，Vite 的 `base` 为 `/LuBirth/`。公网主地址为 `https://aitoshuu.me/LuBirth/`，`tongye.me/LuBirth` 与小写 `/lubirth` 入口通过 308 跳转到主地址，保留子路径和查询参数。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
+本地构建产物位于 `dist/`，Vite 的 `base` 为 `/LuBirth/`，公网地址遵循上方「公网地址与大小写规则」。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
 
 若默认资源域名证书异常，可用 `--assets-host media.aitoshuu.me` 让静态资源经同一存储桶已有的媒体 CDN 交付。仅允许这两个既有域名；所选域名计入版本摘要，上传和校验仍限定本次不可变版本前缀，保持 HTTPS 验证。
 
