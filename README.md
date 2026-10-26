@@ -1,5 +1,21 @@
  # 🌍 地球月球场景 - 单一光源版本
 
+## 公网部署规则
+
+正式入口：[tongye.me/LuBirth](https://tongye.me/LuBirth) · [aitoshuu.me/LuBirth](https://aitoshuu.me/LuBirth)。
+
+1. **固定分工**：两个主域名的 DNS、HTTPS 证书和公网入口保留在阿里云 `47.103.120.24`；这 9 个项目的应用或静态源站统一在腾讯云上海 `122.51.59.89`。阿里按项目路径反向代理，浏览器保留当前访问域名；不得把访客跳到服务器 IP、`aitoshuu.art` 或另一个主域名。
+2. **路径约定**：`/ArtDuo`、`/SonoScope`、`/FamilyTree`、`/Focuence`、`/OutSet`、`/CordIndex`、`/CoScroll`、`/LuBirth`、`/InfiDao` 是唯一正式大小写。纯小写和其他大小混写用 308 在同域归一；只改项目名前缀，保留子路径大小写、编码和完整查询参数。末尾斜杠沿用各项目路由约定；缺失静态资源返回真实 404。
+3. **域名与代理**：链接、接口、canonical 和 OG URL（若有）使用当前公网域名。入口覆盖传入的代理头；源站只信任受控网关的原始域名和客户端地址。跨云 HTTPS 校验真实证书与 SNI，不能关闭证书验证。Cookie、浏览器存储和离线缓存继续按域名隔离；流式接口关闭代理缓存与缓冲。
+4. **项目范围**：只调整本项目的源站目录、服务和精确路由，保留两个首页、其他项目、DNS、证书续期及安全规则。服务器迁移不改变网站名称、个人网站属性和页面内容。COS/CDN 使用已有不可变版本前缀，保留 MIME、编码、CORS、缓存和音频 Range；密钥、私有环境、数据库、日志及临时传输包不得进入 Git 或公开目录。
+5. **发布顺序**：从已确认的源码或线上冻结版本生成产物，记录源码提交、release ID 和 SHA-256；先上传并逐文件核对腾讯候选，验证依赖与健康状态，再原子切换本项目版本链接或网关 include。共享 Nginx 修改前重新读取现网、备份受影响文件，通过 `nginx -t` 后才重载，保留可用回滚版本，不能覆盖并行维护。
+6. **验收与交付**：两个域名分别检查正式、小写、大小混写入口、深层页面、查询参数、版本标记、JS/CSS 与项目关键功能，核实最终地址仍在本站，并确认请求实际到达腾讯。邻站和首页必须回归；新功能按本项目测试要求验收。清理本轮测试服务、临时访问凭据及传输包，记录实际未测项；仅将本轮相关文件 commit、push，核对远端提交后交付。
+
+腾讯 HTML、sitemap、llms 和版本标记位于 `/www/wwwroot/lubirth-current`，指向 `lubirth-releases/<release-id>/web`。既有腾讯 COS/CDN 继续提供脚本、贴图、模型与音频；两个域名的页面元数据分别使用当前访问域名。
+
+项目部署细节见[部署记录](docs/deployment/tencent-origin-migration-20261026.md)。旧文档或工具草案若仍把活动源站写成阿里，应按本节腾讯源站架构审阅后使用，不得直接覆盖现网。
+
+
 这是从原项目迁移的单一光源地球月球场景，保留了所有核心渲染效果，简化了光照系统架构。
 
 ## 🎯 项目特点
@@ -72,7 +88,7 @@ npm run build
 
 手机面板使用独立的可见构图区域；相机控制模块持有该区域的投影，避免自适应分辨率或品质切换将宽高比覆盖为整块画布，造成地月画面被拉伸。`getLuBirthPerformance().projectionAspect` 可与画布的 CSS 宽高比对照检查。
 
-本地构建产物位于 `dist/`，Vite 的 `base` 为 `/LuBirth/`，公网地址遵循上方「公网地址与大小写规则」。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
+本地构建产物位于 `dist/`，Vite 的 `base` 为 `/LuBirth/`，公网地址遵循上方「公网地址与大小写规则」。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在腾讯源站，阿里仅按路径转发，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
 
 若默认资源域名证书异常，可用 `--assets-host media.aitoshuu.me` 让静态资源经同一存储桶已有的媒体 CDN 交付。仅允许这两个既有域名；所选域名计入版本摘要，上传和校验仍限定本次不可变版本前缀，保持 HTTPS 验证。
 

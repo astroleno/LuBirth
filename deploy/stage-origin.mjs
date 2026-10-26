@@ -43,11 +43,18 @@ async function main() {
   }
   console.log(JSON.stringify({
     mode: 'staging-plan', releaseId: manifest.releaseId,
+    originProvider: 'tencent', originHost: '122.51.59.89',
+    originNginxConfig: '/www/server/panel/vhost/nginx/extension/aitoshuu.art/lubirth-migration.conf',
+    gatewayProvider: 'aliyun', gatewayHost: '47.103.120.24',
     source: join(root, 'web'), destination: `${originRoot}/${manifest.releaseId}/web`,
     currentLink, nginxConfig,
     files: origin.map(entry => ({ path: entry.packagePath.slice(4), bytes: entry.bytes, sha256: entry.sha256 })),
     nginxLocations: [
       'include /www/server/panel/vhost/nginx/aitoshuu-lubirth-routes.inc;',
+    ],
+    additionalNginxConfig: '/www/server/panel/vhost/nginx/html_tongye.me.conf',
+    additionalNginxLocations: [
+      'include /www/server/panel/vhost/nginx/tongye-lubirth-routes.inc;',
     ],
   }, null, 2));
 }
