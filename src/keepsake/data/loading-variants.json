@@ -1,0 +1,212 @@
+{
+  "version": 2,
+  "styles": [
+    {
+      "id": "inko-no012",
+      "name": "Inko No.012",
+      "source": "keepsake/templates/v1/provenance.json"
+    },
+    {
+      "id": "ma-shan-zheng",
+      "name": "MaShanZheng",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/mashanzheng/MaShanZheng-Regular.ttf"
+    },
+    {
+      "id": "long-cang",
+      "name": "LongCang",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/longcang/LongCang-Regular.ttf"
+    },
+    {
+      "id": "zhi-mang-xing",
+      "name": "ZhiMangXing",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/zhimangxing/ZhiMangXing-Regular.ttf"
+    },
+    {
+      "id": "liu-jian-mao-cao",
+      "name": "LiuJianMaoCao",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/liujianmaocao/LiuJianMaoCao-Regular.ttf"
+    }
+  ],
+  "variants": [
+    {
+      "id": "inko-no012:first-meeting",
+      "styleId": "inko-no012",
+      "templateId": "first-meeting",
+      "text": "天地初见",
+      "width": 599,
+      "height": 175,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/inko-no012/first-meeting-loading.svg",
+      "index": "keepsake/loading/v2/inko-no012/first-meeting-index.svg"
+    },
+    {
+      "id": "inko-no012:earth-and-you",
+      "styleId": "inko-no012",
+      "templateId": "earth-and-you",
+      "text": "天地与你",
+      "width": 633,
+      "height": 184,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/inko-no012/earth-and-you-loading.svg",
+      "index": "keepsake/loading/v2/inko-no012/earth-and-you-index.svg"
+    },
+    {
+      "id": "inko-no012:same-moon",
+      "styleId": "inko-no012",
+      "templateId": "same-moon",
+      "text": "与古人同望",
+      "width": 741,
+      "height": 185,
+      "characters": 5,
+      "durationMs": 2050,
+      "glyph": "keepsake/loading/v2/inko-no012/same-moon-loading.svg",
+      "index": "keepsake/loading/v2/inko-no012/same-moon-index.svg"
+    },
+    {
+      "id": "ma-shan-zheng:first-meeting",
+      "styleId": "ma-shan-zheng",
+      "templateId": "first-meeting",
+      "text": "天地初见",
+      "width": 1030,
+      "height": 259,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/ma-shan-zheng/first-meeting-loading.svg",
+      "index": "keepsake/loading/v2/ma-shan-zheng/first-meeting-index.svg"
+    },
+    {
+      "id": "ma-shan-zheng:earth-and-you",
+      "styleId": "ma-shan-zheng",
+      "templateId": "earth-and-you",
+      "text": "天地与你",
+      "width": 1042,
+      "height": 256,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/ma-shan-zheng/earth-and-you-loading.svg",
+      "index": "keepsake/loading/v2/ma-shan-zheng/earth-and-you-index.svg"
+    },
+    {
+      "id": "ma-shan-zheng:same-moon",
+      "styleId": "ma-shan-zheng",
+      "templateId": "same-moon",
+      "text": "与古人同望",
+      "width": 1290,
+      "height": 260,
+      "characters": 5,
+      "durationMs": 2050,
+      "glyph": "keepsake/loading/v2/ma-shan-zheng/same-moon-loading.svg",
+      "index": "keepsake/loading/v2/ma-shan-zheng/same-moon-index.svg"
+    },
+    {
+      "id": "long-cang:first-meeting",
+      "styleId": "long-cang",
+      "templateId": "first-meeting",
+      "text": "天地初见",
+      "width": 1037,
+      "height": 228,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/long-cang/first-meeting-loading.svg",
+      "index": "keepsake/loading/v2/long-cang/first-meeting-index.svg"
+    },
+    {
+      "id": "long-cang:earth-and-you",
+      "styleId": "long-cang",
+      "templateId": "earth-and-you",
+      "text": "天地与你",
+      "width": 1048,
+      "height": 244,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/long-cang/earth-and-you-loading.svg",
+      "index": "keepsake/loading/v2/long-cang/earth-and-you-index.svg"
+    },
+    {
+      "id": "long-cang:same-moon",
+      "styleId": "long-cang",
+      "templateId": "same-moon",
+      "text": "与古人同望",
+      "width": 1273,
+      "height": 244,
+      "characters": 5,
+      "durationMs": 2050,
+      "glyph": "keepsake/loading/v2/long-cang/same-moon-loading.svg",
+      "index": "keepsake/loading/v2/long-cang/same-moon-index.svg"
+    },
+    {
+      "id": "zhi-mang-xing:first-meeting",
+      "styleId": "zhi-mang-xing",
+      "templateId": "first-meeting",
+      "text": "天地初见",
+      "width": 941,
+      "height": 230,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/zhi-mang-xing/first-meeting-loading.svg",
+      "index": "keepsake/loading/v2/zhi-mang-xing/first-meeting-index.svg"
+    },
+    {
+      "id": "zhi-mang-xing:earth-and-you",
+      "styleId": "zhi-mang-xing",
+      "templateId": "earth-and-you",
+      "text": "天地与你",
+      "width": 950,
+      "height": 227,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/zhi-mang-xing/earth-and-you-loading.svg",
+      "index": "keepsake/loading/v2/zhi-mang-xing/earth-and-you-index.svg"
+    },
+    {
+      "id": "zhi-mang-xing:same-moon",
+      "styleId": "zhi-mang-xing",
+      "templateId": "same-moon",
+      "text": "与古人同望",
+      "width": 1153,
+      "height": 217,
+      "characters": 5,
+      "durationMs": 2050,
+      "glyph": "keepsake/loading/v2/zhi-mang-xing/same-moon-loading.svg",
+      "index": "keepsake/loading/v2/zhi-mang-xing/same-moon-index.svg"
+    },
+    {
+      "id": "liu-jian-mao-cao:first-meeting",
+      "styleId": "liu-jian-mao-cao",
+      "templateId": "first-meeting",
+      "text": "天地初见",
+      "width": 1049,
+      "height": 248,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/liu-jian-mao-cao/first-meeting-loading.svg",
+      "index": "keepsake/loading/v2/liu-jian-mao-cao/first-meeting-index.svg"
+    },
+    {
+      "id": "liu-jian-mao-cao:earth-and-you",
+      "styleId": "liu-jian-mao-cao",
+      "templateId": "earth-and-you",
+      "text": "天地与你",
+      "width": 1040,
+      "height": 264,
+      "characters": 4,
+      "durationMs": 1970,
+      "glyph": "keepsake/loading/v2/liu-jian-mao-cao/earth-and-you-loading.svg",
+      "index": "keepsake/loading/v2/liu-jian-mao-cao/earth-and-you-index.svg"
+    },
+    {
+      "id": "liu-jian-mao-cao:same-moon",
+      "styleId": "liu-jian-mao-cao",
+      "templateId": "same-moon",
+      "text": "与古人同望",
+      "width": 1259,
+      "height": 286,
+      "characters": 5,
+      "durationMs": 2050,
+      "glyph": "keepsake/loading/v2/liu-jian-mao-cao/same-moon-loading.svg",
+      "index": "keepsake/loading/v2/liu-jian-mao-cao/same-moon-index.svg"
+    }
+  ]
+}

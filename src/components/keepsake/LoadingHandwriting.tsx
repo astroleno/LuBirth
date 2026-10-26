@@ -1,27 +1,38 @@
 import React from 'react';
-import { handwritingAsset, KEEPSAKE_TEMPLATES, selectLoadingTemplate } from '../../keepsake/templates';
-import { templateUrl } from '../../keepsake/templates';
+import { chooseLoadingVariant } from '../../keepsake/loadingVariants';
+import { assetUrl } from '../../utils/assetUrl';
 import './loading-handwriting.css';
 
 export function LoadingHandwriting({ onComplete, reducedMotion = false }: {
   onComplete: () => void; reducedMotion?: boolean;
 }) {
-  const [id] = React.useState(() => selectLoadingTemplate());
+  const [{ variant, seed }] = React.useState(() => chooseLoadingVariant());
   const [failed, setFailed] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
-  const template = KEEPSAKE_TEMPLATES.find(item => item.id === id)!;
-  const asset = handwritingAsset(id);
+  const [mode, setMode] = React.useState<'pending' | 'revealing' | 'static'>('pending');
+  const canvas = React.useRef<HTMLCanvasElement>(null), image = React.useRef<HTMLImageElement>(null);
   React.useEffect(() => {
-    if (!loaded && !failed && asset) return;
-    // SVG animations start when the image loads, not when this component mounts.
-    // Leave a short pause after the last character before revealing the scene.
-    const duration = failed || !asset || reducedMotion ? 0 : asset.loadingDurationMs + 200;
-    const timer = setTimeout(onComplete, duration);
-    return () => clearTimeout(timer);
-  }, [loaded, failed, asset, reducedMotion, onComplete]);
-  return <div className="loading-handwriting">
-    {asset && !failed ? <img src={templateUrl(asset.loading)} width={asset.width} height={asset.loadingHeight}
-      alt={template.text} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
-      : <p className="loading-handwriting-fallback">{template.text}</p>}
+    if (!loaded && !failed) return;
+    if (failed || reducedMotion) {
+      setMode('static');
+      const timer = setTimeout(onComplete, 0);
+      return () => clearTimeout(timer);
+    }
+    let cancelled = false, dispose: (() => void) | undefined;
+    void import('./inkHandwriting').then(({ mountInkHandwriting }) => {
+      if (cancelled || !canvas.current || !image.current) return;
+      dispose = mountInkHandwriting({ canvas: canvas.current, glyph: image.current, indexUrl: assetUrl(variant.index),
+        characters: variant.characters, durationMs: variant.durationMs, seed,
+        onState: state => { if (!cancelled) setMode(state === 'revealing' ? 'revealing' : 'static'); },
+        onComplete: () => { if (!cancelled) onComplete(); } });
+    }).catch(() => { if (!cancelled) { setMode('static'); onComplete(); } });
+    return () => { cancelled = true; dispose?.(); };
+  }, [loaded, failed, reducedMotion, variant, seed, onComplete]);
+  return <div className="loading-handwriting" data-loading-variant={variant.id} data-ink-state={mode}
+    style={{ aspectRatio: `${variant.width} / ${variant.height}` }}>
+    {!failed ? <img ref={image} src={assetUrl(variant.glyph)} width={variant.width} height={variant.height}
+      alt={variant.text} crossOrigin="anonymous" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+      : <p className="loading-handwriting-fallback">{variant.text}</p>}
+    {!failed && !reducedMotion && <canvas ref={canvas} aria-hidden="true" />}
   </div>;
 }
