@@ -1,5 +1,5 @@
 // Browser-only GPU regression probe, deliberately absent from both application entries.
-// In the local spike browser: await (await import('/lubirth/scripts/verify-sky-star-rendering.mjs')).verifyStarRendering()
+// In the local spike browser: await (await import('/LuBirth/scripts/verify-sky-star-rendering.mjs')).verifyStarRendering()
 import * as THREE from 'three';
 import { createStarMaterial, starColor, DEFAULT_STAR_APPEARANCE } from '../src/spikes/sky/starAppearance.ts';
 

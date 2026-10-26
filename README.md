@@ -55,7 +55,7 @@ npm run build
 
 手机面板使用独立的可见构图区域；相机控制模块持有该区域的投影，避免自适应分辨率或品质切换将宽高比覆盖为整块画布，造成地月画面被拉伸。`getLuBirthPerformance().projectionAspect` 可与画布的 CSS 宽高比对照检查。
 
-本地构建产物位于 `dist/`，Vite 的 `base` 为 `/lubirth/`。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
+本地构建产物位于 `dist/`，Vite 的 `base` 为 `/LuBirth/`。公网主地址为 `https://aitoshuu.me/LuBirth/`，`tongye.me/LuBirth` 与小写 `/lubirth` 入口通过 308 跳转到主地址，保留子路径和查询参数。正式发布通过 `deploy/package-release.mjs --output <仓库外目录>` 生成不可变版本：HTML 和版本标记放在阿里源站，资源通过腾讯 COS 的约定前缀及 `assets.aitoshuu.me`、`media.aitoshuu.me` 提供。依次运行仓库的上传 wrapper、CDN 验证、源站暂存与切换、公开地址验证；凭证仅由 wrapper 在进程内从 Keychain 使用。`--source-ref <HEAD commit>` 要求发布输入已提交。未被页面引用的 `public/sfx/` 音效草稿不进入发布包。
 
 若默认资源域名证书异常，可用 `--assets-host media.aitoshuu.me` 让静态资源经同一存储桶已有的媒体 CDN 交付。仅允许这两个既有域名；所选域名计入版本摘要，上传和校验仍限定本次不可变版本前缀，保持 HTTPS 验证。
 

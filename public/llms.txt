@@ -4,8 +4,8 @@
 
 ## Official pages
 
-- Canonical application: https://aitoshuu.me/lubirth/
-- Brand entry: https://tongye.me/lubirth/
+- Canonical application: https://aitoshuu.me/LuBirth/
+- Brand entry: https://tongye.me/LuBirth/
 - Source repository: https://github.com/astroleno/LuBirth
 
 ## What LuBirth shows

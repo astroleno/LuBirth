@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.LUBIRTH_ASSET_BASE || '/lubirth/',
+  base: process.env.LUBIRTH_ASSET_BASE || '/LuBirth/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

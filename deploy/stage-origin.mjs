@@ -32,14 +32,14 @@ async function main() {
     if ((await stat(path)).size !== entry.bytes || sha(await readFile(path)) !== entry.sha256) throw new Error(`origin hash mismatch: ${entry.packagePath}`);
   }
   const html = await readFile(join(root, 'web/index.html'), 'utf8');
-  if (!html.includes(manifest.assetsBase) || html.includes('/lubirth/assets/')) throw new Error('origin HTML is not pinned to the CDN release');
+  if (!html.includes(manifest.assetsBase) || /\/lubirth\/assets\//i.test(html)) throw new Error('origin HTML is not pinned to the CDN release');
   const health = JSON.parse(await readFile(join(root, 'web/release-health.json'), 'utf8'));
   if (health.releaseId !== manifest.releaseId || health.sourceDigest !== manifest.sourceDigest) throw new Error('origin health marker mismatch');
   if (hasDiscoveryFiles) {
     const llms = await readFile(join(root, 'web/llms.txt'), 'utf8');
-    if (!llms.includes('https://aitoshuu.me/lubirth/') || !llms.includes('https://tongye.me/lubirth/')) throw new Error('LuBirth discovery summary is incomplete');
+    if (!llms.includes('https://aitoshuu.me/LuBirth/') || !llms.includes('https://tongye.me/LuBirth/')) throw new Error('LuBirth discovery summary is incomplete');
     const sitemap = await readFile(join(root, 'web/sitemap.xml'), 'utf8');
-    if (!sitemap.includes('<loc>https://aitoshuu.me/lubirth/</loc>')) throw new Error('LuBirth sitemap canonical URL is missing');
+    if (!sitemap.includes('<loc>https://aitoshuu.me/LuBirth/</loc>')) throw new Error('LuBirth sitemap canonical URL is missing');
   }
   console.log(JSON.stringify({
     mode: 'staging-plan', releaseId: manifest.releaseId,
@@ -47,8 +47,7 @@ async function main() {
     currentLink, nginxConfig,
     files: origin.map(entry => ({ path: entry.packagePath.slice(4), bytes: entry.bytes, sha256: entry.sha256 })),
     nginxLocations: [
-      'location = /lubirth { return 308 /lubirth/; }',
-      `location ^~ /lubirth/ { alias ${currentLink}/; index index.html; try_files $uri $uri/ =404; }`,
+      'include /www/server/panel/vhost/nginx/aitoshuu-lubirth-routes.inc;',
     ],
   }, null, 2));
 }

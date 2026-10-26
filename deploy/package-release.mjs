@@ -106,7 +106,7 @@ async function main() {
   const html = await readFile(join(buildDir, 'index.html'));
   const htmlText = html.toString();
   if (!htmlText.includes(assetsBase)) fail('HTML does not reference the CDN release');
-  if (!htmlText.includes('<link rel="canonical" href="https://aitoshuu.me/lubirth/"')) fail('HTML canonical URL is missing');
+  if (!htmlText.includes('<link rel="canonical" href="https://aitoshuu.me/LuBirth/"')) fail('HTML canonical URL is missing');
   if (!htmlText.includes('type="application/ld+json"') || !htmlText.includes('"@type": "WebApplication"')) fail('HTML structured data is missing');
   await mkdir(join(output, 'web'), { recursive: true });
   await writeFile(join(output, 'web/index.html'), html);
