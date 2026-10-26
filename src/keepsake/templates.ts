@@ -12,6 +12,7 @@ export type HandwritingAsset = {
   card: string;
   loading: string;
   loadingDurationMs: number;
+  loadingHeight: number;
   png: string;
   sourceJob: string;
   label: { path: string; width: number; height: number; textHeight: number };

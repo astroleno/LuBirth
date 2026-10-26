@@ -394,16 +394,16 @@ button, .btn { touch-action: manipulation; }
 
 /* 已移除对齐辅助线样式 */
 
-/* ============ Loading Overlay (non-blocking) ============ */
+/* Loading: handwriting, then scene, then app controls. */
 .lubirth-loading-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none; /* 不阻塞鼠标事件，避免影响场景交互/动画 */
+  pointer-events: auto;
   z-index: 9999;
-  background: #000; /* 沿用 Vercel 版本的纯黑底与静态发光文字。 */
+  background: #000;
   opacity: 1;
   /* 更柔和的缓出：使用 css 变量与组件 props 同步 */
   transition: opacity var(--fadeMs, 1200ms) cubic-bezier(0.16, 0.84, 0.33, 1);
@@ -411,44 +411,19 @@ button, .btn { touch-action: manipulation; }
   isolation: isolate;
 }
 .lubirth-loading-overlay.fading { opacity: 0; }
-
-/* 噪点取消：如需恢复，将下方注释块启用即可 */
-/* .lubirth-loading-overlay::after { content: none; } */
+.lubirth-loading-overlay.clearing .lubirth-loading-container { opacity: 0; }
+.lubirth-loading-overlay.fading .lubirth-loading-container { visibility: hidden; }
 
 .lubirth-loading-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   text-align: center;
+  transition: opacity var(--contentFadeMs, 180ms) ease-out;
 }
 
-.lubirth-loading-line {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  color: #fff;
-  letter-spacing: 0.08em;
-  /* 恒定自发光（无呼吸动画） */
-  text-shadow: 0 0 10px rgba(255,255,255,0.30), 0 0 22px rgba(160,200,255,0.24);
-  filter: brightness(1) drop-shadow(0 0 16px rgba(180,220,255,0.18));
-}
-
-.lubirth-loading-line.line-1 {
-  font-size: 42px;
-  font-weight: 700;
-}
-
-.lubirth-loading-line.line-2 {
-  font-size: 20px;
-  opacity: 0.9;
-}
-
-.lubirth-loading-word { display: inline-block; }
-.lubirth-loading-char { display: inline-block; }
-.loading-actions { margin-top: 14px; pointer-events: auto; }
-
-@keyframes lubirth-glow {
-  0%   { opacity: 0.92; filter: brightness(0.96) drop-shadow(0 0 10px rgba(180,220,255,0.14)); transform: scale(0.997); text-shadow: 0 0 6px rgba(255,255,255,0.22), 0 0 14px rgba(160,200,255,0.18); }
-  50%  { opacity: 1;    filter: brightness(1.08) drop-shadow(0 0 18px rgba(180,220,255,0.22)); transform: scale(1.003); text-shadow: 0 0 10px rgba(255,255,255,0.36), 0 0 22px rgba(160,200,255,0.28); }
-  100% { opacity: 0.92; filter: brightness(0.96) drop-shadow(0 0 10px rgba(180,220,255,0.14)); transform: scale(0.997); text-shadow: 0 0 6px rgba(255,255,255,0.22), 0 0 14px rgba(160,200,255,0.18); }
-}
-
-/* Loading overlay 在 fade 过渡完成后由组件卸载 */
+.loading-feedback { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 20px; right: 20px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.loading-feedback p { margin: 0; }
+.loading-actions { display: flex; justify-content: center; gap: 24px; margin-top: 6px; }
+.loading-actions button { min-height: 44px; padding: 8px 4px; border: 0; background: none; color: #dfd1ba; font: inherit; cursor: pointer; }
+.loading-actions button:hover { color: #fff; }
+.loading-actions button:focus-visible { outline: 2px solid #dfd1ba; outline-offset: 4px; }

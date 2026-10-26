@@ -409,7 +409,7 @@ export class LiquidGlassRenderer {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['class', 'hidden', 'style', 'open', 'disabled', 'data-glass-variant'],
+      attributeFilter: ['class', 'hidden', 'inert', 'aria-hidden', 'style', 'open', 'disabled', 'data-glass-variant'],
     });
     this.root.addEventListener('scroll', this.markDirty, true);
     this.root.addEventListener('transitionend', this.markDirty, true);
@@ -431,10 +431,11 @@ export class LiquidGlassRenderer {
     const regions: { element: HTMLElement; box: DOMRect; controls: HTMLElement[] }[] = [];
     for (const element of Array.from(elements)) {
       const box = element.getBoundingClientRect();
-      if (!box.width || !box.height || box.bottom <= 0 || box.top >= this.height || element.closest('[hidden]')) continue;
+      if (!box.width || !box.height || box.bottom <= 0 || box.top >= this.height
+          || element.closest('[hidden], [inert], [aria-hidden="true"]')) continue;
       const controls = Array.from(element.querySelectorAll<HTMLElement>(GLASS_CONTROL_SELECTOR))
         .filter(control => control.closest('[data-liquid-glass]') === element
-          && !control.closest('[hidden], details:not([open])') && control.getClientRects().length > 0)
+          && !control.closest('[hidden], [inert], [aria-hidden="true"], details:not([open])') && control.getClientRects().length > 0)
         .slice(0, MAX_GLASS_CONTROLS);
       controls.forEach(control => { elements.add(control); controlElements.add(control); });
       regions.push({ element, box, controls });

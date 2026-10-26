@@ -9,5 +9,5 @@
     "source-scene.zip": "e288c041776a7278ab5551028dfb286da562b7e4c641a9b6e2d8a194d1b6b0c4",
     "source-page.png": "b4af39891b004ec3ea63e54f96b7260d80cef9252eea5bc833bf578d576a0011"
   },
-  "derivative": "Original atlas alpha and affine transforms; per-glyph SVG masks; original visible label; byte-exact source PNG AIGC and XMP chunks."
+  "derivative": "Original atlas alpha and affine transforms; per-glyph SVG masks; loading contains only glyphs; card retains original visible label; byte-exact source PNG AIGC and XMP chunks."
 }

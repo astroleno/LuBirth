@@ -48,7 +48,7 @@
     <style>
       html,body{margin:0;background:#000;color:#eaf2ff}
       .boot{position:fixed;inset:0;display:grid;place-content:center;text-align:center;font-family:system-ui,sans-serif;padding:24px;background:#000}
-      .boot h1{font-size:42px;letter-spacing:.08em;margin:0 0 10px;color:#fff;text-shadow:0 0 10px rgba(255,255,255,.3),0 0 22px rgba(160,200,255,.24)}.boot p{margin:0;color:#fff;font-size:20px;letter-spacing:.08em;opacity:.9;text-shadow:0 0 10px rgba(255,255,255,.3),0 0 22px rgba(160,200,255,.24)}
+      .boot-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
       .boot-noscript{max-width:640px;margin:28px auto 0}.boot-noscript h2{font-size:22px}.boot-noscript p{margin:10px 0;font-size:16px;letter-spacing:0;line-height:1.7}.boot-noscript a{color:#cfe0ff}
     </style>
     <link rel="icon" type="image/png" sizes="128x128" href="/favicon.png" />
@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="root"><div class="boot" role="status"><h1>LuBirth</h1><p>Moon Earth You</p><noscript><section class="boot-noscript"><h2>初见地月</h2><p>输入出生时间与地点，查看那一刻的地球昼夜、月相与太阳光照。LuBirth 使用真实天文数据生成可交互的地月场景。</p><p>本页面需要 JavaScript 与 WebGL。请开启 JavaScript 后重新载入。</p><p><a href="https://svs.gsfc.nasa.gov/14959/">月球模型来源：NASA Goddard Space Flight Center</a></p></section></noscript></div></div>
+    <div id="root"><div class="boot" role="status"><span class="boot-status">正在准备地月画面。</span><noscript><section class="boot-noscript"><h2>初见地月</h2><p>输入出生时间与地点，查看那一刻的地球昼夜、月相与太阳光照。LuBirth 使用真实天文数据生成可交互的地月场景。</p><p>本页面需要 JavaScript 与 WebGL。请开启 JavaScript 后重新载入。</p><p><a href="https://svs.gsfc.nasa.gov/14959/">月球模型来源：NASA Goddard Space Flight Center</a></p></section></noscript></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
   </html>

@@ -13,6 +13,8 @@ interface LoadingOverlayProps {
   readyEventName?: string;
   // 预热帧数：收到就绪后先渲染几帧再淡出
   prewarmFrames?: number;
+  // 黑底完全退场后再显示应用操作界面。
+  onComplete?: () => void;
 }
 
 export default function LoadingOverlay(props: LoadingOverlayProps) {
@@ -21,12 +23,15 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
     minShowMs = 0,
     fadeMs: configuredFadeMs = 800,
     readyEventName = 'lubirth:assets-ready',
-    prewarmFrames = 3
+    prewarmFrames = 3,
+    onComplete
   } = props;
   const reducedMotion = useReducedMotion();
   const fadeMs = reducedMotion ? 0 : configuredFadeMs;
+  const contentFadeMs = reducedMotion ? 0 : 180;
 
   const [visible, setVisible] = React.useState(true);
+  const [clearing, setClearing] = React.useState(false);
   const [fading, setFading] = React.useState(false);
   const [progress, setProgress] = React.useState(() => (window as any).__lubirthAssetProgress ?? { loaded: 0, total: 2 });
   const [slow, setSlow] = React.useState(false);
@@ -43,26 +48,28 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
   }, []);
   const mountedAtRef = React.useRef<number>(performance.now());
   const finishedRef = React.useRef<boolean>(false);
+  const clearTimerRef = React.useRef<ReturnType<typeof setTimeout>>();
   const fadeTimerRef = React.useRef<ReturnType<typeof setTimeout>>();
-  React.useEffect(() => () => clearTimeout(fadeTimerRef.current), []);
+  React.useEffect(() => () => {
+    clearTimeout(clearTimerRef.current);
+    clearTimeout(fadeTimerRef.current);
+  }, []);
 
-  // 触发淡出与卸载
+  // 先在不透明黑底上收起文字，再露出场景，避免手写与场景叠印。
   const startFadeOut = React.useCallback(() => {
     if (finishedRef.current) return;
-    try {
-      finishedRef.current = true;
-      try {
-        // 通知场景：Overlay 开始淡出（可用于解锁自转）
-        (window as any).__lubirthOverlayFading = true;
-        window.dispatchEvent(new CustomEvent('lubirth:overlay-fade-start'));
-      } catch {}
+    finishedRef.current = true;
+    setClearing(true);
+    clearTimerRef.current = setTimeout(() => {
+      (window as any).__lubirthOverlayFading = true;
+      window.dispatchEvent(new CustomEvent('lubirth:overlay-fade-start'));
       setFading(true);
-      fadeTimerRef.current = setTimeout(() => setVisible(false), fadeMs);
-    } catch (e) {
-      console.error('[LoadingOverlay] fade out failed:', e);
-      setVisible(false);
-    }
-  }, [fadeMs]);
+      fadeTimerRef.current = setTimeout(() => {
+        setVisible(false);
+        onComplete?.();
+      }, fadeMs);
+    }, contentFadeMs);
+  }, [contentFadeMs, fadeMs, onComplete]);
 
   // Resource readiness and the handwriting timeline run independently.
   React.useEffect(() => {
@@ -94,19 +101,21 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
 
   return (
     <div
-      className={`lubirth-loading-overlay${fading ? ' fading' : ''}`}
+      className={`lubirth-loading-overlay${clearing ? ' clearing' : ''}${fading ? ' fading' : ''}`}
+      data-phase={fading ? 'revealing' : clearing ? 'clearing' : 'writing'}
       role="status"
       aria-live="polite"
-      style={{ ['--fadeMs' as any]: `${fadeMs}ms`, transitionDuration: `${fadeMs}ms` }}
+      style={{ ['--fadeMs' as any]: `${fadeMs}ms`, ['--contentFadeMs' as any]: `${contentFadeMs}ms` }}
     >
       <div className="lubirth-loading-container">
         <LoadingHandwriting onComplete={completeHandwriting} reducedMotion={reducedMotion} />
         <span className="sr-only">地月基础画面已加载 {progress.loaded} / {progress.total}。</span>
-        {(failed || slow) && <div className="loading-caption">
-          <p>{failed ? '部分画面未能加载' : sceneReady ? '开场文字仍在准备…' : '连接较慢，地月画面仍在加载…'}</p>
-          <div className="loading-actions"><button className="btn" onClick={() => window.location.reload()}>重新加载</button>{' '}<button className="btn" onClick={startFadeOut}>先进入场景</button></div>
-        </div>}
       </div>
+      {(failed || slow) && !clearing && <div className="loading-feedback">
+        <p>{failed ? '部分画面未能加载' : sceneReady ? '开场文字仍在准备…' : '连接较慢，地月画面仍在加载…'}</p>
+        <div className="loading-actions"><button onClick={() => window.location.reload()}>重新加载</button>
+          <button onClick={startFadeOut}>先进入场景</button></div>
+      </div>}
     </div>
   );
 }

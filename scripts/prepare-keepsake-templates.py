@@ -104,12 +104,13 @@ def main():
             loading_elements.append(f'<g transform="{transform}"><image width="{sw}" height="{sh}" href="{data_url(light)}" mask="url(#glyph-{index})"/></g>')
         meta = escape(json.dumps({'AIGC': aigc, 'InkoEdited': True, 'SourceJob': scene['job']['id'],
                                   'Text': text, 'Motion': 'per-glyph reveal; not original stroke order'}, ensure_ascii=False))
-        # The original visible label is a separate, unanimated image in both uses.
+        # Card exports retain their separate label. The opening contains only glyphs.
         label_svg = f'<image x="{lab_x:.3f}" y="{lab_y:.3f}" width="{lab_w:.3f}" height="{lab_h:.3f}" href="data:image/png;base64,{b64encode(label_bytes).decode()}"/>'
         shell = f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{text}"><title>{text}</title><metadata>{meta}</metadata>'
         static = shell + ''.join(card_elements) + label_svg + '</svg>'
         css = '<style>.reveal{transform-box:fill-box;transform-origin:left center;animation:ink-reveal .65s cubic-bezier(.2,.55,.35,1) both}@keyframes ink-reveal{from{transform:scaleX(0)}to{transform:scaleX(1)}}@media(prefers-reduced-motion:reduce){.reveal{animation:none;transform:none}}</style>'
-        animated = shell + css + '<defs>' + ''.join(masks) + '</defs>' + ''.join(loading_elements) + label_svg + '</svg>'
+        loading_shell = f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{ink_height}" viewBox="0 0 {width} {ink_height}" role="img" aria-label="{text}"><title>{text}</title><metadata>{meta}</metadata>'
+        animated = loading_shell + css + '<defs>' + ''.join(masks) + '</defs>' + ''.join(loading_elements) + '</svg>'
         (OUT / f'{identifier}.svg').write_text(static, encoding='utf-8')
         (OUT / f'{identifier}-loading.svg').write_text(animated, encoding='utf-8')
         resized = label.resize((round(lab_w), round(lab_h)), Image.Resampling.LANCZOS)
@@ -118,6 +119,7 @@ def main():
         manifest['templates'].append({'id': identifier, 'text': text, 'width': width, 'height': height,
             'inkRect': [0, 0, width, ink_height], 'card': f'{identifier}.svg', 'loading': f'{identifier}-loading.svg',
             'loadingDurationMs': round((.12 + (len(glyphs) - 1) * (1.6 / len(glyphs)) + .65) * 1000),
+            'loadingHeight': ink_height,
             'png': f'{identifier}.png', 'label': {'path': 'inko-label.png', 'width': label.width,
                 'height': label.height, 'textHeight': label_text_height},
             'sourceJob': scene['job']['id'], 'metadata': chunks})
@@ -125,7 +127,7 @@ def main():
     (ROOT / 'src/keepsake/data/templates.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
     provenance = {'sourceJob': scene['job']['id'], 'createdAt': scene['job']['created_at'], 'style': 'No.012 / preset writer 640',
         'model': scene['job']['model'], 'text': scene['text'], 'sourceFiles': {p.name: sha256(p.read_bytes()).hexdigest()
-        for p in SOURCE.iterdir() if p.suffix in ('.png', '.zip')}, 'derivative': 'Original atlas alpha and affine transforms; per-glyph SVG masks; original visible label; byte-exact source PNG AIGC and XMP chunks.'}
+        for p in SOURCE.iterdir() if p.suffix in ('.png', '.zip')}, 'derivative': 'Original atlas alpha and affine transforms; per-glyph SVG masks; loading contains only glyphs; card retains original visible label; byte-exact source PNG AIGC and XMP chunks.'}
     (OUT / 'provenance.json').write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + '\n')
 
 

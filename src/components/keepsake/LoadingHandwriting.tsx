@@ -20,10 +20,8 @@ export function LoadingHandwriting({ onComplete, reducedMotion = false }: {
     return () => clearTimeout(timer);
   }, [loaded, failed, asset, reducedMotion, onComplete]);
   return <div className="loading-handwriting">
-    <p className="loading-handwriting-brand">LuBirth</p>
-    {asset && !failed ? <img src={templateUrl(asset.loading)} width={asset.width} height={asset.height}
+    {asset && !failed ? <img src={templateUrl(asset.loading)} width={asset.width} height={asset.loadingHeight}
       alt={template.text} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
       : <p className="loading-handwriting-fallback">{template.text}</p>}
-    <p className="loading-handwriting-caption">Moon · Earth · You</p>
   </div>;
 }

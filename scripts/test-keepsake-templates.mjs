@@ -75,6 +75,11 @@ try {
       for (const name of [asset.card, asset.loading, asset.png, asset.label.path])
         assert.ok((await fs.stat('public/keepsake/templates/v1/' + name)).size > 0);
       const svg = await fs.readFile('public/keepsake/templates/v1/' + asset.loading, 'utf8');
+      assert.equal((svg.match(/<image /g) || []).length, [...text].length,
+        'The opening must contain only the handwriting glyphs, without a visible watermark');
+      assert.equal(asset.loadingHeight, asset.inkRect[3]);
+      assert.ok(svg.includes(`viewBox="0 0 ${asset.width} ${asset.loadingHeight}"`),
+        'The opening viewport must exclude the old label and its reserved space');
       const revealMs = Number(svg.match(/animation:ink-reveal ([\d.]+)s/)[1]) * 1000;
       const delays = [...svg.matchAll(/animation-delay:([\d.]+)s/g)].map(match => Number(match[1]) * 1000);
       assert.equal(delays.length, [...text].length);

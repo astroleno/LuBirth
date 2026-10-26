@@ -15,6 +15,7 @@
       "card": "first-meeting.svg",
       "loading": "first-meeting-loading.svg",
       "loadingDurationMs": 1970,
+      "loadingHeight": 175,
       "png": "first-meeting.png",
       "label": {
         "path": "inko-label.png",
@@ -48,6 +49,7 @@
       "card": "earth-and-you.svg",
       "loading": "earth-and-you-loading.svg",
       "loadingDurationMs": 1970,
+      "loadingHeight": 184,
       "png": "earth-and-you.png",
       "label": {
         "path": "inko-label.png",
@@ -81,6 +83,7 @@
       "card": "same-moon.svg",
       "loading": "same-moon-loading.svg",
       "loadingDurationMs": 2050,
+      "loadingHeight": 185,
       "png": "same-moon.png",
       "label": {
         "path": "inko-label.png",

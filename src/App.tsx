@@ -46,6 +46,9 @@ export default function App() {
   const registerEarthUI = React.useCallback((actions: EarthUIActions | null) => { earthActions.current = actions; }, []);
   const [earthHidden, setEarthHidden] = React.useState(false);
   const [earthStarted, setEarthStarted] = React.useState(view === 'earth');
+  const [earthOpeningComplete, setEarthOpeningComplete] = React.useState(false);
+  const finishEarthOpening = React.useCallback(() => setEarthOpeningComplete(true), []);
+  const opening = view === 'earth' && !earthOpeningComplete;
   const [transfer, setTransfer] = React.useState<ViewTransfer | undefined>();
   const [earthTransfer, setEarthTransfer] = React.useState<ViewTransfer | undefined>();
   const celestial = React.useMemo(() => createCelestialState(state.current.utc), [state.current.utc]);
@@ -158,29 +161,17 @@ export default function App() {
   // 使用 SimpleTest 组件作为主场景
   return (
     <div ref={appRoot} className="journey-app experience-app" data-experience-root data-view={view}
-      data-panel={panel || undefined} data-immersed={immersed || undefined} data-history={state.current.source.kind === 'history' || undefined}>
+      data-opening={opening || undefined} data-panel={panel || undefined} data-immersed={immersed || undefined} data-history={state.current.source.kind === 'history' || undefined}>
       {import.meta.env.DEV && new URLSearchParams(location.search).get('spatialtest') === '1' && <SpatialValidationProbe />}
-      <header className={'experience-toolbar' + (immersed ? ' is-immersed' : '')} data-sky-obstruction>
-        {!immersed && <><span className="experience-brand">LuBirth</span>
-          <nav aria-label="观看方式" className="experience-views">
-            <button aria-current={view === 'earth' ? 'page' : undefined} onClick={() => setView('earth')}>地月</button>
-            <button aria-current={view === 'sky' ? 'page' : undefined} onClick={showSky}>观天</button>
-          </nav></>}
-        <div className="experience-toolbar-actions">
-          {!immersed && <button ref={exploreButton} aria-expanded={!!panel} aria-controls="experience-panel"
-            onClick={() => panel ? closePanel() : openPanel(lastPanel.current)}>探索</button>}
-          {view === 'earth' && <SceneScreenshot label="留念" unified />}
-          <button ref={immersionButton} onClick={() => setImmersed(!immersed)}>{immersed ? '显示菜单' : '沉浸'}</button>
-        </div>
-      </header>
       {/* 基础画面就绪且手写动画完成后露出场景。 */}
       {earthStarted && <div hidden={view !== 'earth'}><LoadingOverlay
-        durationMs={mobile ? 6000 : 4000}
+        durationMs={12000}
         minShowMs={mobile ? 300 : 650}
         fadeMs={mobile ? 380 : 600}
         prewarmFrames={1}
+        onComplete={finishEarthOpening}
       /></div>}
-      <div className="journey-scene">
+      <div className="journey-scene" {...(opening ? { inert: '' } : {})} aria-hidden={opening || undefined}>
         <ViewBoundary key={view + scope} onBack={() => { setView('earth'); setPanel(null); }}>
           <React.Suspense fallback={<div className="journey-loading" role="status">正在打开{view === 'sky' ? '星空' : '地月'}…</div>}>
             {view === 'earth' ? <SimpleTest key={scope} observation={state.current} initialState={earthViews.current[scope]} onStateChange={saveEarthView}
@@ -194,6 +185,20 @@ export default function App() {
           </React.Suspense>
         </ViewBoundary>
       </div>
+      <div className="experience-chrome" {...(opening ? { inert: '' } : {})} aria-hidden={opening || undefined}>
+      <header className={'experience-toolbar' + (immersed ? ' is-immersed' : '')} data-sky-obstruction>
+        {!immersed && <><span className="experience-brand">LuBirth</span>
+          <nav aria-label="观看方式" className="experience-views">
+            <button aria-current={view === 'earth' ? 'page' : undefined} onClick={() => setView('earth')}>地月</button>
+            <button aria-current={view === 'sky' ? 'page' : undefined} onClick={showSky}>观天</button>
+          </nav></>}
+        <div className="experience-toolbar-actions">
+          {!immersed && <button ref={exploreButton} aria-expanded={!!panel} aria-controls="experience-panel"
+            onClick={() => panel ? closePanel() : openPanel(lastPanel.current)}>探索</button>}
+          {view === 'earth' && <SceneScreenshot label="留念" unified />}
+          <button ref={immersionButton} onClick={() => setImmersed(!immersed)}>{immersed ? '显示菜单' : '沉浸'}</button>
+        </div>
+      </header>
       {!panel && !immersed && <div className="experience-observation" data-sky-obstruction>
         <p>{state.current.source.label}{state.current.source.kind === 'example' ? ' · 示例' : ''}</p>
         <p>{state.current.civilDate} · {state.current.clock} · {state.current.observer.name}</p>
@@ -226,6 +231,7 @@ export default function App() {
         </div>
       </ExperiencePanel>
       {assetStatus && !immersed && <div className="asset-status" role="status">{assetStatus}</div>}
+      </div>
     </div>
   );
 }
