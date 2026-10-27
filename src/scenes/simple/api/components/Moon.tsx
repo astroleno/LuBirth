@@ -475,9 +475,10 @@ export function Moon({
             if (clipGround > .5 && vPosition.y < 0.) discard;
             // 🌙 基础纹理颜色（使用旋转后的UV实现潮汐锁定）
             vec3 moonColor = texture2D(moonMap, vUvRotated).rgb;
-            // Neutral lunar albedo; retain a little of the NASA map's subtle color variation.
+            // A restrained display shoulder keeps the highlands from washing
+            // out while retaining the NASA map's mare and crater detail.
             float albedo = dot(moonColor, vec3(0.2126, 0.7152, 0.0722));
-            moonColor = mix(vec3(albedo), moonColor, 0.15);
+            moonColor = mix(vec3(albedo), moonColor, 0.15) * 0.95 + vec3(0.015);
             
             // Regolith: a bounded Lunar-Lambert approximation, retaining crater normals.
             vec3 normal = normalize(vNormal);
@@ -487,7 +488,8 @@ export function Moon({
             // Both vectors are in the actual render camera's view space.
             vec3 lightDir = normalize(sunDirView);
             float signedNdl = dot(normalize(vNormal), lightDir);
-            float edge = clamp(terminatorSoftness + terminatorRadius, 0.001, 0.03);
+            float edge = max(clamp(terminatorSoftness + terminatorRadius, 0.001, 0.018),
+              min(fwidth(signedNdl) * 0.65, 0.025));
             float terminator = smoothstep(-edge, edge, signedNdl);
             float incidence = max(dot(normal, lightDir), 0.0);
             vec3 viewer = portraitProjection > .5 ? vec3(0., 0., 1.) : normalize(-vViewPosition);
@@ -495,17 +497,18 @@ export function Moon({
             // Lommel-Seeliger single scattering reduces the artificial dark rim at full moon.
             // The geometric terminator above still owns which hemisphere is sunlit.
             float singleScatter = 2.0 * incidence / max(incidence + emission, 0.001);
-            float reflectance = mix(incidence, singleScatter, 0.55);
+            float fullness = 0.5 + 0.5 * cos(phaseAngleRad);
+            float scatterWeight = mix(0.45, 0.70, fullness * fullness);
+            float reflectance = mix(incidence, singleScatter, scatterWeight);
             float diffuse = pow(max(reflectance, 0.0), max(0.001, shadingGamma));
             float a = clamp(phaseAngleRad, 0.0, 3.14159265);
             float surge = 1.0 + surgeStrength * exp(-pow(a / max(1e-4, surgeSigmaRad), 2.0));
-            float fullness = 0.5 + 0.5 * cos(phaseAngleRad);
             float coupleL = mix(1.0, fullness, clamp(phaseCoupleStrength, 0.0, 1.0));
             vec3 finalColor = moonColor * lightColor * sunIntensity * moonIntensityRatio
-              * diffuse * terminator * surge * coupleL;
+              * diffuse * terminator * surge * coupleL * 0.92;
             // Faint Earthshine keeps a new Moon readable without changing its sunlit fraction.
             // It is strongest near new Moon, when Earth appears fullest from the lunar surface.
-            float earthshinePhase = 0.2 + 0.8 * pow(clamp(1.0 - fullness, 0.0, 1.0), 1.35);
+            float earthshinePhase = 0.06 + 0.94 * pow(clamp(1.0 - fullness, 0.0, 1.0), 1.35);
             vec3 earthshineTint = vec3(0.82, 0.88, 1.0);
             finalColor += moonColor * earthshineTint * nightLift * earthshinePhase * (1.0 - terminator);
             finalColor = mix(finalColor, finalColor * tintColor, clamp(tintStrength, 0.0, 1.0));

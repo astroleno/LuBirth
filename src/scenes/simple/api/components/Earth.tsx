@@ -282,7 +282,7 @@ export function Earth({
         cloudShadowMap: { value: cloudShadowMap ?? SOLID.white },
         cloudShadowStrength: { value: cloudShadowStrength ?? 0.4 },
         enableCloudShadow: { value: enableCloudShadow && !!cloudShadowMap ? 1 : 0 },
-        // cloudUvOffset: { value: cloudUvOffset ?? new THREE.Vector2(0, 0) }, // 不再使用UV偏移方式
+        cloudUvOffset: { value: cloudUvOffset },
         // DEM地形参数 - 只要有高度贴图就启用DEM法线计算
         enableDEMNormal: { value: earthDisplacement ? 1 : 0 },
         demNormalStrength: { value: demNormalStrength },
@@ -443,7 +443,7 @@ export function Earth({
         uniform sampler2D cloudShadowMap;
         uniform float cloudShadowStrength;
         uniform int enableCloudShadow;
-        // uniform vec2 cloudUvOffset; // 不再使用UV偏移方式
+        uniform vec2 cloudUvOffset;
         // DEM地形参数
         uniform int enableDEMNormal;
         uniform float demNormalStrength;
@@ -576,13 +576,15 @@ export function Earth({
           float directionalShadow = 1.0;
           
           // 地形阴影(AO) - 环境遮蔽，独立计算
-          if (enableSelfShadow == 1) {
+          if (enableSelfShadow == 1 && dayLight > 0.0) {
             aoShadow = surfaceCacheReady ? texture2D(surfaceCache, vUv).a : 1.0;
             aoShadow = mix(1.0, aoShadow, 2.0);
           }
           
           // 地形投影(方向性) - 基于光照方向，独立计算
-          if (enableDirectionalShadow == 1) {
+          // Terrain shadow only multiplies direct sunlight below. Skip its
+          // sixteen height samples when that contribution is already zero.
+          if (enableDirectionalShadow == 1 && dayLight > 0.0) {
             directionalShadow = calculateDirectionalShadow(vUv, lightDir, n, displacementMap, 16, 0.1, directionalShadowSoftness, directionalShadowSharpness, directionalShadowContrast);
             directionalShadow = mix(1.0, directionalShadow, directionalShadowStrength);
           }
@@ -590,11 +592,13 @@ export function Earth({
           // 组合阴影效果：相乘模式，两种阴影可以同时存在
           float terrainShadow = aoShadow * directionalShadow;
           float cloudShadow = 1.0;
+          float cloudCoverage = 0.0;
           if (enableCloudShadow == 1) {
-            // 使用UV坐标计算云层阴影，避免复杂的世界坐标转换
-            vec2 cloudUv = vUv;
-            float cloudDark = texture2D(cloudShadowMap, cloudUv).r; // 近似云量
-            cloudShadow = 1.0 - cloudShadowStrength * cloudDark;
+            // Follow the same moving map as the cloud shells. Dense clouds cast
+            // the clearest shadow; the thin haze no longer dirties every surface.
+            float cloudDark = texture2D(cloudShadowMap, fract(vUv + cloudUvOffset)).r;
+            cloudCoverage = smoothstep(0.06, 0.8, cloudDark);
+            cloudShadow = 1.0 - cloudShadowStrength * cloudCoverage;
           }
           float lightFactor = dayLight * sunI * shadowMask * cloudShadow * terrainShadow;
           // A方案：日面漫反射顶亮控制
@@ -615,6 +619,8 @@ export function Earth({
           if (hasNight == 1) {
             vec3 nightTex = texture2D(nightMap, vUv).rgb;
             nightTex = pow(nightTex, vec3(nightGamma));
+            float citySignal = dot(nightTex, vec3(0.2126, 0.7152, 0.0722));
+            nightTex *= smoothstep(0.002, 0.018, citySignal);
             // 夜景只在夜面显示
             nightCol = nightTex * nightW * nightBoost;
             
@@ -630,16 +636,19 @@ export function Earth({
             // 应用夜半球整体明度控制
             nightCol *= nightHemisphereBrightness;
             nightGlowCol *= nightHemisphereBrightness;
+            nightCol *= 1.0 - cloudCoverage * 0.3;
           }
           
           // 月光下地球贴图叠加：在夜半球叠加正常地球贴图，降低亮度
           vec3 nightEarthCol = vec3(0.0);
           if (nightEarthMapIntensity > 0.0) {
-            vec3 dayTex = texture2D(dayMap, vUv).rgb;
             // 使用HSL调整，模拟月光效果
             vec3 moonTint = hslToRgb(nightEarthMapHue, nightEarthMapSaturation, nightEarthMapLightness);
             // 使用更宽的夜半球权重，确保月光效果可见
             float nightEarthW = pow(1.0 - f, max(nightFalloff * 0.5, 0.3));
+            // Keep the dark hemisphere legible, with more separation from city
+            // lights and a continuous transition into the unmodified day side.
+            nightEarthW *= mix(0.85, 1.0, smoothstep(-0.35, 0.0, ndl));
             nightEarthCol = dayTex * nightEarthMapIntensity * moonTint * nightEarthW;
             // 应用夜半球整体明度控制
             nightEarthCol *= nightHemisphereBrightness;
@@ -675,7 +684,8 @@ export function Earth({
           if (terminatorTint.a > 0.0) {
             float tintZone = 1.0 - smoothstep(0.0, edge * 2.0, abs(ndl));
             vec3 warmTint = terminatorTint.rgb * terminatorTint.a;
-            tintCol = warmTint * tintZone;
+            float viewEdge = 1.0 - max(dot(n, normalize(vViewW)), 0.0);
+            tintCol = dayTex * warmTint * tintZone * (0.35 + 0.65 * viewEdge * viewEdge);
           }
           
           // 大气弧光效果 - 优化渐变

@@ -543,6 +543,7 @@ export function Clouds({
             // 添加边缘增强效果
             float rimEffectFactor = 1.0 - abs(cosTheta);
             scattering += rimEffectFactor * rimEffect * density;
+            scattering = clamp(scattering, 0.0, 0.6);
             
             // 散射颜色混合 - 使用可配置的散射颜色
             vec3 scatteredColor = mix(color, scatteringColor, scattering);
@@ -594,7 +595,8 @@ export function Clouds({
           
           void main(){ 
             vec3 n = normalize(vNormalW);
-            float ndl = max(dot(n, normalize(lightDir)), 0.0);
+            float sunDot = dot(n, normalize(lightDir));
+            float ndl = max(sunDot, 0.0);
             
             vec3 src;
             if (useTriplanar) {
@@ -622,27 +624,28 @@ export function Clouds({
             d = clamp((d - 0.5) * cloudContrast + 0.5, 0.0, 1.0);
             
             // 轻量光照近似：wrap光照 + 终止线柔化
-            float wrap = 0.25; // wrap光照参数
-            float ndlWrapped = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
+            float wrap = 0.16;
+            float ndlWrapped = clamp((sunDot + wrap) / (1.0 + wrap), 0.0, 1.0);
             
             // 终止线柔化：在晨昏线附近增加暖色调
-            float terminatorSoftness = 0.15;
-            float terminatorZone = smoothstep(-terminatorSoftness, terminatorSoftness, ndl);
+            float dayW = smoothstep(-0.12, 0.14, sunDot);
+            float terminatorZone = 1.0 - smoothstep(0.0, 0.2, abs(sunDot));
             vec3 warmTint = vec3(1.0, 0.85, 0.75);
-            float tintStrength = (1.0 - terminatorZone) * 0.08; // 轻微暖色偏移
+            float tintStrength = terminatorZone * dayW * 0.16;
             
             // 背光银边效果（仅昼侧且太阳高度>10°时）
             float silverRim = 0.0;
             if (ndl > 0.0) {
-              vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0)); // 简化视角方向
-              vec3 halfVector = normalize(normalize(lightDir) + viewDir);
+              vec3 viewDir = normalize(camPos - vPosition);
               float rimFactor = 1.0 - max(dot(n, viewDir), 0.0);
               silverRim = pow(rimFactor, 2.0) * 0.12 * ndl;
             }
             
             // 最终光照计算
-            float dayW = smoothstep(0.0, 0.35, ndlWrapped);
-            float l = pow(dayW, 0.8) * (0.7 + 0.3*sunI) + silverRim;
+            // The signed solar angle prevents a uniformly lit cloud blanket on
+            // the night side. A faint floor preserves the immersive silhouette.
+            float l = 0.20 + dayW * (0.10 + 0.70 * pow(ndlWrapped, 0.75))
+              * (0.7 + 0.3 * sunI) + silverRim;
             
             vec3 c = pow(src, vec3(cloudGamma));
             c = clamp((c - vec3(cloudBlack)) / bw, 0.0, 1.0);
@@ -734,7 +737,7 @@ export function Clouds({
             }
             
             vec3 col = c * l * lightColor;
-            float a = clamp(dayW * strength * d * finalOpacity, 0.0, 1.0);
+            float a = clamp(mix(0.32, 1.0, dayW) * strength * d * finalOpacity, 0.0, 1.0);
             
             // 应用菲涅尔效果到透明度 - 简化版本
             if (useFresnel) {
@@ -932,8 +935,8 @@ export function Clouds({
       }
       
       // 使用共享的UV偏移值，如果没有则使用自己的计算
-      if (sharedUvOffset && (sharedUvOffset.u !== 0 || sharedUvOffset.v !== 0)) {
-        // 使用共享的UV偏移值（但只有在非0时才使用，避免被初始值覆盖）
+      if (sharedUvOffset) {
+        // Zero is a valid shared offset, including reduced-motion mode.
         if (cloudMaterial.uniforms.uvOffset) {
           (cloudMaterial.uniforms.uvOffset.value as THREE.Vector2).set(sharedUvOffset.u, sharedUvOffset.v);
         }
@@ -1091,6 +1094,7 @@ export function CloudsWithLayers({
   // 共享的UV滚动值，确保所有层同步
   perfMonitor.reactRenders++;
   const sharedUvOffset = useRef({ u: 0, v: 0 });
+  const reportedUvOffset = useRef(new THREE.Vector2());
   
   // 相机距离检测（用于近距离优化）
   const [isCloseView, setIsCloseView] = React.useState(false);
@@ -1115,7 +1119,7 @@ export function CloudsWithLayers({
 
     // 调用UV更新回调
     if (onUvUpdate) {
-      onUvUpdate(new THREE.Vector2(sharedUvOffset.current.u, sharedUvOffset.current.v));
+      onUvUpdate(reportedUvOffset.current.set(sharedUvOffset.current.u, sharedUvOffset.current.v));
     }
   });
 

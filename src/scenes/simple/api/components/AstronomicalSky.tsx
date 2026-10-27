@@ -15,7 +15,7 @@ import type { EarthSceneFrame } from '../../../../astro/referenceFrames';
 import type { CultureVersion } from '../../../../history/journeyStore';
 
 // The bright Earth and Moon need more background contrast than the local-sky view.
-const BACKGROUND_STAR_APPEARANCE = { ...DEFAULT_STAR_APPEARANCE, brightness: 1.3 };
+const BACKGROUND_STAR_APPEARANCE = { ...DEFAULT_STAR_APPEARANCE, brightness: 1.65 };
 
 /** One canvas, direction-only background pass before the spatial Earth/Moon pass. */
 export default function AstronomicalSky({ celestial, observer, frame, culture, galaxy, artwork }: {
@@ -45,8 +45,8 @@ export default function AstronomicalSky({ celestial, observer, frame, culture, g
   useEffect(() => { background.scene.userData.culture = culture; invalidate(); }, [background, culture, invalidate]);
   return createPortal(<>
     {galaxy > 0 && <MilkyWay frame={projection} ground={false} daylight={1} strength={galaxy} />}
-    {artwork && <SkyArtwork items={items} frame={projection} view={view} ground={false} daylight={1} selected="all" opacityScale={1.45} />}
+    {artwork && <SkyArtwork items={items} frame={projection} view={view} ground={false} daylight={1} selected="all" opacityScale={1.05} />}
     <SkyObjects frame={projection} magnitude={6.5} culture="all" items={items} lines={artwork} daylight={1}
-      dpr={gl.getPixelRatio()} ground={false} chinese={culture !== 'modern'} appearance={BACKGROUND_STAR_APPEARANCE} view={view} lineOpacityScale={1.6} />
+      dpr={gl.getPixelRatio()} ground={false} chinese={culture !== 'modern'} appearance={BACKGROUND_STAR_APPEARANCE} view={view} lineOpacityScale={1.15} />
   </>, background.scene, { camera: background.camera });
 }

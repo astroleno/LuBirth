@@ -41,15 +41,15 @@ export function createStarMaterial(maxPointSize: number) {
       varying vec3 light;
       void main() {
         float visible = step(magnitude, limit) * (ground > .5 ? smoothstep(0.0, .018, position.y) : 1.0);
-        // Magnitude remains catalog V; the 0.60 exponent compresses flux for a display.
-        // Bright sources gain area and halo rather than all hitting a fixed alpha=1.
-        float flux = pow(10.0, -.4 * .60 * magnitude);
+        // Keep the catalog magnitude order while making faint point cores readable.
+        // Brighter stars gain a compact core, rather than a larger blurred disc.
+        float flux = pow(10.0, -.4 * .58 * magnitude);
         float zoom = clamp(pow(projectionMatrix[1][1] / 1.0913085, .17), .90, 1.28);
-        float sigma = (.45 + .65 * sqrt(flux)) * zoom;
-        float haloSigma = sigma * 2.6 + .35 * sqrt(flux);
-        float peak = 1.0 - exp(-2.7 * flux * brightness * pow(zoom, 1.3));
-        float halo = .16 * sqrt(flux) * (1.0 - smoothstep(1.0, 4.0, magnitude)) * glow * brightness;
-        float rays = .035 * sqrt(flux) * (1.0 - smoothstep(-.3, 1.0, magnitude)) * glow * brightness;
+        float sigma = (.38 + .65 * sqrt(flux)) * zoom;
+        float haloSigma = sigma * 2.35 + .30 * sqrt(flux);
+        float peak = 1.0 - exp(-3.2 * flux * brightness * pow(zoom, 1.3));
+        float halo = .13 * sqrt(flux) * (1.0 - smoothstep(1.0, 4.0, magnitude)) * glow * brightness;
+        float rays = .025 * sqrt(flux) * (1.0 - smoothstep(-.3, 1.0, magnitude)) * glow * brightness;
         float radius = max(sigma * 3.5, haloSigma * 3.0 * step(.0001, halo));
         float diameter = min(radius * 2.0 * dpr, maxPointSize);
         float grey = dot(tint, vec3(.2126, .7152, .0722));

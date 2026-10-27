@@ -392,8 +392,12 @@ function SceneContent({
   const moonTop = Math.max((1 - (composition.moonScreenY ?? 0.75)) * frame.height,
     profile.mobile && !uiHidden && !landscapePanel ? 76 + moonRadiusPixels : 0);
   
-  // 云层UV偏移状态 - 不再需要，因为云层阴影改为基于世界坐标
-  // const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
+  // Share the cloud map's moving coordinates with its surface shadow without
+  // putting per-frame wind updates through React.
+  const cloudUvOffset = useMemo(() => new THREE.Vector2(), []);
+  const updateCloudUvOffset = React.useCallback((offset: THREE.Vector2) => {
+    cloudUvOffset.copy(offset);
+  }, [cloudUvOffset]);
     // 暴露当前相机用于验证
   React.useEffect(() => {
     // 🔧 修复：注释掉全局变量，避免内存泄漏和全局状态污染
@@ -695,7 +699,7 @@ function SceneContent({
           cloudShadowMap={(composition.enableCloudShadow ?? false) ? earthClouds : undefined}
           cloudShadowStrength={composition.cloudShadowStrength ?? 0.4}
           enableCloudShadow={composition.enableCloudShadow ?? false}
-          // cloudUvOffset={cloudUvOffset} // 不再使用UV偏移方式
+          cloudUvOffset={cloudUvOffset}
           // DEM地形参数
           demNormalStrength={demParams.demNormalStrength}
           demNormalWeight={demParams.demNormalWeight}
@@ -783,7 +787,7 @@ function SceneContent({
         
             blendMode="alpha"
             opacity={1.0}
-            // onOffsetUpdate={(offset) => setCloudUvOffset(offset)} // 不再需要UV偏移同步
+            onUvUpdate={updateCloudUvOffset}
           />
         )}
 

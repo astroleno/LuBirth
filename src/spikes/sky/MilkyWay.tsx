@@ -24,7 +24,13 @@ export function MilkyWay({ frame, ground, daylight, strength }: { frame: SkyFram
     fragmentShader: `uniform sampler2D map; uniform float ground; uniform float brightness; varying vec2 skyUV; varying float altitude;
       void main(){ if(ground>.5 && altitude<0.) discard; vec3 density=texture2D(map,skyUV).rgb;
         float fade=ground>.5 ? smoothstep(0.,.10,altitude) : 1.;
-        gl_FragColor=vec4(vec3(.002,.005,.011)+density*vec3(.12,.17,.25)*brightness*fade,1.); }`,
+        // Remove the map's grey floor, retaining the real dust lanes and warm/cool
+        // structure. This is the same texture and celestial projection, one pass.
+        vec3 structure=max(density-vec3(.018),vec3(0.));
+        float luminance=dot(structure,vec3(.2126,.7152,.0722));
+        float contrast=.35+smoothstep(.01,.30,luminance);
+        vec3 band=mix(vec3(luminance),structure,.55)*contrast*vec3(.25,.26,.30);
+        gl_FragColor=vec4(vec3(.001,.002,.005)+band*brightness*fade,1.); }`,
   }), []);
   useEffect(() => () => { geometry.dispose(); material.dispose(); }, [geometry, material]);
   const [x, y, z] = frame.eqjBasis;
