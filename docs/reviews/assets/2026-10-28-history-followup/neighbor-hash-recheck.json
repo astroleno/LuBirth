@@ -1,0 +1,34 @@
+[
+  {
+    "url": "https://aitoshuu.me/OutSet/",
+    "status": 200,
+    "title": "OutSet — 亲手拆开一点惊喜",
+    "sha256": "4e3f63f11feec99c6f57042a9664aa674d7c8bfd451e56b0bd40969c963ad6a4",
+    "changedAgain": false,
+    "containsLuBirthRelease": false
+  },
+  {
+    "url": "https://aitoshuu.me/InfiDao/",
+    "status": 200,
+    "title": "六经注我 · 一念相连",
+    "sha256": "a666312930900d0fb02a1ecc87da2ec414fc4ed948b4824a2efdf0730ac8ebe4",
+    "changedAgain": false,
+    "containsLuBirthRelease": false
+  },
+  {
+    "url": "https://tongye.me/OutSet/",
+    "status": 200,
+    "title": "OutSet — 亲手拆开一点惊喜",
+    "sha256": "4e3f63f11feec99c6f57042a9664aa674d7c8bfd451e56b0bd40969c963ad6a4",
+    "changedAgain": false,
+    "containsLuBirthRelease": false
+  },
+  {
+    "url": "https://tongye.me/InfiDao/",
+    "status": 200,
+    "title": "六经注我 · 一念相连",
+    "sha256": "944f7d0d0cfa2511ef3af59a68d78ea217df43742892f34d20db8f895ebbb509",
+    "changedAgain": false,
+    "containsLuBirthRelease": false
+  }
+]

@@ -32,20 +32,19 @@
 
 ### 公网地址与大小写规则（交接约定）
 
-**统一主地址：[https://aitoshuu.me/LuBirth/](https://aitoshuu.me/LuBirth/)。公开路径固定使用驼峰 `LuBirth`，并以 `/` 结尾。**
+**正式入口：[aitoshuu.me/LuBirth/](https://aitoshuu.me/LuBirth/) 与 [tongye.me/LuBirth/](https://tongye.me/LuBirth/)。两域名提供腾讯同一版本并保留当前域名；公开路径固定使用驼峰 `LuBirth`，并以 `/` 结尾。**
 
 | 入口 | 访问规则 |
 | --- | --- |
-| `aitoshuu.me/LuBirth/` | 主地址，直接提供应用 |
-| `tongye.me/LuBirth`、`tongye.me/LuBirth/` | 通过 HTTP 308 跳转到主地址，地址栏同步显示主地址 |
-| 两个域名的 `/lubirth`、`/lubirth/` 及其他大小写变体 | 保持可访问，通过 HTTP 308 统一到 `/LuBirth/` |
-| `aitoshuu.me/LuBirth` | 通过 HTTP 308 补齐末尾 `/` |
+| `aitoshuu.me/LuBirth/`、`tongye.me/LuBirth/` | 直接提供应用，保留当前域名 |
+| 两个域名的 `/lubirth`、`/lubirth/` 及其他大小写变体 | 保持可访问，通过 HTTP 308 在同域统一到 `/LuBirth/` |
+| 两个域名的 `/LuBirth` | 通过 HTTP 308 补齐末尾 `/` |
 
-跳转必须保留子路径和查询参数；浏览器继承原链接的锚点（`#...`，不会发送给服务器）。例如，`https://tongye.me/lubirth?scene=sky&history=1#case-check` 最终显示为 `https://aitoshuu.me/LuBirth/?scene=sky&history=1#case-check`。
+跳转必须保留子路径和查询参数；浏览器继承原链接的锚点（`#...`，不会发送给服务器）。例如，`https://tongye.me/lubirth?scene=sky&history=1#case-check` 最终显示为 `https://tongye.me/LuBirth/?scene=sky&history=1#case-check`。
 
 新增导航、分享链接、canonical、Open Graph、结构化数据、`llms.txt`、`sitemap.xml` 和本地 Vite 默认 `base` 均统一使用 `/LuBirth/`。小写路径仅作为公网兼容入口，不再作为新的主地址。
 
-维护入口：[主站路由](deploy/nginx/aitoshuu-lubirth-routes.inc)、[转发站路由](deploy/nginx/tongye-lubirth-routes.inc)、[公网发布校验](deploy/verify-public-release.mjs)。调整路由后须验证两个域名、大小写兼容、末尾斜杠、子路径、查询参数与锚点，确认无跳转循环；已验证行为见[上线验收记录](docs/deployment/lubirth-camel-route-2026-10-26.md)。
+维护入口：[aitoshuu 路由](deploy/nginx/aitoshuu-lubirth-routes.inc)、[tongye 路由](deploy/nginx/tongye-lubirth-routes.inc)、[公网发布校验](deploy/verify-public-release.mjs)。调整路由后须验证两个域名、大小写兼容、末尾斜杠、子路径、查询参数与锚点，确认无跳转循环；现行双域名规则见[腾讯迁移记录](docs/deployment/tencent-origin-migration-20261026.md)，本轮结果见[输入体验发布记录](docs/deployment/lubirth-history-ux-20261028.md)。此前跨域跳转记录仅作历史参考。
 
 ### 地月与当地天空联动
 

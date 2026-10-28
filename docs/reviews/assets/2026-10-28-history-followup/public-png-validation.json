@@ -1,0 +1,48 @@
+{
+  "fileSha256": "14b87dcfb5bccb5cb122e4c84a864df9079da32b12a600164c3c188f1d564160",
+  "bytes": 607421,
+  "width": 585,
+  "height": 1650,
+  "crc": "all chunks passed",
+  "sourceInkoMetadata": "byte-for-byte matched",
+  "metadataKeywords": [
+    "AIGC",
+    "XML:com.adobe.xmp",
+    "InkoEdited"
+  ],
+  "template": "same-moon",
+  "observation": {
+    "utc": "1083-11-30T12:20:29.000Z",
+    "civilDate": "1083-11-30",
+    "clock": "20:00",
+    "timeBasis": {
+      "kind": "local-mean-solar"
+    },
+    "observer": {
+      "name": "黄州代表点",
+      "latitude": 30.447435,
+      "longitude": 114.878934,
+      "precision": "representative",
+      "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+      "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+    },
+    "source": {
+      "kind": "history",
+      "label": "承天寺夜游",
+      "recordId": "dsh:H033",
+      "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+      "recordKind": "event"
+    },
+    "assumptions": [
+      "演示时刻，并非已经核实的出生或事件钟点。",
+      "采用现代地点代表点，不是历史建筑的精确位置。",
+      "地方平太阳时是本次演示约定，不代表当时的民用时间制度。",
+      "史料未载时刻，默认以所选地点的 20:00 演示，不代表事件发生瞬间。"
+    ],
+    "timeSelection": {
+      "origin": "event-default-20",
+      "ruleVersion": "event-evening-v1",
+      "label": "未载明时刻，默认以当地 20:00 演示，可修改。"
+    }
+  }
+}

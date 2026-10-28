@@ -1,0 +1,18 @@
+{
+  "taskSpace": 27,
+  "taskSpaceFinished": true,
+  "stoppedOwnedPids": [
+    10153,
+    71251,
+    71218
+  ],
+  "closedPorts": [
+    5183,
+    5184
+  ],
+  "removedTaskDirectory": "/Users/aitoshuu/.codex/visualizations/2026/10/01/01a0f54e-fb46-7bb3-a023-44df5232a20e/lubirth-history-followup-20261028",
+  "removedFiles": 20,
+  "directoryAbsent": true,
+  "keptFinalEvidence": "docs/reviews/assets/2026-10-28-history-followup",
+  "unrelatedFilesOrServicesRemoved": false
+}

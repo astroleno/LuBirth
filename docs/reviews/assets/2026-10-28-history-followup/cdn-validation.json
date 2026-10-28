@@ -1,0 +1,15 @@
+{
+  "releaseId": "lubirth-8881c69a17037c9e",
+  "checked": 261,
+  "bytes": 160817360,
+  "range": true,
+  "cors": "passed",
+  "cache": "passed",
+  "timingAllowed": 0,
+  "transport": "system HTTPS",
+  "concurrency": 4,
+  "bodyStorage": "memory",
+  "requestOrigin": "https://aitoshuu.me",
+  "requestReferer": "https://aitoshuu.me/LuBirth/",
+  "retryNote": "The first serial run failed when local disk space was exhausted. After deleting only this task's uploaded local payload copies and temporary SDK environment, the complete check was rerun successfully."
+}

@@ -1,0 +1,346 @@
+{
+  "meta": {
+    "releaseId": "lubirth-8881c69a17037c9e",
+    "candidateUrl": "http://127.0.0.1:5184/LuBirth/?history=1",
+    "harnessReferrerPolicy": "no-referrer",
+    "initialAttempt": "Localhost referrer was rejected by the existing CDN hotlink policy; only the loopback HTTP response policy was changed, without modifying the build or production CDN.",
+    "tongyeInitialPreferences": {
+      "culture": "song",
+      "moonPlacement": "portrait",
+      "favorites": [],
+      "scripts": [
+        "https://media.aitoshuu.me/releases/aitoshuu-me/lubirth-8881c69a17037c9e/assets/index-CguNorl7.js"
+      ]
+    },
+    "tongyePreferencesRestored": true,
+    "desktopKeyboardHarness": "The initial attempt used page.press for every key, which refocused the native time input and reset its selected segment (result 01:00, field/focus retained). The corrected uninterrupted keyboard sequence below uses keyboard.press without refocusing each key.",
+    "returnViewNote": "Returning from history preserved the user-opened toolbar; pressing the existing immersive action then hid it. The initial harness incorrectly expected it to hide automatically.",
+    "finalImagesVisuallyChecked": [
+      "04-production-desktop-clock.png",
+      "05-public-tongye-phone-cancel.png",
+      "06-public-tongye-phone-sky.png",
+      "07-public-tongye-phone-card.png",
+      "08-public-aitoshuu-desktop-clock.png",
+      "09-public-aitoshuu-desktop-birth.png"
+    ],
+    "actualDownloadedCardVisuallyChecked": true,
+    "performanceAcceptance": "Stable 30 FPS is not passed. These short Ego Lite Chromium samples are not real iPhone or Safari results and do not establish the cause of the low phone sample.",
+    "browserWorkspaceClosed": true
+  },
+  "cases": [
+    {
+      "id": "production-candidate-clock",
+      "clock": "21:30",
+      "focus": "history-clock",
+      "scripts": [
+        "chrome-extension://aefehdhdciieocakfobpaaolhipkcpgc/content_scripts/copy.js",
+        "https://media.aitoshuu.me/releases/aitoshuu-me/lubirth-8881c69a17037c9e/assets/index-CguNorl7.js"
+      ]
+    },
+    {
+      "id": "public-tongye-phone-observation",
+      "url": "https://tongye.me/LuBirth/?history=1",
+      "observation": {
+        "utc": "1083-11-30T12:20:29.000Z",
+        "civilDate": "1083-11-30",
+        "clock": "20:00",
+        "timeBasis": {
+          "kind": "local-mean-solar"
+        },
+        "observer": {
+          "name": "黄州代表点",
+          "latitude": 30.447435,
+          "longitude": 114.878934,
+          "precision": "representative",
+          "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+          "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+        },
+        "source": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "assumptions": [
+          "演示时刻，并非已经核实的出生或事件钟点。",
+          "采用现代地点代表点，不是历史建筑的精确位置。",
+          "地方平太阳时是本次演示约定，不代表当时的民用时间制度。",
+          "史料未载时刻，默认以所选地点的 20:00 演示，不代表事件发生瞬间。"
+        ],
+        "timeSelection": {
+          "origin": "event-default-20",
+          "ruleVersion": "event-evening-v1",
+          "label": "未载明时刻，默认以当地 20:00 演示，可修改。"
+        }
+      }
+    },
+    {
+      "id": "public-four-cultures-share-observation",
+      "checks": [
+        {
+          "culture": "chenzhuo",
+          "utc": "1083-11-30T12:20:29.000Z"
+        },
+        {
+          "culture": "song",
+          "utc": "1083-11-30T12:20:29.000Z"
+        },
+        {
+          "culture": "yuan",
+          "utc": "1083-11-30T12:20:29.000Z"
+        },
+        {
+          "culture": "modern",
+          "utc": "1083-11-30T12:20:29.000Z"
+        }
+      ]
+    },
+    {
+      "id": "public-tongye-local-sky",
+      "view": "sky",
+      "utc": "1083-11-30T12:20:29.000Z"
+    },
+    {
+      "id": "public-tongye-keepsake-downloaded",
+      "observation": {
+        "utc": "1083-11-30T12:20:29.000Z",
+        "civilDate": "1083-11-30",
+        "clock": "20:00",
+        "timeBasis": {
+          "kind": "local-mean-solar"
+        },
+        "observer": {
+          "name": "黄州代表点",
+          "latitude": 30.447435,
+          "longitude": 114.878934,
+          "precision": "representative",
+          "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+          "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+        },
+        "source": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "assumptions": [
+          "演示时刻，并非已经核实的出生或事件钟点。",
+          "采用现代地点代表点，不是历史建筑的精确位置。",
+          "地方平太阳时是本次演示约定，不代表当时的民用时间制度。",
+          "史料未载时刻，默认以所选地点的 20:00 演示，不代表事件发生瞬间。"
+        ],
+        "timeSelection": {
+          "origin": "event-default-20",
+          "ruleVersion": "event-evening-v1",
+          "label": "未载明时刻，默认以当地 20:00 演示，可修改。"
+        }
+      },
+      "dimensions": [
+        585,
+        1650
+      ],
+      "retried": false,
+      "downloadName": "LuBirth-与古人同望-1083-11-30.png"
+    },
+    {
+      "id": "public-aitoshuu-desktop-birth-one-selection",
+      "observation": {
+        "utc": "1993-08-01T03:00:00.000Z",
+        "civilDate": "1993-08-01",
+        "clock": "11:00",
+        "timeBasis": {
+          "kind": "offset",
+          "offsetMinutes": 480
+        },
+        "observer": {
+          "name": "浙江省 · 杭州市",
+          "latitude": 30.287459,
+          "longitude": 120.153576,
+          "precision": "user-selected",
+          "note": "用户选择的现代行政地点代表点，不是建筑坐标。",
+          "source": "项目现有地点表"
+        },
+        "source": {
+          "kind": "birth",
+          "label": "我的出生时刻"
+        },
+        "assumptions": [],
+        "timeSelection": {
+          "origin": "user-input",
+          "ruleVersion": null,
+          "label": "用户填写的出生时刻。"
+        }
+      },
+      "locationEnterCount": 1,
+      "focusHandoff": true
+    },
+    {
+      "id": "public-aitoshuu-person-clock-continuity",
+      "initial": "",
+      "stages": [
+        {
+          "key": "2",
+          "value": "",
+          "focused": true
+        },
+        {
+          "key": "1",
+          "value": "",
+          "focused": true
+        },
+        {
+          "key": "ArrowRight",
+          "value": "",
+          "focused": true
+        },
+        {
+          "key": "3",
+          "value": "21:03",
+          "focused": true
+        },
+        {
+          "key": "0",
+          "value": "21:30",
+          "focused": true
+        }
+      ]
+    },
+    {
+      "id": "public-aitoshuu-person-submitted",
+      "observation": {
+        "utc": "1037-01-14T14:34:40.000Z",
+        "civilDate": "1037-01-14",
+        "clock": "21:30",
+        "timeBasis": {
+          "kind": "local-mean-solar"
+        },
+        "observer": {
+          "name": "眉山代表点",
+          "latitude": 30.048318,
+          "longitude": 103.831788,
+          "precision": "representative",
+          "note": "记录为眉州眉山县城；使用眉山城市代表点，不定位纱縠行。",
+          "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+        },
+        "source": {
+          "kind": "history",
+          "label": "苏轼",
+          "recordId": "dsh:H002",
+          "recordHash": "5eea1909ccbded8015028368353f937deebce7a0fab2e2de2b46051d0348da93",
+          "recordKind": "birth"
+        },
+        "assumptions": [
+          "演示时刻，并非已经核实的出生或事件钟点。",
+          "采用现代地点代表点，不是历史建筑的精确位置。",
+          "地方平太阳时是本次演示约定，不代表当时的民用时间制度。"
+        ],
+        "timeSelection": {
+          "origin": "user-input",
+          "ruleVersion": null,
+          "label": "自选演示时刻，并非史料认定钟点。"
+        }
+      }
+    },
+    {
+      "id": "public-aitoshuu-personal-history-isolation",
+      "restored": {
+        "utc": "1993-08-01T03:00:00.000Z",
+        "civilDate": "1993-08-01",
+        "clock": "11:00",
+        "timeBasis": {
+          "kind": "offset",
+          "offsetMinutes": 480
+        },
+        "observer": {
+          "name": "浙江省 · 杭州市",
+          "latitude": 30.287459,
+          "longitude": 120.153576,
+          "precision": "user-selected",
+          "note": "用户选择的现代行政地点代表点，不是建筑坐标。",
+          "source": "项目现有地点表"
+        },
+        "source": {
+          "kind": "birth",
+          "label": "我的出生时刻"
+        },
+        "assumptions": [],
+        "timeSelection": {
+          "origin": "user-input",
+          "ruleVersion": null,
+          "label": "用户填写的出生时刻。"
+        }
+      }
+    }
+  ],
+  "performance": {
+    "phone": {
+      "durationMs": 5002.5,
+      "frames": 8,
+      "fps": 1.5992003998000999,
+      "profile": {
+        "mobile": true,
+        "quality": "balanced",
+        "dpr": 1.5,
+        "fps": 30,
+        "maxTextureSize": 2048,
+        "anisotropy": 4,
+        "earthSegments": 96,
+        "earthSegmentsHigh": 192,
+        "cloudLayers": 3,
+        "terrainShadows": false,
+        "antialias": true
+      },
+      "dpr": 1.5,
+      "hidden": false,
+      "viewport": [
+        390,
+        844
+      ],
+      "realDevice": false
+    },
+    "phoneFocusDiagnostic": {
+      "durationMs": 5001.89999999851,
+      "frames": 7,
+      "fps": 1.3994682020836253,
+      "rafCallbacks": 11,
+      "focused": true,
+      "hidden": false,
+      "dpr": 1.5,
+      "focusEmulation": true,
+      "realDevice": false
+    },
+    "desktop": {
+      "durationMs": 5000.799999998882,
+      "frames": 117,
+      "fps": 23.396256598949396,
+      "rafCallbacks": 118,
+      "profile": {
+        "mobile": false,
+        "quality": "balanced",
+        "dpr": 2,
+        "fps": 30,
+        "maxTextureSize": 2048,
+        "anisotropy": 16,
+        "earthSegments": 144,
+        "earthSegmentsHigh": 192,
+        "cloudLayers": 12,
+        "terrainShadows": true,
+        "antialias": true
+      },
+      "dpr": 0.85,
+      "hidden": false,
+      "focused": true,
+      "viewport": [
+        1440,
+        900
+      ],
+      "focusEmulation": false,
+      "realDevice": false,
+      "moonPlacement": "portrait"
+    }
+  },
+  "publicTongyeErrors": [],
+  "publicAitoshuuErrors": []
+}

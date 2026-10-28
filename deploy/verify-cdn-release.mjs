@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
@@ -23,14 +23,17 @@ async function requestCDN(url, options) {
     const temporary = await mkdtemp(join(tmpdir(), 'lubirth-cdn-check-'));
     try {
       const headersFile = join(temporary, 'headers');
-      const bodyFile = join(temporary, 'body');
       // Cold CDN audio downloads can exceed 20 seconds; keep full-hash checks with a bounded retry budget.
       const args = ['--silent', '--show-error', '--proto', '=https', '--connect-timeout', '10', '--max-time', '60',
         '--retry', '2', '--retry-delay', '1', '--retry-max-time', '180',
-        '--dump-header', headersFile, '--output', bodyFile, '--write-out', '%{http_code}'];
+        '--dump-header', headersFile, '--output', '-', '--write-out', '%{http_code}'];
       for (const [name, value] of Object.entries(options.headers ?? {})) args.push('--header', `${name}: ${value}`);
       args.push(url.href);
-      const result = spawnSync('curl', args, { encoding: 'utf8', timeout: 185000, maxBuffer: 1024 * 1024 });
+      const result = await new Promise(resolveResult => {
+        execFile('curl', args, { encoding: 'buffer', timeout: 185000, maxBuffer: 128 * 1024 * 1024 }, (error, stdout) => {
+          resolveResult({ status: error ? (typeof error.code === 'number' ? error.code : 1) : 0, stdout });
+        });
+      });
       if (result.status !== 0) throw new Error(`system HTTPS transport failed (exit ${result.status})`);
       const blocks = (await readFile(headersFile, 'utf8')).trim().split(/\r?\n\r?\n/);
       const finalHeaders = blocks.filter(block => block.startsWith('HTTP/')).at(-1);
@@ -40,9 +43,10 @@ async function requestCDN(url, options) {
         const colon = line.indexOf(':');
         if (colon > 0) headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
       }
-      const bytes = await readFile(bodyFile);
+      if (result.stdout.length < 3 || !/^\d{3}$/.test(result.stdout.subarray(-3).toString())) throw new Error('missing fallback response status');
+      const bytes = result.stdout.subarray(0, -3);
       if (!systemHTTP) console.warn(`[CDN] system HTTPS fallback used: ${url.pathname}`);
-      return { status: Number(result.stdout.trim()), headers, arrayBuffer: async () => bytes };
+      return { status: Number(result.stdout.subarray(-3).toString()), headers, arrayBuffer: async () => bytes };
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }
@@ -62,11 +66,12 @@ async function main() {
       || entry.objectKey.includes('..') || entry.objectKey.includes('\\') || /[?#]/.test(entry.objectKey))) throw new Error('CDN object outside approved release scope');
   const problems = [];
   let timingAllowed = 0;
-  for (const entry of entries) {
+  let completed = 0;
+  const verifyEntry = async entry => {
     const host = new URL(entry.channel === 'media' ? manifest.mediaBase : manifest.assetsBase).hostname;
     const url = new URL(`https://${host}/${entry.objectKey}`);
     try {
-      const response = await requestCDN(url, { headers: { Origin: 'https://aitoshuu.me' }, signal: AbortSignal.timeout(30000) });
+      const response = await requestCDN(url, { headers: { Origin: 'https://aitoshuu.me', Referer: 'https://aitoshuu.me/LuBirth/' }, signal: AbortSignal.timeout(30000) });
       if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
       const bytes = Buffer.from(await response.arrayBuffer());
       if (bytes.length !== entry.bytes || createHash('sha256').update(bytes).digest('hex') !== entry.sha256) throw new Error('content hash mismatch');
@@ -79,13 +84,20 @@ async function main() {
       else if (process.argv.includes('--require-timing')) throw new Error('missing Timing-Allow-Origin');
     } catch (error) {
       problems.push(`${entry.objectKey}: ${error.message}`);
+    } finally {
+      completed++;
+      if (completed % 25 === 0 || completed === entries.length) console.error(`[CDN] Checked ${completed}/${entries.length}`);
     }
-  }
+  };
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, entries.length) }, async () => {
+    while (cursor < entries.length) await verifyEntry(entries[cursor++]);
+  }));
   const media = entries.find(entry => entry.channel === 'media' && /\.(?:mp3|mp4|webm|wav)$/.test(entry.objectKey));
   if (media) {
     const url = new URL(`https://media.aitoshuu.me/${media.objectKey}`);
     try {
-      const response = await requestCDN(url, { headers: { Origin: 'https://aitoshuu.me', Range: 'bytes=0-1023' }, signal: AbortSignal.timeout(15000) });
+      const response = await requestCDN(url, { headers: { Origin: 'https://aitoshuu.me', Referer: 'https://aitoshuu.me/LuBirth/', Range: 'bytes=0-1023' }, signal: AbortSignal.timeout(15000) });
       if (response.status !== 206 || !response.headers.get('content-range')?.startsWith('bytes 0-1023/')) throw new Error(`invalid Range response: HTTP ${response.status}`);
     } catch (error) {
       problems.push(`${media.objectKey}: ${error.message}`);

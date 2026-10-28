@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "site": "LuBirth",
+  "releaseId": "lubirth-8881c69a17037c9e",
+  "gitHead": "3ce40c0565f438387c274a8abfdba9f849e39e50",
+  "sourceMode": "commit",
+  "sourceDigest": "8881c69a17037c9e4fa76e2a758b072b1117b77c4c5c1dbe572883678bfb34cc",
+  "assetsBase": "https://media.aitoshuu.me/releases/aitoshuu-me/lubirth-8881c69a17037c9e/",
+  "mediaBase": "https://media.aitoshuu.me/releases/aitoshuu-me/lubirth-8881c69a17037c9e/",
+  "objectPrefix": "releases/aitoshuu-me/lubirth-8881c69a17037c9e/",
+  "build": "passed",
+  "sourceInputsCommitted": true,
+  "originFiles": [
+    {
+      "channel": "origin",
+      "packagePath": "web/index.html",
+      "bytes": 4714,
+      "sha256": "79864c85bb305754fd71df9dc7ee61f141fc2146e966f1a111054bb5663fc76e",
+      "mime": "text/html; charset=utf-8",
+      "cacheControl": "no-cache"
+    },
+    {
+      "channel": "origin",
+      "packagePath": "web/llms.txt",
+      "bytes": 1104,
+      "sha256": "ad86cd30265e2177afc7ba418681667f4377effe5829c1bad19a1d7aaf54bdcb",
+      "mime": "text/plain; charset=utf-8",
+      "cacheControl": "no-cache"
+    },
+    {
+      "channel": "origin",
+      "packagePath": "web/release-health.json",
+      "bytes": 193,
+      "sha256": "42e6cd1dcd121f1a37d0f316bd3198651120cd3428a2b4f6a5d6409bdf65efab",
+      "mime": "application/json; charset=utf-8",
+      "cacheControl": "no-store"
+    },
+    {
+      "channel": "origin",
+      "packagePath": "web/sitemap.xml",
+      "bytes": 171,
+      "sha256": "037f79a3828d79544cb28044c44b657648e1042ec670be78a1434cdab0323362",
+      "mime": "application/xml; charset=utf-8",
+      "cacheControl": "no-cache"
+    }
+  ],
+  "cos": {
+    "uploadedObjects": 262,
+    "payloadObjects": 261,
+    "manifestObjects": 1,
+    "mode": "create-only",
+    "postUploadHead": "passed",
+    "credentialSource": "existing Keychain wrapper; no credentials stored in the repository"
+  },
+  "cdnValidation": "cdn-validation.json",
+  "publicValidation": "public-release-check.json",
+  "originLink": "/www/wwwroot/lubirth-current",
+  "originTarget": "/www/wwwroot/lubirth-releases/lubirth-8881c69a17037c9e/web",
+  "previousRelease": "lubirth-137a37a16727791d",
+  "consoleRoute": "Tencent Lighthouse Shanghai Ubuntu-W5AD → OrcaTerm TAT → ubuntu",
+  "originMarker": "tencent-shanghai",
+  "nginxConfigurationChanged": false,
+  "dnsOrCertificatesChanged": false,
+  "archiveCommit": "8bdb4f7821a9e33ee026d84bd3a3ddd6c571d87e",
+  "preservation": {
+    "paths": 14386,
+    "sha256": "a552d5309e109838c36ba1bd238d1d21305ec4cec27712205af9b693484f6409",
+    "unchanged": true
+  },
+  "tests": {
+    "typescript": "passed",
+    "observationDrafts": 13,
+    "historyObservation": 11,
+    "keepsakeTemplates": 6,
+    "moonPlacement": 4,
+    "historicalSkyCultures": 4,
+    "celestialFrames": 7,
+    "skyPresentation": "passed",
+    "solarLegacy": "basic, full lighting and moon phase passed",
+    "releaseDelivery": 11
+  },
+  "resourceRecovery": "One release-delivery rerun and the first serial CDN verification failed during local disk exhaustion. Only this task’s uploaded payload copies and temporary SDK environment were removed. The complete CDN verification and release-delivery suite then passed.",
+  "remainingAcceptance": [
+    "stable 30 FPS not passed",
+    "physical iPhone and Safari not tested",
+    "real IME and screen reader not tested",
+    "Timing-Allow-Origin coverage 0/261; CORS and content hashes passed"
+  ]
+}

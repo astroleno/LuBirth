@@ -1,0 +1,124 @@
+{
+  "sites": [
+    {
+      "url": "https://aitoshuu.me/LuBirth/",
+      "htmlSha256": "79864c85bb305754fd71df9dc7ee61f141fc2146e966f1a111054bb5663fc76e",
+      "healthSha256": "42e6cd1dcd121f1a37d0f316bd3198651120cd3428a2b4f6a5d6409bdf65efab",
+      "origin": "tencent-shanghai",
+      "missingAsset": 404,
+      "homePreserved": true
+    },
+    {
+      "url": "https://tongye.me/LuBirth/",
+      "htmlSha256": "72c9673b817d21cc0e3cd0b8a669c3fb8faa8f6540b2b7a4eaec65fc0b4b87d7",
+      "healthSha256": "42e6cd1dcd121f1a37d0f316bd3198651120cd3428a2b4f6a5d6409bdf65efab",
+      "origin": "tencent-shanghai",
+      "missingAsset": 404,
+      "homePreserved": true
+    }
+  ],
+  "releaseId": "lubirth-8881c69a17037c9e",
+  "discovery": [
+    "llms.txt",
+    "sitemap.xml"
+  ],
+  "redirects": [
+    {
+      "host": "aitoshuu.me",
+      "path": "/LuBirth",
+      "status": 308,
+      "location": "/LuBirth/"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/lubirth",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/lubirth/",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/LUBIRTH/",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/lUbIrTh",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/lubirth/?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/lubirth/release-health.json",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/release-health.json"
+    },
+    {
+      "host": "aitoshuu.me",
+      "path": "/lUbIrTh/release-health.json?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7",
+      "status": 308,
+      "location": "https://aitoshuu.me/LuBirth/release-health.json?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/LuBirth",
+      "status": 308,
+      "location": "/LuBirth/"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/lubirth",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/lubirth/",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/LUBIRTH/",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/lUbIrTh",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/lubirth/?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/lubirth/release-health.json",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/release-health.json"
+    },
+    {
+      "host": "tongye.me",
+      "path": "/lUbIrTh/release-health.json?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7",
+      "status": 308,
+      "location": "https://tongye.me/LuBirth/release-health.json?scene=sky&history=1&place=%E4%B8%8A%E6%B5%B7"
+    }
+  ],
+  "tls": "trusted"
+}

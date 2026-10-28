@@ -2,6 +2,8 @@
 
 用户已批准按再核实的 RR1–RR4 迭代，并要求 commit、push、同步腾讯服务器。沿用既有 Observation、历史草稿、单面板与沉浸合照架构；本文件细化本次实现接口与验收。
 
+执行结果：RR1–RR4 及所测公网功能通过，已同步腾讯双域名；性能和实体设备边界如实保留。详见[修复验收](../reviews/2026-10-28-lubirth-followup-acceptance.md)与[发布记录](../deployment/lubirth-history-ux-20261028.md)。
+
 ## 模块与接口
 
 | 模块 | 本次变更 |
