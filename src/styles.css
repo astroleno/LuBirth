@@ -222,6 +222,7 @@ button, .btn { touch-action: manipulation; }
 
 .search-result-item {
   display: block;
+  min-height: 52px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -232,6 +233,7 @@ button, .btn { touch-action: manipulation; }
   transition: background-color 0.2s;
 }
 .search-result-item:focus-visible { outline-offset: -3px; background: rgba(255,255,255,.08); }
+.search-result-item[aria-selected=true] { background: rgba(210,188,152,.14); }
 .search-empty { padding: 12px; font-size: 14px; color: var(--muted); }
 .result-name, .result-coords { display: block; }
 

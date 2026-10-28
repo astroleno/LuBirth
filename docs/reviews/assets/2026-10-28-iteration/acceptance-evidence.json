@@ -1,0 +1,717 @@
+{
+  "checks": [
+    {
+      "case": "known-event-first-open",
+      "text": "1083-11-30 · 20:00 当地\n\n黄州代表点\n更改地点\n\n沿用资料换算日期。采用地区代表点，不定位历史建筑。未载时刻，默认当地晚上 8 点演示。\n\n确认此日期与地点，查看合照\n调整钟点与时间解释",
+      "ready": true,
+      "buttonVisible": true,
+      "buttonY": 435.2421875,
+      "scrollTop": 0,
+      "checkboxes": 0
+    },
+    {
+      "case": "one-confirm-immersive",
+      "source": {
+        "kind": "history",
+        "label": "承天寺夜游",
+        "recordId": "dsh:H033",
+        "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+        "recordKind": "event"
+      },
+      "observer": {
+        "name": "黄州代表点",
+        "latitude": 30.447435,
+        "longitude": 114.878934,
+        "precision": "representative",
+        "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+        "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+      },
+      "clock": "20:00",
+      "utc": "1083-11-30T12:20:29.000Z",
+      "moon": "portrait",
+      "view": "earth",
+      "immersed": "true"
+    },
+    {
+      "case": "one-click-select-shanghai",
+      "summary": "上海市 · 上海\n更改地点",
+      "ready": true,
+      "current": "黄州代表点",
+      "focus": "更改演示地点",
+      "listOpen": false
+    },
+    {
+      "case": "new-query-blocks-old-city",
+      "ready": false,
+      "current": "黄州代表点",
+      "focus": "搜索演示地点",
+      "listOpen": true
+    },
+    {
+      "case": "composition-enter-does-not-commit",
+      "ready": false,
+      "current": "黄州代表点",
+      "focus": "搜索演示地点",
+      "listOpen": true
+    },
+    {
+      "case": "escape-closes-only-candidates",
+      "ready": false,
+      "current": "黄州代表点",
+      "focus": "搜索演示地点",
+      "listOpen": false
+    },
+    {
+      "case": "empty-query-blocks-old-city",
+      "ready": false,
+      "current": "黄州代表点",
+      "focus": "搜索演示地点",
+      "listOpen": false
+    },
+    {
+      "case": "partial-administrative-selection-blocks-old-city",
+      "ready": false,
+      "current": "黄州代表点",
+      "focus": null,
+      "listOpen": false
+    },
+    {
+      "case": "out-of-range-coordinate-keeps-draft",
+      "ready": false,
+      "current": "黄州代表点",
+      "focus": null,
+      "listOpen": false
+    },
+    {
+      "case": "single-coordinate-edit-retains-name-and-longitude",
+      "ready": true,
+      "current": "黄州代表点",
+      "focus": null,
+      "listOpen": false
+    },
+    {
+      "case": "keyboard-select-beijing-without-submitting",
+      "summary": "北京市 · 北京\n更改地点",
+      "ready": true,
+      "current": "黄州代表点",
+      "focus": "更改演示地点",
+      "listOpen": false
+    },
+    {
+      "case": "draft-scroll-and-focus-resume",
+      "before": {
+        "scroll": 581.5,
+        "clock": "21:30"
+      },
+      "afterTab": {
+        "scroll": 581.5
+      },
+      "afterOpen": {
+        "scroll": 581.5
+      },
+      "directoryFocus": "history-record-dsh:H033",
+      "restored": {
+        "scroll": 581.5,
+        "clock": "21:30",
+        "place": "北京市 · 北京\n更改地点",
+        "sourceOpen": true
+      }
+    },
+    {
+      "case": "personal-initial-and-unsaved-draft-isolation",
+      "date": "2026-10-28",
+      "clock": "15:44",
+      "personal": null,
+      "form": "出生日期 · 公历\n出生钟点\n出生地点\n\n上海\n31.2304°，121.4737°\n\n更改\n时区偏移 · 小时\n\nUTC+08:00。按你指定的偏移换算，历史夏令时请另行核对。\n\n上面是示例信息。填写并保存后，才会成为你的出生基准。\n\n查看出生合照"
+    },
+    {
+      "case": "desktop-quiet-dev-sample",
+      "seconds": 10.000700000000187,
+      "frames": 123,
+      "fps": 12.299139060265553,
+      "dpr": 0.75,
+      "drawBuffer": [
+        1080,
+        675
+      ],
+      "drawCalls": 21,
+      "renderTiming": {
+        "frames": 2118,
+        "cpuSamples": 240,
+        "gpuSamples": 240,
+        "cpuP95": 1.1000000005587935,
+        "gpuP95": 107.247291,
+        "cpuMean": 0.7416666666899497,
+        "gpuMean": 48.11112988333334,
+        "gpuSupported": true,
+        "scope": "Complete scene drawing; excludes separate glass context, React/layout and asset loading"
+      },
+      "hidden": false,
+      "canvases": 1
+    },
+    {
+      "case": "person-no-default-clock",
+      "clock": "",
+      "ready": false,
+      "place": "眉山代表点\n更改地点"
+    },
+    {
+      "case": "unknown-place-stays-explicit",
+      "ready": false,
+      "query": "",
+      "clock": "",
+      "hasRepresentative": false
+    },
+    {
+      "case": "four-cultures-preserve-observation",
+      "current": {
+        "utc": "1083-11-30T13:44:23.000Z",
+        "civilDate": "1083-11-30",
+        "clock": "21:30",
+        "timeBasis": {
+          "kind": "local-mean-solar"
+        },
+        "observer": {
+          "name": "北京市 · 北京",
+          "latitude": 39.904989,
+          "longitude": 116.405285,
+          "precision": "user-selected",
+          "note": "用户选择的现代行政地点代表点，不是建筑坐标。",
+          "source": "项目现有地点表"
+        },
+        "source": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "assumptions": [
+          "演示时刻，并非已经核实的出生或事件钟点。",
+          "采用用户所选观测位置，不回写为历史发生地。",
+          "地方平太阳时是本次演示约定，不代表当时的民用时间制度。"
+        ],
+        "timeSelection": {
+          "origin": "user-input",
+          "ruleVersion": null,
+          "label": "自选演示时刻，并非史料认定钟点。"
+        }
+      },
+      "sky": {
+        "key": "1083-11-30T13:44:23.000Z/astronomy-engine/geo-lighttime/no-aberration/no-refraction/v1/observer/39.904989/116.405285",
+        "utc": "1083-11-30T13:44:23.000Z",
+        "placement": "portrait",
+        "moonCount": 1,
+        "skyReady": true,
+        "moonPosition": [
+          14.778589174553007,
+          11.888367021868838,
+          -9.302055637008479
+        ],
+        "radius": 1.3341781893693683,
+        "moonNdc": [
+          0.72,
+          0.4399999999999998,
+          0.9867076395340526
+        ],
+        "meshRadius": 1.334178251574415,
+        "meshScale": [
+          1,
+          1,
+          1
+        ],
+        "cameraFov": 85,
+        "viewport": [
+          1440,
+          900
+        ],
+        "rendererMemory": {
+          "textures": 3,
+          "geometries": 5,
+          "programs": 6
+        },
+        "portraitProjection": 1,
+        "portraitBounds": {
+          "x": 1191.6000000000001,
+          "y": 205.20000000000005,
+          "w": 93.6,
+          "h": 93.6
+        },
+        "moonQuaternion": [
+          0.2588190451025207,
+          0,
+          0,
+          0.9659258262890684
+        ],
+        "moonFrameKey": "1083-11-30T13:44:23.000Z/astronomy-engine/geo-lighttime/no-aberration/no-refraction/v1/observer/39.904989/116.405285",
+        "sunLightView": [
+          0.47400398929433146,
+          -0.09543196890100555,
+          0.8753359112047996
+        ],
+        "moonFraction": 0.9376679556023998,
+        "moonAltitude": 62.64001694722749,
+        "moonAngularRadius": 0.2495361921977342,
+        "moonDirection": [
+          0.10301015379825892,
+          0.8881365847502973,
+          0.4478864979462285
+        ],
+        "sunDirection": [
+          -0.5341002630201442,
+          -0.8208169766141955,
+          -0.20247567741273031
+        ],
+        "portraitLight": [
+          0.47400398929433146,
+          -0.09543196890100555,
+          0.8753359112047996
+        ],
+        "cameraPosition": [
+          0,
+          0,
+          0
+        ],
+        "cameraQuaternion": [
+          0.2588190451025207,
+          0,
+          0,
+          0.9659258262890684
+        ],
+        "starSamples": [
+          {
+            "hip": 11767,
+            "position": [
+              -0.055045295506715775,
+              0.7023528814315796,
+              -0.709697425365448
+            ]
+          },
+          {
+            "hip": 32349,
+            "position": [
+              0.8315519690513611,
+              0.1958421766757965,
+              0.5197761058807373
+            ]
+          },
+          {
+            "hip": 91262,
+            "position": [
+              -0.6810651421546936,
+              0.09695038199424744,
+              -0.7257760763168335
+            ]
+          },
+          {
+            "hip": 69673,
+            "position": [
+              0.12512722611427307,
+              -0.43073517084121704,
+              -0.893761932849884
+            ]
+          },
+          {
+            "hip": 65474,
+            "position": [
+              0.3720692992210388,
+              -0.7768068909645081,
+              -0.5080702900886536
+            ]
+          },
+          {
+            "hip": 30343,
+            "position": [
+              0.713534951210022,
+              0.6955390572547913,
+              0.08422202616930008
+            ]
+          }
+        ]
+      },
+      "cultures": [
+        "chenzhuo",
+        "song",
+        "yuan",
+        "modern"
+      ]
+    },
+    {
+      "case": "capture-error-inline-recovery",
+      "text": "验收：模拟截图中断，取景保持不变。\n重试截图\n×",
+      "current": "1083-11-30T13:44:23.000Z"
+    },
+    {
+      "case": "card-asset-failure-recoverable",
+      "status": "纪念卡合成失败，取景已保留。",
+      "error": "手写寄语未能读取，请检查连接后重试。",
+      "backup": true,
+      "template": "same-moon",
+      "hash": "515fba8bc5b8b518862ee51be7e18296041e02233bca80cb35ae2c694edb3761"
+    },
+    {
+      "case": "same-frame-card-retry-success",
+      "dimensions": [
+        1440,
+        1845
+      ],
+      "template": "same-moon",
+      "errors": 0
+    },
+    {
+      "case": "batch-failure-does-not-break-ready-png",
+      "pngReady": true,
+      "error": "三套导出未完成：手写寄语未能读取，请检查连接后重试。 当前纪念卡仍可单独保存。",
+      "template": "same-moon"
+    },
+    {
+      "case": "phone-known-event-summary",
+      "text": "1083-11-30 · 20:00 当地\n\n黄州代表点\n更改地点\n\n沿用资料换算日期。采用地区代表点，不定位历史建筑。未载时刻，默认当地晚上 8 点演示。\n\n确认此日期与地点，查看合照\n调整钟点与时间解释",
+      "buttonY": 571.5625,
+      "buttonVisible": true,
+      "ready": true,
+      "scrollTop": 0,
+      "overflow": false
+    },
+    {
+      "case": "phone-single-candidate-choice",
+      "place": "北京市 · 北京\n更改地点",
+      "ready": true,
+      "focus": "更改演示地点"
+    },
+    {
+      "case": "phone-viewport-quiet-dev-sample",
+      "seconds": 10.0025,
+      "frames": 26,
+      "fps": 2.5993501624593853,
+      "profile": {
+        "mobile": true,
+        "quality": "balanced",
+        "dpr": 1.5,
+        "fps": 30,
+        "maxTextureSize": 2048,
+        "anisotropy": 4,
+        "earthSegments": 96,
+        "earthSegmentsHigh": 192,
+        "cloudLayers": 3,
+        "terrainShadows": false,
+        "antialias": true
+      },
+      "dpr": 0.75,
+      "drawBuffer": [
+        292,
+        633
+      ],
+      "drawCalls": 12,
+      "renderTiming": {
+        "frames": 6452,
+        "cpuSamples": 240,
+        "gpuSamples": 240,
+        "cpuP95": 2.099999999627471,
+        "gpuP95": 20.460625,
+        "cpuMean": 4.282083333341871,
+        "gpuMean": 7.507292354166664,
+        "gpuSupported": true,
+        "scope": "Complete scene drawing; excludes separate glass context, React/layout and asset loading"
+      },
+      "hidden": false,
+      "canvases": 1
+    },
+    {
+      "case": "phone-background-focus-emulation-diagnostic",
+      "seconds": 5.011400000000372,
+      "rafCallbacks": 80,
+      "renderedFrames": 78,
+      "hasFocus": true,
+      "visibility": "visible",
+      "cpuP95": 0.6000000005587935,
+      "gpuP95": 10.533666
+    },
+    {
+      "case": "sky-to-earth-capture-readiness",
+      "ready": false,
+      "button": [
+        {
+          "text": "画面准备中…",
+          "disabled": true
+        }
+      ],
+      "statusEvents": [
+        {
+          "ready": true,
+          "time": 1793703.0000000005
+        },
+        {
+          "ready": false,
+          "time": 1838519.8000000003
+        },
+        {
+          "ready": true,
+          "time": 1840021.9
+        },
+        {
+          "ready": false,
+          "time": 1864163.4
+        },
+        {
+          "ready": true,
+          "time": 1865566.4
+        },
+        {
+          "ready": false,
+          "time": 1952494.9
+        },
+        {
+          "ready": true,
+          "time": 1953745.1
+        },
+        {
+          "ready": false,
+          "time": 1957425.6
+        }
+      ]
+    },
+    {
+      "case": "history-reload-personal-initial",
+      "date": "2026-10-28",
+      "clock": "15:44",
+      "birth": null,
+      "currentKind": "history"
+    },
+    {
+      "case": "phone-birth-submit",
+      "birth": {
+        "utc": "1992-03-04T00:15:00.000Z",
+        "civilDate": "1992-03-04",
+        "clock": "08:15",
+        "timeBasis": {
+          "kind": "offset",
+          "offsetMinutes": 480
+        },
+        "observer": {
+          "name": "广东省 · 广州市 · 广州",
+          "latitude": 23.125178,
+          "longitude": 113.280637,
+          "precision": "user-selected",
+          "note": "用户选择的现代行政地点代表点，不是建筑坐标。",
+          "source": "项目现有地点表"
+        },
+        "source": {
+          "kind": "birth",
+          "label": "我的出生时刻"
+        },
+        "assumptions": [],
+        "timeSelection": {
+          "origin": "user-input",
+          "ruleVersion": null,
+          "label": "用户填写的出生时刻。"
+        }
+      },
+      "current": {
+        "utc": "1992-03-04T00:15:00.000Z",
+        "civilDate": "1992-03-04",
+        "clock": "08:15",
+        "timeBasis": {
+          "kind": "offset",
+          "offsetMinutes": 480
+        },
+        "observer": {
+          "name": "广东省 · 广州市 · 广州",
+          "latitude": 23.125178,
+          "longitude": 113.280637,
+          "precision": "user-selected",
+          "note": "用户选择的现代行政地点代表点，不是建筑坐标。",
+          "source": "项目现有地点表"
+        },
+        "source": {
+          "kind": "birth",
+          "label": "我的出生时刻"
+        },
+        "assumptions": [],
+        "timeSelection": {
+          "origin": "user-input",
+          "ruleVersion": null,
+          "label": "用户填写的出生时刻。"
+        }
+      },
+      "moon": "portrait"
+    },
+    {
+      "case": "history-settings-after-reload",
+      "place": "黄州代表点\n更改地点",
+      "clock": "1083-11-30 · 20:00 当地",
+      "button": "用上次设置再看"
+    },
+    {
+      "case": "history-return-preserves-personal-baseline",
+      "utc": "1992-03-04T00:15:00.000Z"
+    },
+    {
+      "case": "phone-card-failure-actions-visible",
+      "viewport": [
+        390,
+        844
+      ],
+      "buttons": [
+        {
+          "text": "重试纪念卡",
+          "rect": {
+            "x": 16,
+            "y": 783.5,
+            "width": 112.6640625,
+            "height": 44.5,
+            "top": 783.5,
+            "right": 128.6640625,
+            "bottom": 828,
+            "left": 16
+          }
+        },
+        {
+          "text": "保存原图",
+          "rect": {
+            "x": 138.6640625,
+            "y": 783.5,
+            "width": 112.671875,
+            "height": 44.5,
+            "top": 783.5,
+            "right": 251.3359375,
+            "bottom": 828,
+            "left": 138.6640625
+          }
+        },
+        {
+          "text": "导出三套",
+          "rect": {
+            "x": 261.3359375,
+            "y": 783.5,
+            "width": 112.6640625,
+            "height": 44.5,
+            "top": 783.5,
+            "right": 374,
+            "bottom": 828,
+            "left": 261.3359375
+          }
+        }
+      ],
+      "allWithinViewport": true,
+      "error": "手写寄语未能读取，请检查连接后重试。"
+    },
+    {
+      "case": "phone-candidate-highlight",
+      "first": "北京市\n39.9050°，116.4053°",
+      "highlight": "rgba(210, 188, 152, 0.14)",
+      "pending": "pending",
+      "submitDisabled": true
+    },
+    {
+      "case": "moon-placement-and-keyboard-tabs",
+      "physicalSelectable": true,
+      "restoredPortrait": true,
+      "tabKeyboard": true
+    },
+    {
+      "case": "fresh-phone-startup-console",
+      "errors": [],
+      "records": 150,
+      "moon": "portrait",
+      "canvases": 1
+    }
+  ],
+  "errors": [],
+  "captureChanges": [
+    {
+      "ready": false,
+      "time": 70000.20000000019
+    },
+    {
+      "ready": true,
+      "time": 71112.1000000001
+    },
+    {
+      "ready": false,
+      "time": 578541.3000000003
+    },
+    {
+      "ready": true,
+      "time": 585425.0000000005
+    },
+    {
+      "ready": false,
+      "time": 1789754.1
+    },
+    {
+      "ready": true,
+      "time": 1791224.0000000005
+    },
+    {
+      "ready": false,
+      "time": 1792351.4
+    },
+    {
+      "ready": true,
+      "time": 1793703.0000000005
+    },
+    {
+      "ready": false,
+      "time": 1838519.8000000003
+    },
+    {
+      "ready": true,
+      "time": 1840021.9
+    },
+    {
+      "ready": false,
+      "time": 1864163.4
+    },
+    {
+      "ready": true,
+      "time": 1865566.4
+    },
+    {
+      "ready": false,
+      "time": 1952494.9
+    },
+    {
+      "ready": true,
+      "time": 1953745.1
+    },
+    {
+      "ready": false,
+      "time": 1957425.6
+    },
+    {
+      "ready": true,
+      "time": 1962027.3000000003
+    }
+  ],
+  "frozenHash": "515fba8bc5b8b518862ee51be7e18296041e02233bca80cb35ae2c694edb3761",
+  "meta": {
+    "date": "2026-10-28",
+    "baselineRevision": "f9b653172642a3defd23debbea520586bdabfd3f",
+    "url": "http://127.0.0.1:5183/LuBirth/?history=1&spatialtest=1",
+    "browser": "Ego Lite independent TaskSpace 14 / p1",
+    "desktop": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 1
+    },
+    "phone": {
+      "width": 390,
+      "height": 844,
+      "dpr": 2
+    },
+    "scope": "Local development page. Phone viewport emulation, synthetic IME and deliberately blocked local template assets; no physical phone, Safari or public release tested.",
+    "runtimeErrors": 0,
+    "browserWorkspaceClosed": true,
+    "screenshots": [
+      "01-desktop-event-summary.png",
+      "02-desktop-history-immersive.png",
+      "05-phone-card-ready.png",
+      "06-phone-event-summary.png",
+      "07-phone-history-immersive.png",
+      "08-phone-local-sky.png",
+      "09-phone-card-failure.png",
+      "10-phone-location-choice.png"
+    ]
+  }
+}

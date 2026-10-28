@@ -1,0 +1,3 @@
+.scene-capture-error{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#132030;color:#e0cbb7;font-size:12px;line-height:1.6;border-radius:6px;max-width:min(380px,calc(100vw - 24px));pointer-events:auto}
+.scene-capture-error button{flex:none;min-height:44px;border:0;background:none;color:#e6d0ac;cursor:pointer;font:inherit}
+.experience-toolbar .scene-capture-error{position:absolute;right:max(12px,env(safe-area-inset-right));top:100%;box-shadow:0 6px 20px #0004}

@@ -4,7 +4,7 @@ import { handwritingAsset, templateUrl } from './templates';
 import { writeInkoPngMetadata } from './png-metadata';
 
 function abortError() { return new DOMException('已取消', 'AbortError'); }
-export function loadCardImage(url: string, signal?: AbortSignal): Promise<HTMLImageElement> {
+export function loadCardImage(url: string, signal?: AbortSignal, description = '图片'): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(abortError()); return; }
     const image = new Image();
@@ -14,9 +14,9 @@ export function loadCardImage(url: string, signal?: AbortSignal): Promise<HTMLIm
       image.onload = null; image.onerror = null;
     };
     const abort = () => { cleanup(); image.src = ''; reject(abortError()); };
-    const timer = setTimeout(() => { cleanup(); image.src = ''; reject(new Error('图片读取较慢，请稍后重试。')); }, 15000);
+    const timer = setTimeout(() => { cleanup(); image.src = ''; reject(new Error(`${description}读取超时，请重试；取景已保留。`)); }, 15000);
     image.onload = () => { cleanup(); resolve(image); };
-    image.onerror = () => { cleanup(); reject(new Error('图片未能读取，请检查连接后重试。')); };
+    image.onerror = () => { cleanup(); reject(new Error(`${description}未能读取，请检查连接后重试。`)); };
     signal?.addEventListener('abort', abort, { once: true }); image.src = url;
   });
 }
@@ -36,8 +36,8 @@ export async function composeBirthCard(draft: KeepsakeDraft, options: CardOption
   if (!asset) throw new Error('手写模板尚未准备好，原始截图仍可保存。');
   signal?.throwIfAborted();
   const [scene, handwriting, label] = await Promise.all([
-    loadCardImage(draft.sceneImage, signal), loadCardImage(templateUrl(asset.card), signal),
-    loadCardImage(templateUrl(asset.label.path), signal),
+    loadCardImage(draft.sceneImage, signal, '原始取景'), loadCardImage(templateUrl(asset.card), signal, '手写寄语'),
+    loadCardImage(templateUrl(asset.label.path), signal, '卡片标识'),
   ]);
   signal?.throwIfAborted();
   const canvas = document.createElement('canvas');

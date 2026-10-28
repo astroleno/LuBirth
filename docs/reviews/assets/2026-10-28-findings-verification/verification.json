@@ -1,0 +1,425 @@
+{
+  "meta": {
+    "date": "2026-10-28",
+    "space": 24,
+    "url": "http://127.0.0.1:5183/LuBirth/?history=1",
+    "method": "Single Ego Lite TaskSpace; keyboard actions; no application edits",
+    "desktop": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 1
+    },
+    "initialFavorites": [],
+    "touchedFavoriteIds": [
+      "dsh:H033",
+      "dsh:H031"
+    ],
+    "finalFavorites": [],
+    "favoritesRestored": true,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "defaultMoonPlacement": "portrait",
+    "phoneViewport": {
+      "width": 390,
+      "height": 844,
+      "dpr": 2,
+      "realDevice": false
+    },
+    "browserWorkspaceClosed": true,
+    "sourceFilesCompared": 19,
+    "sourceSha256Before": "d2135b501fc4e5bc97453345ecb473cfb8d13c45b6dcfa65ef25e5999d807db3",
+    "sourceSha256After": "d2135b501fc4e5bc97453345ecb473cfb8d13c45b6dcfa65ef25e5999d807db3",
+    "sourceUnchanged": true,
+    "headBeforeAndAfter": "f9b653172642a3defd23debbea520586bdabfd3f",
+    "scope": "Verification only; application source and existing review reports unchanged; no commit, push or deployment.",
+    "toolNotes": [
+      "One Ego metadata write encountered transient ENOSPC. Free space was available at the next check; the same TaskSpace was inspected and resumed without deleting files.",
+      "The suggestion popover covered the existing-custom Cancel control during one pointer attempt; Escape closed the popover before Cancel was tested."
+    ]
+  },
+  "cases": [
+    {
+      "id": "RR1-initial-person-clock",
+      "stages": [
+        {
+          "action": "focus",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "ready": false,
+          "advancedOpen": false
+        },
+        {
+          "action": "2",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "ready": false,
+          "advancedOpen": false
+        },
+        {
+          "action": "1",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "ready": false,
+          "advancedOpen": false
+        },
+        {
+          "action": "ArrowRight",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "ready": false,
+          "advancedOpen": false
+        },
+        {
+          "action": "3",
+          "inputPresent": false,
+          "value": null,
+          "summary": "1037-01-14 · 21:03 当地",
+          "focusTag": "BODY",
+          "focusName": null,
+          "ready": true,
+          "advancedOpen": false
+        },
+        {
+          "action": "0",
+          "inputPresent": false,
+          "value": null,
+          "summary": "1037-01-14 · 21:03 当地",
+          "focusTag": "BODY",
+          "focusName": null,
+          "ready": true,
+          "advancedOpen": false
+        }
+      ]
+    },
+    {
+      "id": "RR1-incomplete-value-can-be-submitted",
+      "clock": "21:03",
+      "source": "dsh:H002",
+      "panel": null
+    },
+    {
+      "id": "RR1-control-expanded-clock-same-keys",
+      "stages": [
+        {
+          "action": "blank-input",
+          "value": "",
+          "inputPresent": true,
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "advancedOpen": true
+        },
+        {
+          "action": "2",
+          "value": "",
+          "inputPresent": true,
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "advancedOpen": true
+        },
+        {
+          "action": "1",
+          "value": "",
+          "inputPresent": true,
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "advancedOpen": true
+        },
+        {
+          "action": "ArrowRight",
+          "value": "",
+          "inputPresent": true,
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "advancedOpen": true
+        },
+        {
+          "action": "3",
+          "value": "21:03",
+          "inputPresent": true,
+          "summary": "1037-01-14 · 21:03 当地",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "advancedOpen": true
+        },
+        {
+          "action": "0",
+          "value": "21:30",
+          "inputPresent": true,
+          "summary": "1037-01-14 · 21:30 当地",
+          "focusTag": "INPUT",
+          "focusName": "history-clock",
+          "advancedOpen": true
+        }
+      ]
+    },
+    {
+      "id": "RR2-history-editor-focus-and-tab",
+      "stages": [
+        {
+          "action": "focus-change",
+          "focus": {
+            "tag": "BUTTON",
+            "id": "",
+            "name": null,
+            "ariaLabel": "更改演示地点",
+            "text": "更改地点",
+            "tab": "experience-content"
+          }
+        },
+        {
+          "action": "Enter-open-editor",
+          "focus": {
+            "tag": "BODY",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": null,
+            "tab": null
+          }
+        },
+        {
+          "action": "Tab-1",
+          "focus": {
+            "tag": "SELECT",
+            "id": ":r1:-place",
+            "name": "history-place",
+            "ariaLabel": null,
+            "text": "眉山代表点 · 资料相关地区另选演示地点沿用画面地点 · 眉山代表点（苏轼 · 历史演示）",
+            "tab": "experience-content"
+          }
+        },
+        {
+          "action": "Tab-2",
+          "focus": {
+            "tag": "BUTTON",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": "收起地点设置",
+            "tab": "experience-content"
+          }
+        },
+        {
+          "action": "Tab-3",
+          "focus": {
+            "tag": "BUTTON",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": "确认此日期与地点，查看合照",
+            "tab": "experience-content"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RR2-birth-editor-focus-and-tab",
+      "stages": [
+        {
+          "action": "focus-change",
+          "focus": {
+            "tag": "BUTTON",
+            "id": "",
+            "name": null,
+            "ariaLabel": "更改出生地点",
+            "text": "更改"
+          }
+        },
+        {
+          "action": "Enter-open-editor",
+          "focus": {
+            "tag": "BODY",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": null
+          }
+        },
+        {
+          "action": "dataset-ready",
+          "focus": {
+            "tag": "BODY",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": null
+          }
+        },
+        {
+          "action": "Tab-1",
+          "focus": {
+            "tag": "INPUT",
+            "id": "",
+            "name": null,
+            "ariaLabel": "搜索出生地点",
+            "text": ""
+          }
+        },
+        {
+          "action": "Tab-2",
+          "focus": {
+            "tag": "BUTTON",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": "按省市区选择"
+          }
+        },
+        {
+          "action": "Tab-3",
+          "focus": {
+            "tag": "BUTTON",
+            "id": "",
+            "name": null,
+            "ariaLabel": null,
+            "text": "境外地点／填写坐标"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RR2-birth-phone-viewport-keyboard",
+      "viewport": [
+        390,
+        844
+      ],
+      "beforeTab": {
+        "tag": "BODY",
+        "label": null,
+        "name": null
+      },
+      "afterTab": {
+        "tag": "INPUT",
+        "label": "搜索出生地点",
+        "name": null
+      }
+    },
+    {
+      "id": "RR2-history-phone-viewport-keyboard",
+      "viewport": [
+        390,
+        844
+      ],
+      "openingFocus": "BODY",
+      "nextTab": {
+        "tag": "SELECT",
+        "name": "history-place"
+      }
+    },
+    {
+      "id": "RR3-representative-change-cancel-and-recovery",
+      "viewport": [
+        390,
+        844
+      ],
+      "initial": {
+        "summary": "黄州代表点更改地点",
+        "date": "1083-11-30 · 20:00 当地",
+        "assumptions": "沿用资料换算日期。采用地区代表点，不定位历史建筑。未载时刻，默认当地晚上 8 点演示。",
+        "ready": true,
+        "canCancel": false,
+        "canCollapse": false,
+        "recordId": "dsh:H033"
+      },
+      "pending": {
+        "date": "1083-11-30 · 20:00 当地",
+        "assumptions": "沿用资料换算日期。未载时刻，默认当地晚上 8 点演示。",
+        "ready": false,
+        "mode": "custom",
+        "query": "北京",
+        "canCancel": false,
+        "canCollapse": false,
+        "recordId": "dsh:H033"
+      },
+      "restored": {
+        "summary": "黄州代表点更改地点",
+        "date": "1083-11-30 · 20:00 当地",
+        "assumptions": "沿用资料换算日期。采用地区代表点，不定位历史建筑。未载时刻，默认当地晚上 8 点演示。",
+        "ready": true,
+        "canCancel": false,
+        "canCollapse": false,
+        "recordId": "dsh:H033"
+      }
+    },
+    {
+      "id": "RR3-control-existing-custom-location-cancel",
+      "pending": {
+        "canCancel": true,
+        "cancelLabel": "取消更改，保留北京市",
+        "ready": false,
+        "query": "上海"
+      },
+      "restored": {
+        "summary": "北京市更改地点",
+        "ready": true,
+        "focusLabel": "更改演示地点"
+      },
+      "operationNote": "The open suggestion list intercepted the first pointer attempt; Escape dismissed the list, then Cancel restored the selected custom point."
+    },
+    {
+      "id": "RR4-single-filtered-favorite-removed",
+      "viewport": [
+        390,
+        844
+      ],
+      "initialCount": "1 条结果",
+      "afterReturn": {
+        "tag": "BODY",
+        "id": "",
+        "results": "0 条结果",
+        "scroll": 0
+      },
+      "afterTab": {
+        "tag": "INPUT",
+        "id": "history-search",
+        "results": "0 条结果",
+        "scroll": 0
+      }
+    },
+    {
+      "id": "history-record-dsh:H033",
+      "tag": "BUTTON"
+    },
+    {
+      "id": "RR4-multiple-favorites-one-removed",
+      "viewport": [
+        1440,
+        900
+      ],
+      "before": {
+        "count": "2 条结果",
+        "ids": [
+          "history-record-dsh:H031",
+          "history-record-dsh:H033"
+        ]
+      },
+      "afterReturn": {
+        "tag": "BODY",
+        "id": "",
+        "count": "1 条结果",
+        "scroll": 0
+      },
+      "afterTab": {
+        "tag": "INPUT",
+        "id": "history-search",
+        "count": "1 条结果",
+        "scroll": 0
+      }
+    }
+  ]
+}

@@ -14,18 +14,25 @@ export function ExperiencePanel({ active, onChange, onClose, onHost, children, s
 }) {
   const root = React.useRef<HTMLElement>(null), previous = React.useRef(active);
   const scroll = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (active && !previous.current) root.current?.querySelector<HTMLElement>('[aria-selected=true]')?.focus();
-    if (!active && previous.current) returnFocus.current?.focus();
+  const positions = React.useRef(new Map<ExperiencePanelKind, number>());
+  const focused = React.useRef(new Map<ExperiencePanelKind, HTMLElement>());
+  React.useLayoutEffect(() => {
+    if (active && scroll.current) scroll.current.scrollTop = positions.current.get(active) ?? 0;
+    if (active && !previous.current) {
+      const remembered = focused.current.get(active);
+      const target = remembered?.isConnected && remembered.getClientRects().length ? remembered
+        : root.current?.querySelector<HTMLElement>('[aria-selected=true]');
+      target?.focus({ preventScroll: true });
+    }
+    if (!active && previous.current) returnFocus.current?.focus({ preventScroll: true });
     previous.current = active;
-    scroll.current?.scrollTo({ top: 0 });
   }, [active, returnFocus]);
   React.useEffect(() => {
     if (!active) return;
     // Portaled scene controls follow a different React ancestry; handle Escape
     // at the native boundary so they close this same panel as the other tabs.
     const key = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || document.querySelector('.screenshot-preview')) return;
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || document.querySelector('.screenshot-preview')) return;
       event.preventDefault(); event.stopPropagation(); onClose();
     };
     document.addEventListener('keydown', key);
@@ -50,7 +57,9 @@ export function ExperiencePanel({ active, onChange, onClose, onHost, children, s
       <button type="button" className="experience-close" aria-label="关闭探索面板" onClick={onClose}>×</button>
     </header>
     <div ref={scroll} className="experience-panel-content" id="experience-content" role="tabpanel"
-      aria-labelledby={'experience-tab-' + (active || 'birth')}>
+      aria-labelledby={'experience-tab-' + (active || 'birth')}
+      onScroll={event => { if (active && !root.current?.hidden) positions.current.set(active, event.currentTarget.scrollTop); }}
+      onFocusCapture={event => { if (active && event.target instanceof HTMLElement) focused.current.set(active, event.target); }}>
       {children}
       <div ref={onHost} className="experience-scene-controls" hidden={active !== 'appearance' && !(active === 'sky' && scene === 'sky')} />
     </div>

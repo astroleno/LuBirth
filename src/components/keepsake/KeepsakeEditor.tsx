@@ -14,6 +14,7 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
   const [options, setOptions] = React.useState(() => initialCardOptions(draft));
   const [image, setImage] = React.useState<ImageResult | null>(null);
   const [error, setError] = React.useState(''), [working, setWorking] = React.useState(false);
+  const [retryToken, setRetryToken] = React.useState(0), [batchError, setBatchError] = React.useState('');
   const [batchProgress, setBatchProgress] = React.useState(0), [zip, setZip] = React.useState<string | null>(null);
   const focus = React.useRef<HTMLButtonElement>(null), batch = React.useRef<AbortController | null>(null);
   const zipUrl = React.useRef<string | null>(null);
@@ -45,16 +46,18 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
         .finally(() => { if (!controller.signal.aborted) setWorking(false); });
     }, 120);
     return () => { clearTimeout(timer); controller.abort(); if (url) URL.revokeObjectURL(url); };
-  }, [draft, options, prepared, format]);
+  }, [draft, options, prepared, format, retryToken]);
   React.useEffect(() => {
     if (zipUrl.current) URL.revokeObjectURL(zipUrl.current);
     zipUrl.current = null;
     setZip(null);
-  }, [options]);
+    setBatchError('');
+  }, [draft, options]);
   const update = <K extends keyof CardOptions>(key: K, value: CardOptions[K]) => setOptions(previous => ({ ...previous, [key]: value }));
   const saveAll = async () => {
-    const controller = new AbortController(); batch.current?.abort(); batch.current = controller;
-    setBatchProgress(1); setError('');
+    if (batch.current) return;
+    const controller = new AbortController(); batch.current = controller;
+    setBatchProgress(1); setBatchError('');
     try {
       const files = [];
       for (let index = 0; index < KEEPSAKE_TEMPLATES.length; index++) {
@@ -66,7 +69,7 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
       const blob = await createCardZip(files, controller.signal); controller.signal.throwIfAborted();
       if (zipUrl.current) URL.revokeObjectURL(zipUrl.current);
       zipUrl.current = URL.createObjectURL(blob); setZip(zipUrl.current);
-    } catch (reason) { if (!controller.signal.aborted && !aborted(reason)) setError((reason as Error).message); }
+    } catch (reason) { if (!controller.signal.aborted && !aborted(reason)) setBatchError((reason as Error).message); }
     finally { if (batch.current === controller) { batch.current = null; setBatchProgress(0); } }
   };
   return <div className={'keepsake-editor' + (unified ? ' is-unified' : '')}>
@@ -79,7 +82,7 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
       <section className="keepsake-preview" aria-label="纪念卡预览" aria-busy={working}>
         {format === 'original' ? <img src={draft.sceneImage} alt="已冻结的地月截图" />
           : image ? <img src={image.url} alt={KEEPSAKE_TEMPLATES.find(template => template.id === options.templateId)!.text + ' · 地月纪念卡'} />
-          : <><img src={draft.sceneImage} alt="已冻结的地月截图" /><p role="status">{working ? '正在合成纪念卡…' : '手写模板准备中，原始截图仍可保存。'}</p></>}
+          : <><img src={draft.sceneImage} alt="已冻结的地月截图" /><p role="status">{error ? '纪念卡合成失败，取景已保留。' : !prepared ? '这套手写模板暂不可用，可选择其他寄语或保存原图。' : '正在合成纪念卡…'}</p></>}
       </section>
       <div className="keepsake-side"><section className="keepsake-controls" aria-label="纪念卡设置">
         {format === 'card' ? <><fieldset disabled={batchProgress > 0}><legend>选择寄语</legend>
@@ -98,16 +101,20 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
         </fieldset>
         <p className="keepsake-note">取景已经保留。切换场景不会改写这张卡片，图片在你的浏览器内合成。</p>
         {draft.observation.source.kind === 'history' && <p className="keepsake-note">历史卡会保留日期与演示时刻说明。</p>}
-        {error && <p className="keepsake-error" role="alert">{error}</p>}</>
+        </>
           : <p className="keepsake-note">当前地月画面已经保留。直接保存原图，或选择「纪念卡」添加手写寄语。</p>}
       </section>
         <div className="keepsake-downloads">
+          {format === 'card' && error && <p className="keepsake-error" role="alert">{error}</p>}
           {format === 'original' ? <a className="btn btn-primary" href={draft.sceneImage} download="LuBirth.png">保存原图</a>
             : image && !working && !batchProgress ? <a className="btn btn-primary" href={image.url}
             download={`LuBirth-${KEEPSAKE_TEMPLATES.find(template => template.id === image.templateId)!.text}-${draft.observation.civilDate}.png`}>保存 PNG</a>
+            : error && !working ? <button className="btn btn-primary" onClick={() => { setError(''); setWorking(true); setRetryToken(value => value + 1); }}>重试纪念卡</button>
             : <button className="btn btn-primary" disabled>{working ? '正在合成…' : '保存 PNG'}</button>}
+          {format === 'card' && (error || !prepared) && <a className="btn" href={draft.sceneImage} download="LuBirth.png">保存原图</a>}
           {format === 'card' && (zip ? <a className="btn" href={zip} download={`LuBirth-三套纪念卡-${draft.observation.civilDate}.zip`}>保存三套 ZIP</a>
-            : <button className="btn" disabled={!allPrepared || working || !!batchProgress} onClick={saveAll}>导出三套</button>)}
+            : <button className="btn" disabled={!allPrepared || !image || working || !!error || !!batchProgress} onClick={saveAll}>{batchError ? '重试导出三套' : '导出三套'}</button>)}
+          {format === 'card' && batchError && <p className="keepsake-error" role="alert">三套导出未完成：{batchError} 当前纪念卡仍可单独保存。</p>}
           {batchProgress > 0 && <><p role="status">正在准备第 {batchProgress} / 3 张</p><button className="btn" onClick={() => batch.current?.abort()}>取消</button></>}
           {(image || format === 'original') && <p className="keepsake-note"><a href={format === 'original' ? draft.sceneImage : image!.url} target="_blank" rel="noreferrer">查看大图</a> · 手机上可长按预览图片保存</p>}
         </div>

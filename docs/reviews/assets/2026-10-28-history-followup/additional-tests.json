@@ -1,0 +1,14 @@
+[
+  {
+    "suite": "scripts/test-celestial-frames.mjs",
+    "exitCode": 0,
+    "summary": "{\"checks\":7,\"maxRoundtripDeg\":0.000003144578103106816,\"maxObservedParallaxDeg\":0.9984537503121758}",
+    "stderr": ""
+  },
+  {
+    "suite": "scripts/test-sky-presentation.mjs",
+    "exitCode": 0,
+    "summary": "}",
+    "stderr": ""
+  }
+]

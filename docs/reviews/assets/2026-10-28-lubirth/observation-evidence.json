@@ -1,0 +1,532 @@
+{
+  "meta": {
+    "date": "2026-10-28",
+    "target": "https://aitoshuu.me/LuBirth/",
+    "sourceRevision": "f9b653172642a3defd23debbea520586bdabfd3f",
+    "taskSpace": 21,
+    "page": "p1",
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "phone": {
+      "width": 390,
+      "height": 844
+    },
+    "method": "One independent Ego Lite TaskSpace; synthetic review inputs only; no source edits or public deployment. Phone checks are viewport emulation, not a physical keyboard/device.",
+    "coverage": "Desktop and phone-viewport birth/history/location flows, historical portrait, local sky, frozen original, initial card failure and one successful card preview retry.",
+    "browserWorkspaceClosed": true,
+    "reviewers": {
+      "lama": "Independent product/mobile review of source and shared evidence",
+      "emil": "Independent design-engineering review of source and shared evidence"
+    }
+  },
+  "cases": [
+    {
+      "id": "E1",
+      "topic": "Representative-place event confirmation burden",
+      "record": "承天寺夜游",
+      "initial": {
+        "placeMode": "",
+        "clock": "20:00",
+        "acknowledged": false,
+        "submitDisabled": true,
+        "submitY": 1245.3515625,
+        "panelHeight": 734,
+        "panelScrollHeight": 1231,
+        "panelScrollTop": 16,
+        "availablePlaces": [
+          {
+            "value": "",
+            "label": "请选择用于演示的位置"
+          },
+          {
+            "value": "record",
+            "label": "黄州代表点 · 资料相关地区"
+          },
+          {
+            "value": "current",
+            "label": "在我当前的地点观看 · 上海"
+          },
+          {
+            "value": "custom",
+            "label": "另选地点或填写坐标"
+          }
+        ]
+      },
+      "afterSelectingRepresentativePlace": {
+        "placeMode": "record",
+        "acknowledged": false,
+        "submitDisabled": true,
+        "scrollTop": 16,
+        "visibleText": "生成这一天的地月合照\n\n地球标出所选地点，月球呈现对应月相。也可以从合照继续进入当地天空。\n\n无时辰不补UTC；JDN不证明UTC时刻。\n\n演示钟点 · 不是史料认定时刻\n恢复默认 20:00\n\n未载明时刻，默认以当地 20:00 演示，可修改。\n\n观测地点\n请选择用于演示的位置\n黄州代表点 · 资料相关地区\n在我当前的地点观看 · 上海\n另选地点或填写坐标\n\n记录为黄州承天寺；使用黄州行政代表点，不定位寺址。\n纬度 30.4474°，经度 114.8789°\n\n如何解释钟点\n地方平太阳时 · 演示约定\n我指定 UTC 偏移\n\n按观测地经度换算。这是本次演示约定，不代表当时的民用钟表制度。\n\n我已了解日期解释，按所选地点和演示钟点观看。\n查看这一天的地月合照\n\n请先选钟点、地点，并确认日期与演示说明。"
+      },
+      "screenshots": [
+        "03-desktop-history-detail-top.png",
+        "04-desktop-history-confirmation.png"
+      ],
+      "confirmationViewport": {
+        "scrollTop": 545,
+        "scrollHeight": 1279,
+        "clientHeight": 734,
+        "clock": "20:00",
+        "placeMode": "record",
+        "acknowledged": false,
+        "submitDisabled": true
+      }
+    },
+    {
+      "id": "E2",
+      "topic": "Default historical portrait result",
+      "actions": [
+        "Choose representative region once",
+        "Check the acknowledgement once",
+        "Submit once"
+      ],
+      "result": {
+        "current": {
+          "utc": "1083-11-30T12:20:29.000Z",
+          "civilDate": "1083-11-30",
+          "clock": "20:00",
+          "timeBasis": {
+            "kind": "local-mean-solar"
+          },
+          "observer": {
+            "name": "黄州代表点",
+            "latitude": 30.447435,
+            "longitude": 114.878934,
+            "precision": "representative",
+            "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+            "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+          },
+          "source": {
+            "kind": "history",
+            "label": "承天寺夜游",
+            "recordId": "dsh:H033",
+            "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+            "recordKind": "event"
+          },
+          "assumptions": [
+            "演示时刻，并非已经核实的出生或事件钟点。",
+            "采用现代地点代表点，不是历史建筑的精确位置。",
+            "地方平太阳时是本次演示约定，不代表当时的民用时间制度。",
+            "史料未载时刻，默认以所选地点的 20:00 演示，不代表事件发生瞬间。"
+          ],
+          "timeSelection": {
+            "origin": "event-default-20",
+            "ruleVersion": "event-evening-v1",
+            "label": "未载明时刻，默认以当地 20:00 演示，可修改。"
+          }
+        },
+        "birth": null,
+        "visibleBodyText": "留念\n显示菜单",
+        "visibleObservation": false
+      },
+      "screenshot": "06-desktop-history-immersive.png"
+    },
+    {
+      "id": "E3",
+      "topic": "Draft preservation and reset boundary",
+      "reopened": {
+        "placeMode": "record",
+        "clock": "20:00",
+        "acknowledged": true,
+        "scrollTop": 0
+      },
+      "scrollBeforeTabChange": 504,
+      "tabReturned": {
+        "placeMode": "record",
+        "clock": "20:00",
+        "acknowledged": true,
+        "scrollTop": 0
+      },
+      "recordReturned": {
+        "placeMode": "",
+        "clock": "20:00",
+        "acknowledged": false,
+        "submitDisabled": true
+      }
+    },
+    {
+      "id": "E4",
+      "topic": "Unmatched historical place and current-place wording",
+      "unmatched": {
+        "title": "张之洞",
+        "clock": "",
+        "places": [
+          {
+            "value": "",
+            "label": "请选择用于演示的位置"
+          },
+          {
+            "value": "current",
+            "label": "在我当前的地点观看 · 黄州代表点"
+          },
+          {
+            "value": "custom",
+            "label": "另选地点或填写坐标"
+          }
+        ],
+        "clockNote": "自选演示时刻，并非史料认定钟点。",
+        "missingPointNote": "该条尚无已匹配的观测点。你所选的位置只用于演示，不会被记成历史发生地。"
+      }
+    },
+    {
+      "id": "E5",
+      "topic": "Keyboard cannot commit a suggested location with ArrowDown then Enter",
+      "keyboard": {
+        "query": "上海",
+        "selectedPlace": null,
+        "submitDisabled": true,
+        "activeElement": "INPUT",
+        "activeInputLabel": "搜索出生地点",
+        "suggestionCount": 17,
+        "suggestionNames": [
+          "上海市 上海市 上海\n121.4726, 31.2317",
+          "上海市 上海市 黄浦\n121.4903, 31.2228",
+          "上海市 上海市 徐汇\n121.4375, 31.1800",
+          "上海市 上海市 长宁区\n121.4222, 31.2181"
+        ]
+      },
+      "limits": "Desktop key presses only, not physical-phone IME composition."
+    },
+    {
+      "id": "E6",
+      "topic": "Edited query and committed location diverge; Enter submission",
+      "actions": [
+        "Click first Shanghai suggestion once",
+        "Acknowledge once",
+        "Replace search query with 北京 without selecting suggestion",
+        "Blur query",
+        "Focus query, ArrowDown, Enter"
+      ],
+      "committed": {
+        "query": "上海市 · 上海",
+        "selectedPlace": "上海市 · 上海\n31.2317°，121.4726°",
+        "acknowledged": true,
+        "submitDisabled": false
+      },
+      "pending": {
+        "query": "北京",
+        "selectedPlace": "上海市 · 上海\n31.2317°，121.4726°",
+        "acknowledged": true,
+        "submitDisabled": false
+      },
+      "submittedViaEnter": true,
+      "result": {
+        "currentObserver": {
+          "name": "上海市 · 上海",
+          "latitude": 31.231706,
+          "longitude": 121.472644,
+          "precision": "user-selected",
+          "note": "用户选择的现代行政地点代表点，不是建筑坐标。",
+          "source": "项目现有地点表"
+        },
+        "source": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "clock": "20:00",
+        "panelHidden": true
+      },
+      "screenshot": "05-desktop-uncommitted-location.png"
+    },
+    {
+      "id": "E7",
+      "topic": "Partial province/city selection retains old committed location",
+      "beforeCascade": {
+        "selects": [
+          {
+            "value": "上海市",
+            "firstOptions": [
+              "选择省份",
+              "上海市",
+              "云南省"
+            ]
+          },
+          {
+            "value": "上海市",
+            "firstOptions": [
+              "选择城市",
+              "上海市"
+            ]
+          },
+          {
+            "value": "上海",
+            "firstOptions": [
+              "选择区县",
+              "上海",
+              "嘉定"
+            ]
+          }
+        ],
+        "selected": "上海市 · 上海\n31.2317°，121.4726°"
+      },
+      "partialCascade": {
+        "selects": [
+          "广东省",
+          "",
+          ""
+        ],
+        "selected": "上海市 · 上海\n31.2317°，121.4726°",
+        "submitDisabled": false
+      }
+    },
+    {
+      "id": "E8",
+      "topic": "Manual coordinate fields do not reflect selected location",
+      "manualBefore": {
+        "selected": "上海市 · 上海\n31.2317°，121.4726°",
+        "fields": [
+          {
+            "type": "text",
+            "value": "",
+            "placeholder": "例如：伦敦市中心"
+          },
+          {
+            "type": "number",
+            "value": "",
+            "placeholder": ""
+          },
+          {
+            "type": "number",
+            "value": "",
+            "placeholder": ""
+          }
+        ],
+        "submitDisabled": false
+      },
+      "manualAfter": {
+        "selected": null,
+        "query": "上海市 · 上海",
+        "fields": [
+          {
+            "type": "text",
+            "value": "上海外滩（审阅测试）"
+          },
+          {
+            "type": "number",
+            "value": ""
+          },
+          {
+            "type": "number",
+            "value": ""
+          }
+        ],
+        "submitDisabled": true
+      },
+      "screenshot": "07-desktop-selected-place-empty-coordinates.png"
+    },
+    {
+      "id": "E9",
+      "topic": "Opening birth for first time after historical observation",
+      "precondition": "Current session has historical current observation and birth=null. Reload ?history=1; no storage clearing. Open birth tab for first time in this document.",
+      "historicalBirthInitial": {
+        "personalBirth": null,
+        "currentSource": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "displayedBirthDate": "1083-11-30",
+        "displayedBirthClock": "20:00",
+        "displayedBirthPlace": "上海市 · 上海\n31.2317°，121.4726°",
+        "formText": "出生日期 · 公历\n出生钟点\n出生地点\n\n上海市 · 上海\n31.2317°，121.4726°\n\n精确选择省市区\n境外地点／直接填写坐标\n时区偏移 · 小时\n\nUTC+08:00。按你指定的偏移换算，历史夏令时请另行核对。\n\n查看出生合照"
+      },
+      "screenshot": "08-desktop-history-prefills-birth.png"
+    },
+    {
+      "id": "E10",
+      "topic": "Phone viewport historical portrait flow",
+      "phoneTop": {
+        "width": 390,
+        "height": 844,
+        "bodyWidth": 390,
+        "panelRect": {
+          "x": 12,
+          "y": 224.3203125,
+          "width": 366,
+          "height": 607.6796875,
+          "top": 224.3203125,
+          "right": 378,
+          "bottom": 832,
+          "left": 12
+        },
+        "contentHeight": 550,
+        "contentScrollHeight": 1226,
+        "scrollTop": 12,
+        "submitY": 1389.0703125,
+        "clock": "20:00",
+        "placeMode": ""
+      },
+      "phoneBottom": {
+        "scrollTop": 725,
+        "contentHeight": 550,
+        "contentScrollHeight": 1275,
+        "submitDisabled": true
+      },
+      "submitted": {
+        "source": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "observer": {
+          "name": "黄州代表点",
+          "latitude": 30.447435,
+          "longitude": 114.878934,
+          "precision": "representative",
+          "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+          "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+        },
+        "clock": "20:00",
+        "visibleText": "留念\n显示菜单"
+      },
+      "screenshots": [
+        "09-phone-history-detail-top.png",
+        "10-phone-history-confirmation.png",
+        "11-phone-history-immersive.png"
+      ],
+      "limits": "Viewport emulation only. No real iPhone/Safari or physical software keyboard."
+    },
+    {
+      "id": "E11",
+      "topic": "Keepsake UI from historical portrait",
+      "actions": [
+        "Open 留念",
+        "Switch 原图 to 纪念卡",
+        "Wait for composition to finish"
+      ],
+      "preview": {
+        "selectedMessage": "same-moon",
+        "buttons": [
+          {
+            "text": "原图",
+            "disabled": false
+          },
+          {
+            "text": "纪念卡",
+            "disabled": false
+          },
+          {
+            "text": "关闭",
+            "disabled": false
+          },
+          {
+            "text": "保存 PNG",
+            "disabled": true
+          },
+          {
+            "text": "导出三套",
+            "disabled": false
+          }
+        ],
+        "text": "原图\n纪念卡\n关闭\n\n手写模板准备中，原始截图仍可保存。\n\n选择寄语\n天地初见\n留住初次相逢\n天地与你\n写给此刻的你\n与古人同望\n走进另一段时光\n调整文字\n显示钟点\n显示地点\n署名 · 可选\n使用普通文字排版\n\n取景已经保留。切换场景不会改写这张卡片，图片在你的浏览器内合成。\n\n历史卡会保留日期与演示时刻说明。\n\n图片读取较慢，请稍后重试。\n\n保存 PNG\n导出三套",
+        "images": [
+          {
+            "alt": "已冻结的地月截图",
+            "width": 585,
+            "height": 1266,
+            "complete": true
+          }
+        ],
+        "bodyWidth": 390,
+        "viewportWidth": 390,
+        "dialog": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "top": 0,
+          "right": 390,
+          "bottom": 844,
+          "left": 0
+        }
+      },
+      "screenshot": "12-phone-keepsake.png",
+      "limits": "Preview and controls inspected; no download/export batch triggered."
+    },
+    {
+      "id": "E12",
+      "topic": "Historical observer carries into local sky",
+      "sky": {
+        "selectedViews": [
+          "观天"
+        ],
+        "currentSource": {
+          "kind": "history",
+          "label": "承天寺夜游",
+          "recordId": "dsh:H033",
+          "recordHash": "f19884939ba57b7b2953ba0d5b2d49cd8af8eab1c8c10903b3a545c8d5e42265",
+          "recordKind": "event"
+        },
+        "currentObserver": {
+          "name": "黄州代表点",
+          "latitude": 30.447435,
+          "longitude": 114.878934,
+          "precision": "representative",
+          "note": "记录为黄州承天寺；使用黄州行政代表点，不定位寺址。",
+          "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+        },
+        "clock": "20:00",
+        "utc": "1083-11-30T12:20:29.000Z",
+        "bodyWidth": 390,
+        "width": 390,
+        "visibleText": "北 · N\n紫微垣东蕃\n紫微垣西蕃\nLuBirth\n地月\n观天\n探索\n沉浸\n\n承天寺夜游\n\n1083-11-30 · 20:00 · 黄州代表点\n\n默认当地 20:00 演示 · 地区代表点\n回到此前天空 ↗",
+        "canvases": [
+          {
+            "width": 585,
+            "height": 1266
+          }
+        ]
+      },
+      "screenshots": [
+        "13-phone-local-sky.png",
+        "14-desktop-local-sky.png"
+      ],
+      "testNote": "The app changes view state without rewriting scene in the URL. A test wait on URL scene=sky timed out; subsequent actual selected-view and scene state confirm navigation succeeded. Not a product failure."
+    },
+    {
+      "id": "E13",
+      "topic": "One keepsake retry and recovery to original",
+      "immediateCapture": {
+        "action": "Switch local sky to Earth and immediately click 留念",
+        "result": "JavaScript alert: 截图失败，请稍后重试。",
+        "recovery": "Accepted alert. Clicking 留念 after the Earth scene was visibly ready opened the original capture."
+      },
+      "retry": {
+        "selectedMessage": "same-moon",
+        "previewSucceeded": true,
+        "image": {
+          "alt": "与古人同望 · 地月纪念卡",
+          "width": 585,
+          "height": 1650,
+          "complete": true
+        },
+        "savePNGTextVisible": true,
+        "errorTextVisible": false,
+        "actualPNGDownloadTested": false
+      },
+      "originalRecovery": {
+        "imageComplete": true,
+        "imageWidth": 585,
+        "saveOriginalDownloadLinkPresent": true,
+        "actualDownloadTriggered": false
+      },
+      "screenshot": "15-phone-keepsake-retry.png",
+      "limits": [
+        "First card attempt in E11 timed out; one later reopen produced a valid card preview. This does not establish a persistent service failure or its cause.",
+        "No PNG or ZIP download was triggered.",
+        "The retry script waited for a 保存 PNG button, but success renders that action as a link; that test predicate timed out despite successful preview. Do not use the 25-second wait as a measured composition time.",
+        "The immediate capture alert was observed once without an exception stack; capture registration timing is a code-supported possibility, not proven root cause."
+      ]
+    }
+  ]
+}

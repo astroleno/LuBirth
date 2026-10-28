@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RenderProfile } from './renderProfile';
 import { LiquidGlassRenderer } from './LiquidGlassRenderer';
+import { captureIsReady, publishCaptureReady } from './captureStatus';
 import { adaptResolution, resolutionCeiling, type ResolutionState } from './adaptiveResolution';
 import { GpuTimer, percentile } from '../spikes/sky/skyPerformance';
 
@@ -12,6 +13,7 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
   const glass = useRef<LiquidGlassRenderer | null>(null);
   const sceneStats = useRef({ triangles: 0, calls: 0 });
   const frames = useRef(0);
+  const captureRef = useRef<(() => string) | null>(null);
   const resolution = useRef<ResolutionState>({ dpr: 1, slow: 0, fast: 0 });
   const sample = useRef({ since: 0, frames: 0, fps: 0 });
   const booting = useRef(!(window as any).__lubirthOverlayFading);
@@ -88,6 +90,9 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
       highQualityMarker: !profile.mobile && profile.quality !== 'battery',
       moon: scene.getObjectByName('moonMesh'),
     });
+    if (captureRef.current && (window as any).captureLuBirth === captureRef.current && !captureIsReady()) {
+      publishCaptureReady(true);
+    }
     const now = performance.now();
     if (now < sample.current.since) return;
     sample.current.frames++;
@@ -182,11 +187,18 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
       })(),
     });
     Object.assign(window, { captureLuBirth: capture, getLuBirthPerformance: diagnostics });
+    captureRef.current = capture;
+    publishCaptureReady(false);
+    invalidate();
     return () => {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', update);
-      delete (window as any).captureLuBirth;
-      delete (window as any).getLuBirthPerformance;
+      if ((window as any).captureLuBirth === capture) {
+        delete (window as any).captureLuBirth;
+        delete (window as any).getLuBirthPerformance;
+        publishCaptureReady(false);
+      }
+      if (captureRef.current === capture) captureRef.current = null;
     };
   }, [gl, scene, camera, invalidate, setFrameloop, profile, renderScene]);
   return null;

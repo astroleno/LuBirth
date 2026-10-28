@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "date": "2026-10-28",
+    "url": "http://127.0.0.1:5183/LuBirth/?history=1",
+    "space": 20,
+    "page": "p1",
+    "desktop": [
+      1440,
+      900
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "sourceSha256": "d2135b501fc4e5bc97453345ecb473cfb8d13c45b6dcfa65ef25e5999d807db3",
+    "independence": "Lama and Emil reviewed separately; parent supplied shared initial visual evidence and performed focused browser verification. The person-clock issue was found by the parent, not independently by both agents.",
+    "currentScope": "Review only; no application edits, commits, pushes or deployment.",
+    "browserWorkspaceClosed": true,
+    "sourceFilesCompared": 19,
+    "sourceUnchanged": true
+  },
+  "cases": [
+    {
+      "case": "person-clock-keyboard-entry",
+      "stages": [
+        {
+          "name": "empty-focused",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock"
+        },
+        {
+          "name": "typed-hour-2",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock"
+        },
+        {
+          "name": "typed-hour-1",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock"
+        },
+        {
+          "name": "move-to-minutes",
+          "inputPresent": true,
+          "value": "",
+          "summary": "1037-01-14 · 请选择演示钟点",
+          "focusTag": "INPUT",
+          "focusName": "history-clock"
+        },
+        {
+          "name": "typed-minute-3",
+          "inputPresent": false,
+          "summary": "1037-01-14 · 21:03 当地",
+          "focusTag": "BODY",
+          "focusName": null
+        },
+        {
+          "name": "typed-minute-0",
+          "inputPresent": false,
+          "summary": "1037-01-14 · 21:03 当地",
+          "focusTag": "BODY",
+          "focusName": null
+        }
+      ]
+    },
+    {
+      "case": "representative-to-new-query-cancel",
+      "query": "北京",
+      "canCancel": false,
+      "canCollapse": false,
+      "ready": false,
+      "options": [
+        {
+          "value": "record",
+          "text": "黄州代表点 · 资料相关地区"
+        },
+        {
+          "value": "custom",
+          "text": "另选演示地点"
+        },
+        {
+          "value": "current",
+          "text": "沿用画面地点 · 上海（示例画面的地点）"
+        }
+      ]
+    },
+    {
+      "case": "history-open-place-focus",
+      "focusTag": "BODY",
+      "focusID": "",
+      "focusLabel": null,
+      "focusText": "LuBirth地月观天探索留念沉浸出生古今星空画面×← 返回目录收藏历史事件 · 宋代承天寺夜游10",
+      "panel": "history",
+      "editorVisible": true
+    },
+    {
+      "case": "birth-open-place-focus",
+      "focusTag": "BODY",
+      "focusID": "",
+      "focusLabel": null,
+      "focusText": "LuBirth地月观天探索留念沉浸出生古今星空画面×填写出生时刻与地点，查看当时的地月。出生日期 ·",
+      "panel": "birth",
+      "inputVisible": true
+    },
+    {
+      "case": "unfavorite-return-focus",
+      "focusTag": "BODY",
+      "focusID": "",
+      "focusLabel": null,
+      "focusText": "LuBirth地月观天探索留念沉浸出生古今星空画面×填写出生时刻与地点，查看当时的地月。出生日期 ·",
+      "panel": "history",
+      "filteredCount": 0
+    },
+    {
+      "case": "unfavorite-return-next-tab",
+      "focusTag": "INPUT",
+      "focusID": "history-search",
+      "focusLabel": null,
+      "focusText": "",
+      "panel": "history"
+    }
+  ]
+}
