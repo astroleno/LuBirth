@@ -13,6 +13,8 @@
 
 腾讯 HTML、sitemap、llms 和版本标记位于 `/www/wwwroot/lubirth-current`，指向 `lubirth-releases/<release-id>/web`。既有腾讯 COS/CDN 继续提供脚本、贴图、模型与音频；两个域名的页面元数据分别使用当前访问域名。
 
+腾讯源站的现有维护入口是腾讯云控制台「轻量云 → 服务器 → 上海 Ubuntu-W5AD（122.51.59.89）→ 登录」，在 OrcaTerm 选择「免密连接（TAT）」、用户 `ubuntu`。发布可通过该已登录会话完成源站暂存、哈希校验和版本链接切换；本机 SSH 不可用时继续使用此入口。`deploy/apply-origin-release.mjs` 的 SSH 目标也固定为腾讯源站，沿用现有可用身份，维护时保留其他项目及回滚版本。
+
 项目部署细节见[部署记录](docs/deployment/tencent-origin-migration-20261026.md)。旧文档或工具草案若仍把活动源站写成阿里，应按本节腾讯源站架构审阅后使用，不得直接覆盖现网。
 
 

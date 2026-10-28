@@ -6,9 +6,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const HOST = '47.103.120.24';
-const USER = 'codex_audit';
-const HOST_FINGERPRINT = 'SHA256:u8+4eQijiilG5YF1F80YnTJjSrmTkVejVpHDPoGl2q0';
+const HOST = '122.51.59.89';
+const USER = 'ubuntu';
+const HOST_FINGERPRINT = 'SHA256:3irRVwmduKRf5JKEvmLRD+Zg3nIAYZ9hkeo8i6LB0Bc';
 const RELEASE_ROOT = '/www/wwwroot/lubirth-releases';
 const CURRENT_LINK = '/www/wwwroot/lubirth-current';
 const LEGACY_ORIGIN_PATHS = ['web/index.html', 'web/release-health.json'];
@@ -65,7 +65,7 @@ async function main() {
   const remoteHashes = () => ssh(`sudo -n sha256sum -- ${remoteFileArgs}`);
   try {
     const access = ssh('true');
-    if (access.status !== 0) fail('origin SSH access is unavailable');
+    if (access.status !== 0) fail('Tencent origin SSH access is unavailable; use the existing Lighthouse console login with TAT/OrcaTerm');
     if (mode === '--probe') {
       const writable = ssh(`test -d '${RELEASE_ROOT}' && test -L '${CURRENT_LINK}' && test -w '${RELEASE_ROOT}' && test -w '/www/wwwroot'`);
       const sudo = ssh('sudo -n true');

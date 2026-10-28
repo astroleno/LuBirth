@@ -35,6 +35,8 @@ async function main() {
     if (!html.response.headers.get('cache-control')?.includes('no-cache')) throw new Error(`${host}: public HTML cache policy is invalid`);
     const health = await request('/LuBirth/release-health.json', {}, host);
     if (health.response.status !== 200 || sha(health.bytes) !== sha(localHealth) || JSON.parse(health.bytes).releaseId !== manifest.releaseId) throw new Error(`${host}: public release marker differs from the release`);
+    if (html.response.headers.get('x-project-origin') !== 'tencent-shanghai'
+        || health.response.headers.get('x-project-origin') !== 'tencent-shanghai') throw new Error(`${host}: public response is not marked as the Tencent origin`);
     if (health.response.headers.get('cache-control') !== 'no-store') throw new Error(`${host}: release marker cache policy is invalid`);
     if (hasDiscoveryFiles) {
       const llms = await request('/LuBirth/llms.txt', {}, host);
@@ -58,7 +60,7 @@ async function main() {
     if (missing.response.status !== 404) throw new Error(`${host}: missing asset does not return 404`);
     const home = await request('/', { redirect: 'follow' }, host);
     if (home.response.status !== 200 || new URL(home.response.url).hostname !== host || home.bytes.includes(Buffer.from(manifest.releaseId))) throw new Error(`${host}: site home was replaced by LuBirth`);
-    siteResults.push({ url: canonicalUrl, htmlSha256: sha(html.bytes), healthSha256: sha(health.bytes), missingAsset: 404, homePreserved: true });
+    siteResults.push({ url: canonicalUrl, htmlSha256: sha(html.bytes), healthSha256: sha(health.bytes), origin: 'tencent-shanghai', missingAsset: 404, homePreserved: true });
   }
   console.log(JSON.stringify({ sites: siteResults, releaseId: manifest.releaseId, discovery: hasDiscoveryFiles ? ['llms.txt', 'sitemap.xml'] : [], redirects, tls: 'trusted' }));
 }
