@@ -1,6 +1,8 @@
 import { createCelestialState, createObserverState } from '../../astro/celestialState';
 import type { CelestialState, ObserverState } from '../../astro/celestialState';
 import type { EarthSceneFrame, Frame3 } from '../../astro/referenceFrames';
+import { apparentHorizonDisk } from '../../astro/apparentHorizon';
+import { lunarShadow } from '../../astro/lunarShadow';
 
 // Field units and source versions are recorded alongside the derived catalog.
 export type StarRow = [number, number | null, number, number, number, number | null,
@@ -13,6 +15,8 @@ export type SkyLocation = { latitude: number; longitude: number };
 export type SkyFrame = {
   positions: Float32Array; hipIndex: ReadonlyMap<number, number>; aboveHorizon: number;
   sunAlt: number; date: Date; years: number; eqjBasis: number[][];
+  apparentSun: ReturnType<typeof apparentHorizonDisk>; apparentMoon: ReturnType<typeof apparentHorizonDisk>;
+  earthShadow: ReturnType<typeof lunarShadow>;
   key: string; projection: 'horizon' | 'earth'; celestial: CelestialState; observer: ObserverState; motion: boolean;
 };
 
@@ -98,6 +102,8 @@ function projectCatalog(catalog: SkyCatalog, celestial: CelestialState, observer
   }
   if (recalculate) epochDirections.set(catalog, { epochYears, directions });
   return { positions, hipIndex, aboveHorizon, sunAlt: observer.sun.altitudeDeg, date: celestial.date,
+    apparentSun: apparentHorizonDisk(observer.sun), apparentMoon: apparentHorizonDisk(observer.moon),
+    earthShadow: lunarShadow(celestial),
     years, eqjBasis: transform, key, projection, celestial, observer, motion };
 }
 

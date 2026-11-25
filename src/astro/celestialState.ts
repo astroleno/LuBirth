@@ -85,8 +85,9 @@ export function createObserverState(state: CelestialState, location: ObserverLoc
   const brightLimbAngleDeg = Math.atan2(lightX, lightY) / DEG;
   const sine = Math.sqrt(Math.max(0, 1 - cosine * cosine));
   const portraitLight: Vec3 = [sine * Math.sin(brightLimbAngleDeg * DEG), sine * Math.cos(brightLimbAngleDeg * DEG), cosine];
+  const eqjToMoonPortrait = composeFrames(inverseFrame([right, up, scale(moon.direction, -1)]), eqjToSky);
   return { key: `${state.key}/observer/${location.latitude}/${location.longitude}`, location: { ...location },
     positionEqjKm, eqjToSky, skyToEqj: inverseFrame(eqjToSky), sun, moon,
     phaseFraction: (1 + cosine) / 2, phaseAngleDeg, brightLimbAngleDeg,
-    brightLimbDefined: Math.hypot(lightX, lightY) > 1e-8, portraitLight };
+    brightLimbDefined: Math.hypot(lightX, lightY) > 1e-8, portraitLight, eqjToMoonPortrait };
 }

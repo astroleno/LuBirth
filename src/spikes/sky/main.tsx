@@ -29,7 +29,8 @@ import { journeyStore } from '../../history/journeyStore';
 import type { MoonPlacement } from '../../history/journeyStore';
 import { directionToSkyView, observationKey } from '../../history/viewBridge';
 import type { ViewTransfer } from '../../history/viewBridge';
-import { MoonPlacementControl } from '../../components/MoonPlacementControl';
+import { MOON_HORIZON_NOTES, MoonPlacementControl } from '../../components/MoonPlacementControl';
+import { LUNAR_ECLIPSE_LABELS } from '../../astro/lunarShadow';
 import { SceneControlsOutlet } from '../../components/experience/SceneControlsOutlet';
 import type { SceneUIHost } from '../../components/experience/SceneUI';
 import { SolarSystemObjects } from './SolarSystemObjects';
@@ -131,13 +132,28 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
     if (!entryTransfer || lastTransfer.current === entryTransfer || !observation || entryTransfer.observationKey !== observationKey(observation)) return;
     lastTransfer.current = entryTransfer;
     if (entryTransfer.reason === 'locate-target' && entryTransfer.targetId === 'body:moon') {
-      const next = directionToSkyView(frame.observer.moon.direction, view.current.fov);
+      const next = directionToSkyView(frame.apparentMoon.direction, view.current.fov);
       view.current = next; setOrientation(next);
     } else if (entryTransfer.reason === 'birth-point' && !initialState) {
       view.current = { ...NORTH_VIEW }; setOrientation({ ...NORTH_VIEW });
     }
   }, [entryTransfer, observation, frame, initialState]);
   const daylight = THREE.MathUtils.smoothstep(-frame.sunAlt, 0, 18);
+  const moonVisibility = frame.apparentMoon.visibility;
+  const eclipse = frame.earthShadow?.kind;
+  const daylightNote = daylight <= .025 && (frame.apparentSun.visibility === 'below'
+    ? '当地天色尚亮，星光暂被日光遮蔽。' : '当地正值白昼，星光暂被日光遮蔽。');
+  const showMoonHorizon = moonPlacement === 'physical' && moonVisibility !== 'above';
+  const eclipseVisible = eclipse && moonPlacement === 'physical' && moonVisibility !== 'below';
+  const skyNotes = <>
+    {daylightNote && <p className="sky-daylight-note">{daylightNote}</p>}
+    {showMoonHorizon && <p className="sky-help">
+      {MOON_HORIZON_NOTES[moonVisibility]}{moonVisibility === 'below' && (settings.ground
+        ? <button className="sky-feature-link" onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>
+        : '当前已关闭地平线遮挡。')}
+    </p>}
+    {eclipseVisible && <p className="sky-help">此刻可见{LUNAR_ECLIPSE_LABELS[eclipse]}。</p>}
+  </>;
   const labels = useMemo(() => [...CARDINALS, ...(settings.lines && daylight > .025 ? items.map(item => ({
     id: item.id, name: settings.art && chinese && CHINESE_ARTWORK.has(item.id) ? CHINESE_ARTWORK.get(item.id)!.title : item.name,
     subtitle: settings.art && chinese && CHINESE_ARTWORK.has(item.id) ? item.name : undefined, cardinal: false,
@@ -286,17 +302,9 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       <div>{location.name} · {(sharedUtc || settings.utc).replace('T', ' ').replace(/\.\d+Z$/, '').replace(/Z$/, '')} UTC</div>
       <small>{versionInfo.name}{version === 'song' && settings.art ? ' · 当代人物图绘' : ''}</small>
       {version === 'song' && <button className="sky-feature-link" onClick={openArtworkCatalog}>玉皇庙图绘 · 浏览二十八宿 ↗</button>}
-      {daylight <= .025 && <p className="sky-daylight-note" role="status">
-        {frame.sunAlt >= 0 ? '当地正值白昼，星光暂被日光遮蔽。' : '当地天色尚亮，星光暂被日光遮蔽。'}
-      </p>}
-      {moonPlacement === 'physical' && frame.observer.moon.altitudeDeg < 0 && <p className="sky-help" role="status">
-        月球此时在地平线下。{settings.ground && <button className="sky-feature-link" onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>}
-      </p>}
+      {(daylightNote || showMoonHorizon || eclipseVisible) && <div role="status">{skyNotes}</div>}
     </header>}
-    {chrome && (daylight <= .025 || moonPlacement === 'physical' && frame.observer.moon.altitudeDeg < 0) && <div className="experience-sky-notes" role="status" data-sky-obstruction>
-      {daylight <= .025 && <p>{frame.sunAlt >= 0 ? '当地正值白昼，星光暂被日光遮蔽。' : '当地天色尚亮，星光暂被日光遮蔽。'}</p>}
-      {moonPlacement === 'physical' && frame.observer.moon.altitudeDeg < 0 && <p>月球此时在地平线下。{settings.ground && <button onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>}</p>}
-    </div>}
+    {chrome && (daylightNote || showMoonHorizon || eclipseVisible) && <div className="experience-sky-notes" role="status" data-sky-obstruction>{skyNotes}</div>}
     <SceneControlsOutlet host={chrome ? chrome.target : undefined} active={!!chrome?.section}>
     <section className={chrome ? 'sky-controls-embedded' : 'sky-dock'} ref={dock} data-expanded={!!pane} data-artwork={pane === 'detail' && !!selectedArtwork || undefined} aria-label="星空控制">
       {pane && <div className="sky-pane" id="sky-pane">
@@ -369,12 +377,13 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
           </form>}{!chrome && <AstronomicalCalendar utc={frame.celestial.utc} observation={observation} />}</>}
           {pane === 'appearance' && <>
             <MoonPlacementControl value={moonPlacement} onChange={changeMoonPlacement}
-              belowHorizon={frame.observer.moon.altitudeDeg < 0} onLocate={() => showView(directionToSkyView(frame.observer.moon.direction, view.current.fov))} />
+              visibility={moonVisibility} eclipse={eclipse} onLocate={() => showView(directionToSkyView(frame.apparentMoon.direction, view.current.fov))} />
             {moonPlacement === 'portrait' && <div><label htmlFor="sky-moon-size">合影月球大小<output>{(settings.moonSize ?? 1).toFixed(1)}×</output></label>
               <input id="sky-moon-size" type="range" min=".6" max="1.5" step=".1" value={settings.moonSize ?? 1} onChange={e => update('moonSize', Number(e.target.value))} /></div>}
             <div className="sky-field-row"><label className="sky-check"><input id="sky-lines" type="checkbox" checked={settings.lines} onChange={e => update('lines', e.target.checked)} />连线与名称</label>
               <label className="sky-check"><input id="sky-art" type="checkbox" checked={settings.art} onChange={e => update('art', e.target.checked)} />星空图绘</label>
               <label className="sky-check"><input id="sky-ground" type="checkbox" checked={settings.ground} onChange={e => update('ground', e.target.checked)} />地平线遮挡</label></div>
+            <p className="sky-help">日月升落按海平面标准大气和无遮挡地平线估算。</p>
             <div className="sky-two-columns">{([
               ['magnitude', '最暗可见星', 3, 6.5, .5, 'sky-magnitude'], ['brightness', '星光亮度', .6, 1.5, .05, 'sky-brightness'],
               ['colorStrength', '冷暖色彩', 0, 1.6, .1, 'sky-color'], ['glow', '柔光强度', 0, 1.4, .05, 'sky-glow'],

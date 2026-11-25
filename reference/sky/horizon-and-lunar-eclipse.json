@@ -1,0 +1,27 @@
+{
+  "riseSet": {
+    "source": "臺北市立天文科學教育館 2026 天文年鑑，印刷頁 63、149；時間表以 UTC+8 顯示，解析度一分鐘。",
+    "url": "https://www-ws.gov.taipei/001/Upload/439/relfile/21703/3425086/a1fc77bb-4f59-4f60-b72e-3f3ab2d418ee.pdf",
+    "convention": "https://aa.usno.navy.mil/faq/RST_defs",
+    "location": { "latitude": 25.0955555556, "longitude": 121.5180555556 },
+    "events": [
+      { "body": "sun", "direction": "rise", "utc": "2026-11-23T22:17:00Z", "azimuthDeg": 112 },
+      { "body": "sun", "direction": "set", "utc": "2026-11-24T09:04:00Z", "azimuthDeg": 248 },
+      { "body": "moon", "direction": "rise", "utc": "2026-11-24T08:31:00Z", "azimuthDeg": 63 },
+      { "body": "moon", "direction": "set", "utc": "2026-11-23T21:38:00Z", "azimuthDeg": 295 }
+    ]
+  },
+  "lunarEclipse": {
+    "source": "NASA GSFC Eclipses During 2022, November 8 total lunar eclipse, published UT times rounded to the minute.",
+    "url": "https://eclipse.gsfc.nasa.gov/OH/OH2022.html",
+    "localVisibilitySource": "https://www-ws.gov.taipei/Download.ashx?icon=.pdf&n=Ny0yMDIy5pel5pyI6aOfLnBkZg%3D%3D&u=LzAwMS9VcGxvYWQvNDM5L2NrZmlsZS9jNmIyN2RkNy0zYTNiLTQ0ZWEtYjY0OS0wOTBmMjRjYTdkZWYucGRm",
+    "contacts": [
+      { "utc": "2022-11-08T08:02:00Z", "before": "none", "after": "penumbral" },
+      { "utc": "2022-11-08T09:09:00Z", "before": "penumbral", "after": "partial" },
+      { "utc": "2022-11-08T10:17:00Z", "before": "partial", "after": "total" },
+      { "utc": "2022-11-08T11:42:00Z", "before": "total", "after": "partial" },
+      { "utc": "2022-11-08T12:49:00Z", "before": "partial", "after": "penumbral" },
+      { "utc": "2022-11-08T13:56:00Z", "before": "penumbral", "after": "none" }
+    ]
+  }
+}

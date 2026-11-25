@@ -8,6 +8,7 @@ import { getScreenAnchoredPosition } from '../../utils/positionUtils';
 import { assetUrl } from '../../../../utils/assetUrl';
 import type { ParallaxOffset } from '../../../../performance/useParallaxInput';
 import type { Vec3 } from '../../../../astro/referenceFrames';
+import type { LunarShadow } from '../../../../astro/lunarShadow';
 
 export type MoonCelestialLighting = {
   key: string; portraitLight: Vec3; phaseFraction: number; phaseAngleDeg: number; cycleAngleDeg: number;
@@ -129,6 +130,7 @@ export function Moon({
   celestialLighting,
   skyLayer = false,
   horizonClip = false,
+  earthShadow = null,
 }: {
   position: [number, number, number];
   radius: number;
@@ -156,6 +158,7 @@ export function Moon({
   celestialLighting?: MoonCelestialLighting;
   skyLayer?: boolean;
   horizonClip?: boolean;
+  earthShadow?: LunarShadow | null;
   renderLayer?: number;
   customCameraForTideLock?: THREE.Camera;
   customCameraForPhase?: THREE.Camera;
@@ -344,6 +347,12 @@ export function Moon({
         uniforms: {
           portraitProjection: { value: screenSpacePortrait && enableScreenAnchor ? 1 : 0 },
           clipGround: { value: horizonClip ? 1 : 0 },
+          eclipseEnabled: { value: earthShadow ? 1 : 0 },
+          eclipseAxis: { value: new THREE.Vector3(...(earthShadow?.axis ?? [0, 0, 1])) },
+          eclipseOffset: { value: new THREE.Vector3(...(earthShadow?.offset ?? [0, 0, 0])) },
+          eclipseCone: { value: new THREE.Vector4(earthShadow?.umbra ?? 0, earthShadow?.penumbra ?? 0,
+            earthShadow?.umbraSlope ?? 0, earthShadow?.penumbraSlope ?? 0) },
+          moonGeometryRadius: { value: terrainReady ? 1 : radius },
           moonMap: { value: activeMoonMap },
           displacementMap: { value: activeDisplacementMap },
           // 🌙 新增：UV旋转角度（简化传递）
@@ -378,6 +387,7 @@ export function Moon({
           varying vec3 vNormal;
           varying vec3 vPosition;
           varying vec3 vViewPosition;
+          varying vec3 vMoonOffset;
           uniform sampler2D displacementMap;
           uniform float displacementScale;
           uniform float displacementBias;
@@ -386,6 +396,8 @@ export function Moon({
           uniform float displacementMid;
           uniform float uvRotationAngle;
           uniform float portraitProjection;
+          uniform float eclipseEnabled;
+          uniform float moonGeometryRadius;
           
           void main() {
             vUv = uv;
@@ -406,11 +418,14 @@ export function Moon({
             vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
             vViewPosition = mvPosition.xyz;
             vPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
+            float worldRadius = length(modelMatrix[0].xyz) * moonGeometryRadius;
+            vMoonOffset = eclipseEnabled > .5 ? mat3(modelMatrix) * displaced / worldRadius : vec3(0.);
             gl_Position = projectionMatrix * mvPosition;
             if (portraitProjection > .5) {
               // A picture-in-picture disc uses orthographic projection within
               // its screen anchor, independent of the sky camera's wide field.
               vec4 centerView = modelViewMatrix * vec4(0., 0., 0., 1.);
+              if (eclipseEnabled > .5) vMoonOffset = (mvPosition.xyz - centerView.xyz) / worldRadius;
               gl_Position = projectionMatrix * vec4(mvPosition.xy, centerView.z, 1.);
             }
           }
@@ -445,12 +460,35 @@ export function Moon({
           uniform float surgeStrength;
           uniform float surgeSigmaRad;
           uniform float clipGround;
+          uniform float eclipseEnabled;
+          uniform vec3 eclipseAxis;
+          uniform vec3 eclipseOffset;
+          uniform vec4 eclipseCone;
           
           varying vec2 vUv;
           varying vec2 vUvRotated;
           varying vec3 vNormal;
           varying vec3 vPosition;
           varying vec3 vViewPosition;
+          varying vec3 vMoonOffset;
+
+          // Project the apparent solar and terrestrial disks onto the same plane.
+          // Their overlap is the loss of direct sunlight in the penumbra.
+          float visibleSolarDisk(vec2 cones, float separation) {
+            if (separation <= cones.x) return 0.;
+            if (separation >= cones.y) return 1.;
+            float sun = (cones.y - cones.x) * .5;
+            float earth = (cones.y + cones.x) * .5;
+            float ss = separation * separation;
+            float sun2 = sun * sun;
+            float earth2 = earth * earth;
+            float xSun = (ss + sun2 - earth2) / (2. * separation);
+            float xEarth = separation - xSun;
+            float height = sqrt(max(0., sun2 - xSun * xSun));
+            float overlap = sun2 * acos(clamp(xSun / sun, -1., 1.))
+              + earth2 * acos(clamp(xEarth / earth, -1., 1.)) - separation * height;
+            return clamp(1. - overlap / (3.14159265 * sun2), 0., 1.);
+          }
 
           vec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm, vec2 uv ) {
             vec3 q0 = dFdx( eye_pos );
@@ -503,6 +541,16 @@ export function Moon({
             float coupleL = mix(1.0, fullness, clamp(phaseCoupleStrength, 0.0, 1.0));
             vec3 finalColor = moonColor * lightColor * sunIntensity * moonIntensityRatio
               * diffuse * terminator * surge * coupleL;
+            if (eclipseEnabled > .5) {
+              vec3 surface = vMoonOffset;
+              float axial = dot(surface, eclipseAxis);
+              float fromAxis = length(eclipseOffset + surface - axial * eclipseAxis);
+              vec2 cones = eclipseCone.xy + axial * eclipseCone.zw;
+              float directSun = visibleSolarDisk(cones, fromAxis);
+              vec3 refractedLight = vec3(.11, .026, .010)
+                * mix(.45, 1., smoothstep(0., cones.x, fromAxis));
+              finalColor *= mix(refractedLight, vec3(1.), directSun);
+            }
             // Faint Earthshine keeps a new Moon readable without changing its sunlit fraction.
             // It is strongest near new Moon, when Earth appears fullest from the lunar surface.
             float earthshinePhase = 0.2 + 0.8 * pow(clamp(1.0 - fullness, 0.0, 1.0), 1.35);
@@ -539,7 +587,7 @@ export function Moon({
       depthTest: enableScreenAnchor ? false : true,
       depthWrite: enableScreenAnchor ? false : true
     });
-  }, [activeMoonMap, activeDisplacementMap, activeNormalMap, terrainReady, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, sunDirectionInfo, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale, enableScreenAnchor, lonDeg, nightLift, useCameraLockedPhase, terminatorRadius, phaseCoupleStrength, skyLayer, horizonClip, screenSpacePortrait]);
+  }, [activeMoonMap, activeDisplacementMap, activeNormalMap, terrainReady, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, sunDirectionInfo, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale, enableScreenAnchor, lonDeg, nightLift, useCameraLockedPhase, terminatorRadius, phaseCoupleStrength, skyLayer, horizonClip, screenSpacePortrait, earthShadow, radius]);
 
   React.useEffect(() => () => moonMaterial.dispose(), [moonMaterial]);
 

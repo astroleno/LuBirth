@@ -44,7 +44,7 @@ try {
     assert.ok(Math.abs(e.moonRadius*e.moonScale[0]/e.earthRadius-C.MOON_RADIUS_KM/C.EARTH_RADIUS_KM)<1e-6);
     assert.ok(e.far>Math.hypot(...R.subtract(e.moonPosition,e.cameraPosition))+e.moonRadius*e.moonScale[0]);
     const p=physical.sky; assert.equal(p.moonCount,1);assert.equal(p.placement,'physical');
-    assert.ok(R.angleDegrees(p.moonPosition,p.moonDirection)<.0001);
+    assert.ok(R.angleDegrees(p.moonPosition,p.apparentMoon?.direction ?? p.moonDirection)<.0001);
     assert.ok(Math.abs(Math.asin(p.radius/Math.hypot(...p.moonPosition))/R.DEG-p.moonAngularRadius)<1e-7);
   });
   test('portrait is one screen-space Moon with the observer phase and stable pixel size',()=>{

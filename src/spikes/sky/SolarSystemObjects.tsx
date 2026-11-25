@@ -5,6 +5,7 @@ import { Moon } from '../../scenes/simple/api/components/Moon';
 import type { SkyFrame } from './skyModel';
 import type { MoonPlacement } from '../../history/journeyStore';
 import { applyFrame } from '../../astro/referenceFrames';
+import { projectLunarShadow } from '../../astro/lunarShadow';
 import { assetUrl } from '../../utils/assetUrl';
 import type { ScreenRect } from './skyLabelLayout';
 
@@ -28,7 +29,10 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
     }, undefined, () => { if (active) { setFailed(true); invalidate(); } });
     return () => { active = false; texture.dispose(); };
   }, [invalidate]);
-  const { observer, celestial } = frame;
+  const { observer, celestial, apparentMoon, apparentSun } = frame;
+  const portrait = placement === 'portrait';
+  const earthShadow = useMemo(() => projectLunarShadow(frame.earthShadow, portrait ? observer.eqjToMoonPortrait : observer.eqjToSky),
+    [frame.earthShadow, observer, portrait]);
   const sunDirection = useMemo(() => new THREE.Vector3(...applyFrame(observer.eqjToSky, celestial.moonToSunEqj)), [observer, celestial]);
   const lightColor = useMemo(() => new THREE.Color(0xffffff), []);
   const lighting = useMemo(() => ({ key: observer.key, portraitLight: observer.portraitLight, phaseFraction: observer.phaseFraction,
@@ -41,8 +45,7 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
   useEffect(() => () => sunMaterial.dispose(), [sunMaterial]);
   sunMaterial.uniforms.ground.value = ground ? 1 : 0;
   const sunQuaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),
-    new THREE.Vector3(...observer.sun.direction).negate()), [observer]);
-  const portrait = placement === 'portrait';
+    new THREE.Vector3(...apparentSun.direction).negate()), [apparentSun]);
   const distance = portrait ? 14 : 60;
   const screenX = size.width < 600 ? .82 : .86, screenY = .72;
   const pixelRadius = Math.min(size.width < 600 ? 40 : 56, Math.max(22, size.height * .052)) * portraitSize;
@@ -64,10 +67,10 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
     : distance * Math.sin(observer.moon.angularRadiusDeg * Math.PI / 180);
   useEffect(() => {
     (window as any).__skySolarObjects = { key: frame.key, placement, texture: failed ? 'failed' : map ? 'ready' : 'loading',
-      physicalMoonDirection: observer.moon.direction, angularRadiusDeg: observer.moon.angularRadiusDeg,
+      physicalMoonDirection: observer.moon.direction, apparentMoonDirection: apparentMoon.direction, angularRadiusDeg: observer.moon.angularRadiusDeg,
       renderedRadius: radius, physical: !portrait };
     return () => { delete (window as any).__skySolarObjects; };
-  }, [frame, placement, map, failed, observer, radius, portrait]);
+  }, [frame, placement, map, failed, observer, radius, portrait, apparentMoon]);
   useEffect(() => {
     const snapshot = () => {
       scene.updateMatrixWorld(true);
@@ -89,6 +92,12 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
         sunLightView: material?.uniforms.sunDirView?.value.toArray(),
         moonFraction: observer.phaseFraction, moonAltitude: observer.moon.altitudeDeg,
         moonAngularRadius: observer.moon.angularRadiusDeg, moonDirection: observer.moon.direction,
+        apparentMoon, apparentSun, ground, eclipseKind: earthShadow?.kind ?? null,
+        eclipseEnabled: material?.uniforms.eclipseEnabled?.value ?? 0,
+        eclipseAxis: material?.uniforms.eclipseAxis?.value.toArray(),
+        eclipseOffset: material?.uniforms.eclipseOffset?.value.toArray(),
+        eclipseCone: material?.uniforms.eclipseCone?.value.toArray(),
+        horizonClip: material?.uniforms.clipGround?.value ?? 0,
         sunDirection: observer.sun.direction, portraitLight: observer.portraitLight,
         cameraPosition: camera.position.toArray(), cameraQuaternion: camera.quaternion.toArray(),
         starSamples: attribute ? (stars?.userData.samples || []).map((sample: { hip:number; index:number }) => ({
@@ -97,20 +106,20 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
     };
     (window as any).getLuBirthSkySpatialState = snapshot;
     return () => { if ((window as any).getLuBirthSkySpatialState === snapshot) delete (window as any).getLuBirthSkySpatialState; };
-  }, [scene, camera, gl, frame, placement, observer, radius, size.width, size.height]);
+  }, [scene, camera, gl, frame, placement, observer, radius, size.width, size.height, apparentMoon, apparentSun, ground, earthShadow]);
   return <>
     {failed && <MoonTextureFailure />}
-    {(!ground || observer.sun.altitudeDeg + observer.sun.angularRadiusDeg >= 0) && <mesh name="skySun"
-      position={observer.sun.direction.map(v => v * 90) as [number,number,number]} quaternion={sunQuaternion} material={sunMaterial} renderOrder={20}>
+    {(!ground || apparentSun.visibility !== 'below') && <mesh name="skySun"
+      position={apparentSun.direction.map(v => v * 90) as [number,number,number]} quaternion={sunQuaternion} material={sunMaterial} renderOrder={20}>
       <circleGeometry args={[90 * Math.tan(observer.sun.angularRadiusDeg * Math.PI / 180), 48]} />
     </mesh>}
-    {!suppressed && (portrait || !ground || observer.moon.altitudeDeg + observer.moon.angularRadiusDeg >= 0) && <Moon
-      name="moonMesh" position={observer.moon.direction.map(v => v * distance) as [number,number,number]} radius={radius}
+    {!suppressed && (portrait || !ground || apparentMoon.visibility !== 'below') && <Moon
+      name="moonMesh" position={apparentMoon.direction.map(v => v * distance) as [number,number,number]} radius={radius}
       enableScreenAnchor={portrait} screenSpacePortrait={portrait} portraitPixelRadius={pixelRadius}
       screenX={screenX} screenY={screenY} anchorDistance={distance}
       lightDirection={sunDirection} sunDirWorldForShading={sunDirection} lightColor={lightColor} sunIntensity={2.2}
       useTextures={!!map} moonMap={map ?? undefined} enableTidalLock enableUniformShading useCameraLockedPhase={portrait}
-      celestialLighting={lighting} skyLayer horizonClip={ground && !portrait} moonNormalScale={0} moonDisplacementScale={0}
+      celestialLighting={lighting} earthShadow={earthShadow} skyLayer horizonClip={ground && !portrait} moonNormalScale={0} moonDisplacementScale={0}
       moonLightMinRatio={.55} moonLightMaxRatio={.8} nightLift={.008} terminatorSoftness={.012} terminatorRadius={.005}
       currentDate={celestial.utc} observerLat={observer.location.latitude} observerLon={observer.location.longitude} />}
   </>;

@@ -7,6 +7,7 @@ import type { CelestialState, ObserverState } from '../../../../astro/celestialS
 import { applyFrame } from '../../../../astro/referenceFrames';
 import type { EarthSceneFrame } from '../../../../astro/referenceFrames';
 import type { MoonPlacement } from '../../../../history/journeyStore';
+import { lunarShadow, projectLunarShadow } from '../../../../astro/lunarShadow';
 
 export default function MoonPresentation({ celestial, observer, frame, placement, earthRadius, earthPosition, ...props }: ComponentProps<typeof Moon> & {
   celestial: CelestialState; observer: ObserverState; frame: EarthSceneFrame;
@@ -14,6 +15,8 @@ export default function MoonPresentation({ celestial, observer, frame, placement
 }) {
   const geometry = moonScenePlacement(celestial, frame, placement, earthRadius, { position: props.position, radius: props.radius });
   const sunDirection = useMemo(() => new THREE.Vector3(...applyFrame(frame.eqjToScene, celestial.moonToSunEqj)), [frame, celestial]);
+  const earthShadow = useMemo(() => projectLunarShadow(lunarShadow(celestial), placement === 'physical'
+    ? frame.eqjToScene : observer.eqjToMoonPortrait), [celestial, frame, observer, placement]);
   const lighting = useMemo(() => ({ key: observer.key, portraitLight: observer.portraitLight,
     phaseFraction: observer.phaseFraction, phaseAngleDeg: observer.phaseAngleDeg, cycleAngleDeg: celestial.cycleAngleDeg }), [observer, celestial]);
   const position = geometry.position.map((value, axis) => value + (placement === 'physical' ? earthPosition[axis] : 0)) as [number, number, number];
@@ -22,5 +25,5 @@ export default function MoonPresentation({ celestial, observer, frame, placement
   return <Moon {...props} position={position} radius={geometry.radius}
     enableScreenAnchor={geometry.screenAnchor} useCameraLockedPhase={geometry.screenAnchor}
     screenSpacePortrait={geometry.screenAnchor}
-    celestialLighting={lighting} sunDirWorldForShading={sunDirection} />;
+    celestialLighting={lighting} sunDirWorldForShading={sunDirection} earthShadow={earthShadow} />;
 }

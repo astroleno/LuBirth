@@ -18,6 +18,8 @@ import type { Vec3 } from './astro/referenceFrames';
 import type { EarthSceneFrame } from './astro/referenceFrames';
 import type { CultureVersion, MoonPlacement } from './history/journeyStore';
 import { MoonPlacementControl } from './components/MoonPlacementControl';
+import { apparentHorizonDisk } from './astro/apparentHorizon';
+import { lunarShadow } from './astro/lunarShadow';
 import type { EarthUIActions, SceneUIHost } from './components/experience/SceneUI';
 import MoonPresentation from './scenes/simple/api/components/MoonPresentation';
 
@@ -452,6 +454,10 @@ function SceneContent({
         axis: rotation ? new THREE.Vector3(0,1,0).applyQuaternion(rotation).toArray() : null,
         shaderSunDirection: earthMaterial?.uniforms.lightDir?.value.toArray(),
         moonSunDirectionView: moonMaterial?.uniforms.sunDirView?.value.toArray(),
+        eclipseEnabled: moonMaterial?.uniforms.eclipseEnabled?.value ?? 0,
+        eclipseAxis: moonMaterial?.uniforms.eclipseAxis?.value.toArray(),
+        eclipseOffset: moonMaterial?.uniforms.eclipseOffset?.value.toArray(),
+        eclipseCone: moonMaterial?.uniforms.eclipseCone?.value.toArray(),
         portraitProjection: moonMaterial?.uniforms.portraitProjection?.value,
         directionalLights: scene.getObjectsByProperty('isDirectionalLight', true).length,
         moonPosition: moon?.getWorldPosition(new THREE.Vector3()).toArray(), moonRadius: moon?.geometry.boundingSphere?.radius,
@@ -1256,6 +1262,8 @@ export default function SimpleTest({ observation, observationControls, initialSt
     [sharedCelestial, dateISO, lonDeg]);
   const observerState = useMemo(() => sharedObserver || createObserverState(celestial, { latitude: latDeg, longitude: lonDeg }),
     [sharedObserver, celestial, latDeg, lonDeg]);
+  const moonVisibility = useMemo(() => apparentHorizonDisk(observerState.moon).visibility, [observerState]);
+  const eclipse = useMemo(() => lunarShadow(celestial)?.kind, [celestial]);
   const fixedSolarAzimuth = legacySolarAzimuth(composition.fixedSunDir);
   const spatialFrame = useMemo(() => createEarthSceneFrame(celestial, fixedSolarAzimuth), [celestial, fixedSolarAzimuth]);
   const renderedComposition = useMemo(() => ({ ...composition, earthYawDeg: spatialFrame.earthYawDeg,
@@ -1704,7 +1712,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
 
   const clientAppearanceControls = <>
     {onMoonPlacementChange && <MoonPlacementControl value={moonPlacement} onChange={onMoonPlacementChange}
-      onLocate={onLocateMoon} belowHorizon={observerState.moon.altitudeDeg < 0} />}
+      onLocate={onLocateMoon} visibility={moonVisibility} eclipse={eclipse} />}
     <label className="sky-culture-toggle"><input type="checkbox" checked={composition.showSkyCulture !== false}
       onChange={event => updateValue('showSkyCulture', event.target.checked)} />星官连线与图绘</label>
     <div className="visual-settings-toggles">
