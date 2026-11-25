@@ -23,6 +23,17 @@ try {
     assert.equal(resolveObservation('2000-01-01', '00:30', shanghai, offset(480), birth).utc, '1999-12-31T16:30:00.000Z');
     assert.equal(resolveObservation('2000-12-31', '23:30', shanghai, offset(-300), birth).utc, '2001-01-01T04:30:00.000Z');
   });
+  test('Legacy longitude input preserves four-digit early years across day and year boundaries', () => {
+    for (const [local, longitude, utc] of [
+      ['0001-01-02T00:15', 120, '0001-01-01T16:15:00.000Z'],
+      ['0053-08-23T00:30', 121.5, '0053-08-22T16:30:00.000Z'],
+      ['0099-12-31T20:00', -75, '0100-01-01T01:00:00.000Z'],
+      ['0100-01-01T00:15', 120, '0099-12-31T16:15:00.000Z'],
+      ['1900-01-01T00:15', 120, '1899-12-31T16:15:00.000Z'],
+      ['0053-08-23T00:45:18.250+05:30', -75, '0053-08-22T19:15:18.250Z'],
+      ['0053-08-23T00:45:18.250Z', 121.5, '0053-08-23T00:45:18.250Z'],
+    ]) assert.equal(toUTCFromLocal(local, longitude).toISOString(), utc, local);
+  });
   test('Local mean solar time uses continuous longitude and preserves seconds', () => {
     const value = resolveObservation('1037-01-14', '20:00', shanghai, { kind: 'local-mean-solar' }, birth);
     assert.equal(value.utc, '1037-01-14T11:54:06.000Z');

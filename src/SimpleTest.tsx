@@ -320,6 +320,7 @@ function SceneContent({
   altDeg,
   moonEQD,
   dateISO,
+  nightIntensity,
   latDeg,
   lonDeg,
   isAlignedAndZoomed,
@@ -341,6 +342,7 @@ function SceneContent({
   altDeg?: number;
   moonEQD: { x: number; y: number; z: number };
   dateISO: string;
+  nightIntensity: number;
   latDeg: number;
   lonDeg: number;
   isAlignedAndZoomed: boolean;
@@ -453,6 +455,14 @@ function SceneContent({
         markerNdc: scene.getObjectByName('birthPointMarker')?.getWorldPosition(new THREE.Vector3()).project(camera).toArray(),
         axis: rotation ? new THREE.Vector3(0,1,0).applyQuaternion(rotation).toArray() : null,
         shaderSunDirection: earthMaterial?.uniforms.lightDir?.value.toArray(),
+        earthNightLighting: earthMaterial ? {
+          boost: earthMaterial.uniforms.nightBoost?.value,
+          hasNightMap: earthMaterial.uniforms.hasNight?.value === 1,
+          glowOpacity: earthMaterial.uniforms.nightGlowOpacity?.value,
+          moonlitSurface: earthMaterial.uniforms.nightEarthMapIntensity?.value,
+          rimStrength: earthMaterial.uniforms.rimStrength?.value,
+          surfaceCacheReady: earthMaterial.uniforms.surfaceCacheReady?.value,
+        } : null,
         moonSunDirectionView: moonMaterial?.uniforms.sunDirView?.value.toArray(),
         eclipseEnabled: moonMaterial?.uniforms.eclipseEnabled?.value ?? 0,
         eclipseAxis: moonMaterial?.uniforms.eclipseAxis?.value.toArray(),
@@ -677,7 +687,7 @@ function SceneContent({
           dayDiffuseMax={composition.dayDiffuseMax ?? 1.0}
           dayDiffuseGamma={composition.dayDiffuseGamma ?? 1.0}
           terminatorSoftness={composition.terminatorSoftness}
-          nightIntensity={composition.nightIntensity}
+          nightIntensity={nightIntensity}
           nightFalloff={composition.nightFalloff}
           terminatorLift={composition.terminatorLift}
           terminatorTint={composition.terminatorTint}
@@ -1810,6 +1820,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
           altDeg={sunAngles.altDeg}
           moonEQD={moonEQD}
           dateISO={dateISO}
+          nightIntensity={(observation?.civilDate ?? dateISO).slice(0, 4) < '1900' ? 0 : composition.nightIntensity}
           latDeg={latDeg}
           lonDeg={lonDeg}
           isAlignedAndZoomed={isAlignedAndZoomed}

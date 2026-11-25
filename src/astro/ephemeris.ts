@@ -443,13 +443,11 @@ export function toUTCFromLocal(localISO: string, lon: number): Date {
   const h = parseInt(hour, 10);
   const mi = parseInt(minute, 10);
   
-  // 🔧 关键修复：时区转换逻辑
-  // 经度121.5°E = +8小时时区
-  // 当地正午12:00 = UTC时间04:00（12:00 - 8 = 04:00）
-  // 这是正确的时区转换！
-  
-  // 创建UTC日期
-  const utc = new Date(Date.UTC(y, mo, d, h - offset, mi, 0));
+  // Date.UTC interprets 0–99 as 1900–1999. Set the civil year before applying the legacy longitude offset.
+  const utc = new Date(0);
+  utc.setUTCFullYear(y, mo, d);
+  utc.setUTCHours(h, mi, 0, 0);
+  utc.setTime(utc.getTime() - offset * 3_600_000);
   
   console.log(`[toUTCFromLocal] ${localISO} (lon:${lon}) -> UTC: ${utc.toISOString()} (offset: ${offset}h)`);
   console.log(`[toUTCFromLocal] 注意：UTC时间${utc.getUTCHours()}:${utc.getUTCMinutes()} 对应本地时间${h}:${mi}`);
