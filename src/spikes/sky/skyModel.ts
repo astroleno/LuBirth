@@ -50,6 +50,8 @@ export function horizonToWorld(north: number, west: number, zenith: number): [nu
 
 // A catalog is an immutable snapshot. Each frame shares its ordered HIP lookup.
 const hipIndices = new WeakMap<SkyCatalog, ReadonlyMap<number, number>>();
+// Keep one private EQJ direction buffer per catalog for the active epoch.
+const epochDirections = new WeakMap<SkyCatalog, { epochYears: number | null; directions: Float64Array }>();
 
 function catalogHipIndex(catalog: SkyCatalog) {
   const cached = hipIndices.get(catalog);
@@ -73,17 +75,28 @@ function projectCatalog(catalog: SkyCatalog, celestial: CelestialState, observer
   const positions = new Float32Array(catalog.stars.length * 3);
   const hipIndex = catalogHipIndex(catalog);
   const years = celestial.years;
+  const epochYears = motion ? years : null;
+  const cached = epochDirections.get(catalog);
+  const recalculate = cached?.epochYears !== epochYears;
+  const directions = cached?.directions ?? new Float64Array(positions.length);
+  if (recalculate) epochDirections.delete(catalog);
   const [a, b, c] = transform;
   let aboveHorizon = 0;
-  catalog.stars.forEach((star, index) => {
-    const [x, y, z] = starDirection(star, years, motion);
-    const offset = index * 3;
+  for (let index = 0, offset = 0; index < catalog.stars.length; index++, offset += 3) {
+    if (recalculate) {
+      const [x, y, z] = starDirection(catalog.stars[index], years, motion);
+      directions[offset] = x;
+      directions[offset + 1] = y;
+      directions[offset + 2] = z;
+    }
+    const x = directions[offset], y = directions[offset + 1], z = directions[offset + 2];
     positions[offset] = a[0] * x + b[0] * y + c[0] * z;
     const height = a[1] * x + b[1] * y + c[1] * z;
     positions[offset + 1] = height;
     positions[offset + 2] = a[2] * x + b[2] * y + c[2] * z;
     if (height > 0) aboveHorizon++;
-  });
+  }
+  if (recalculate) epochDirections.set(catalog, { epochYears, directions });
   return { positions, hipIndex, aboveHorizon, sunAlt: observer.sun.altitudeDeg, date: celestial.date,
     years, eqjBasis: transform, key, projection, celestial, observer, motion };
 }
