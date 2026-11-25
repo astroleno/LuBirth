@@ -2,7 +2,29 @@ import type { HistoryRecord } from './historyModel';
 import type { Observation } from './observation';
 import { civilDate } from './observation';
 
-export type HistoryFilter = 'all' | 'birth' | 'event' | 'birthday' | 'season' | 'today' | 'saved';
+export type HistoryFilter = 'all' | 'birth' | 'event' | 'ready' | 'birthday' | 'season' | 'today' | 'saved';
+export const EARLY_PERIODS = 'before-qing';
+const earlyPeriods = new Set(['魏晋南北朝', '隋唐', '五代十国', '宋代', '元代', '明代']);
+export const WORLD_PERIOD = '世界其他地区';
+
+/** Preparation required by the record itself, before applying saved edits. */
+export function historyViewingNeeds(record: HistoryRecord) {
+  return { place: !record.place.observer, clock: record.kind === 'birth' };
+}
+
+const normalizeSearch = (value: string) => value.normalize('NFKC').toLocaleLowerCase();
+const searchTerms = (value: string) => normalizeSearch(value).split(/\s+/).filter(Boolean);
+const metadataText = (record: HistoryRecord) => normalizeSearch([
+  record.name, record.place.original, record.place.observer?.name, record.date.original,
+  record.date.iso, record.id, record.originalId, record.period, record.region === 'china' ? '中国' : '世界 海外 境外',
+].join(' '));
+
+export function matchedHistorySource(record: HistoryRecord, query: string) {
+  const metadata = metadataText(record);
+  const sourceTerms = searchTerms(query).filter(term => !metadata.includes(term));
+  return record.sources.find(source => sourceTerms.some(term => normalizeSearch(source.title).includes(term)));
+}
+
 export function monthDayDistance(a: string, b: string) {
   // Leap-year reference gives February 29 its own place; no implicit Feb 28 birthday.
   const day = (iso: string) => civilDate('2000-' + iso.slice(5)).getTime() / 86400000;
@@ -14,14 +36,22 @@ export function selectHistory(records: HistoryRecord[], options: {
   query?: string; filter?: HistoryFilter; period?: string; birth?: Observation | null;
   favorites?: string[]; today?: string;
 }) {
-  const query = (options.query || '').trim().toLocaleLowerCase();
+  const terms = searchTerms(options.query || '');
   const filter = options.filter || 'all';
   const birthDate = options.birth?.civilDate;
   const matches = records.filter(record => {
-    if (query && ![record.name, record.place.original, record.date.original, record.date.iso, record.originalId]
-      .join(' ').toLocaleLowerCase().includes(query)) return false;
-    if (options.period && options.period !== 'all' && record.period !== options.period) return false;
+    if (terms.length) {
+      const text = [metadataText(record), ...record.sources.map(source => normalizeSearch(source.title))];
+      if (!terms.every(term => text.some(value => value.includes(term)))) return false;
+    }
+    if (options.period === EARLY_PERIODS) {
+      if (!earlyPeriods.has(record.period) || record.region !== 'china') return false;
+    } else if (options.period && options.period !== 'all' && record.period !== options.period) return false;
     if (filter === 'birth' || filter === 'event') return record.kind === filter;
+    if (filter === 'ready') {
+      const needs = historyViewingNeeds(record);
+      return !needs.place && !needs.clock;
+    }
     if (filter === 'birthday') return !!birthDate && record.date.iso.slice(5) === birthDate.slice(5);
     if (filter === 'season') return !!birthDate && monthDayDistance(record.date.iso, birthDate) <= 14;
     if (filter === 'today') return !!options.today && record.date.iso.slice(5) === options.today.slice(5);

@@ -84,9 +84,14 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
           <option value="current">沿用画面地点 · {currentOptionName}（{currentOrigin}）</option>
           {state.birth && <option value="personal">沿用我的出生地点 · {draft.placeMode === 'personal' && draft.reusedPlace ? draft.reusedPlace.name : state.birth.observer.name}</option>}
         </select>
+        {!record.place.observer && !observer && <div className="journey-reuse-place">
+          <p className="journey-hint">资料没有已匹配地点，可自选观测地点演示。</p>
+          <button type="button" className="journey-text-action" onClick={() => selectPlace(state.birth ? 'personal' : 'current')}>
+            {state.birth ? '沿用出生地点' : '沿用当前地点'} · {(state.birth ?? state.current).observer.name}
+          </button>
+        </div>}
         {draft.placeMode === 'custom' && <ObserverPicker label="演示地点" showCancel={false} draft={draft.custom} onChange={custom => update({ custom,
           placeOpen: custom.mode !== 'summary', placeBeforeEdit: custom.mode === 'summary' ? null : draft.placeBeforeEdit })} />}
-        {!record.place.observer && <p className="journey-hint">史料尚无已匹配地点，请选本次演示的位置。</p>}
         {!draft.placeBeforeEdit && observer && <button type="button" className="journey-text-action" onClick={() => update({ placeOpen: false }, false)}>收起地点设置</button>}
       </div>}
       <p className="journey-watch-assumptions journey-hint" id={id+'-assumptions'}>
@@ -96,7 +101,7 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
       </p>
       {error && <p className="journey-error" role="alert">{error}</p>}
       <button ref={confirm} className="journey-primary" type="submit" aria-describedby={id+'-assumptions'} disabled={!ready}>
-        {draft.watched ? '用上次设置再看' : '确认此日期与地点，查看合照'}
+        {draft.watched ? '再看这刻合照' : '观看地月合照'}
       </button>
       {!ready && <p className="journey-hint" role="status">{!observer ? '选定一个地点即可继续。' : !clock ? '请选择本次演示钟点。' : '请在时间设置中填写有效的 UTC 偏移。'}</p>}
       <details className="journey-details journey-time-settings" open={draft.adjusting} onToggle={event => {

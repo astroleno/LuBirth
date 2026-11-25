@@ -7,7 +7,7 @@ const results = [];
 try {
   const { resolveObservation, historyObservation, parseAbsoluteInstant, exampleObservation, readObservation } = await server.ssrLoadModule('/src/history/observation.ts');
   const { createJourneyStore } = await server.ssrLoadModule('/src/history/journeyStore.ts');
-  const { selectHistory, relationLabel, monthDayDistance } = await server.ssrLoadModule('/src/history/historyRelations.ts');
+  const { selectHistory, relationLabel, monthDayDistance, matchedHistorySource, historyViewingNeeds, EARLY_PERIODS, WORLD_PERIOD } = await server.ssrLoadModule('/src/history/historyRelations.ts');
   const { toUTCFromLocal, computeEphemeris } = await server.ssrLoadModule('/src/astro/ephemeris.ts');
   const { getEarthState } = await server.ssrLoadModule('/src/scenes/simple/api/earthState.ts');
   const { createSkyFrame } = await server.ssrLoadModule('/src/spikes/sky/skyModel.ts');
@@ -96,6 +96,28 @@ try {
     assert.equal(selectHistory(records, { filter: 'today', today: '2000-02-29' }).length, 0);
     assert.equal(selectHistory(records, { query: '不存在的记录' }).length, 0);
     assert.deepEqual(selectHistory(records, { filter: 'saved', favorites: ['dsh:H002'] }).map(row => row.name), ['苏轼']);
+  });
+  test('Searching by source, era, region and full-width ID finds the actual records', () => {
+    const [su] = selectHistory(records, { query: '宋代 年谱简编' });
+    assert.equal(su.id, 'dsh:H002');
+    assert.equal(matchedHistorySource(su, '宋代 年谱简编').title, '苏轼年谱简编');
+    assert.equal(matchedHistorySource(su, '宋代 苏轼'), undefined);
+    assert.deepEqual(selectHistory(records, { query: 'Ｈ０３３' }).map(row => row.id), ['dsh:H033']);
+    assert.ok(selectHistory(records, { query: '海外 Neptune Fact Sheet' }).some(row => row.id === 'dsh:H055'));
+    assert.deepEqual(selectHistory(records, { query: '年谱简编', period: WORLD_PERIOD }), []);
+  });
+  test('Discovery exposes ready events and the supported early and world records', () => {
+    const ready = selectHistory(records, { filter: 'ready' });
+    assert.equal(ready.length, 45);
+    assert.ok(ready.every(row => row.kind === 'event' && row.place.observer));
+    const early = selectHistory(records, { period: EARLY_PERIODS });
+    assert.equal(early.length, 18);
+    assert.ok(['dsh:H031','dsh:H032','dsh:H033','dsh:H013','dsh:H037'].every(id => early.some(row => row.id === id)));
+    const world = selectHistory(records, { period: WORLD_PERIOD });
+    assert.equal(world.length, 11);
+    assert.ok(world.every(row => row.region === 'world'));
+    assert.deepEqual(historyViewingNeeds(records.find(row => row.id === 'dsh:H013')), { place: true, clock: true });
+    assert.deepEqual(historyViewingNeeds(records.find(row => row.id === 'dsh:H040')), { place: true, clock: false });
   });
   test('Culture choice preserves observation; history return restores personal baseline', () => {
     const store = createJourneyStore({ now: new Date('2000-01-01T00:00Z') });
