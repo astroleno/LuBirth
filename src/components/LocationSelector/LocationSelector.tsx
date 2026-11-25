@@ -134,6 +134,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationCh
           <span className="result-name">{locationLabel(place)}</span>
           <span className="result-coords">
             {place.status === 'international' ? `${place.timeZone} · ` : ''}{place.lat.toFixed(4)}°，{place.lon.toFixed(4)}°
+            {place.note && <><br />{place.note}</>}
           </span>
         </button>)}
       </div>}

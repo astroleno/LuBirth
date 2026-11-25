@@ -71,8 +71,17 @@ try {
       assert.match(place.source, /^https:\/\//);
     }
     assert.equal(search('杭州市').some(place => place.status === 'historical'), false);
-    assert.equal(search('杭州江干区')[0].district, '江干区（2021 年调整前）');
-    assert.equal(search('杭州原余杭区')[0].district, '余杭区（2021 年调整前）');
+    for (const [queries, districts] of [
+      [['杭州江干区', '旧江干', '杭州市原江干区', '浙江省 杭州市 江干区（2021 年调整前）'], ['江干区（2021 年调整前）', '上城区', '钱塘区']],
+      [['杭州原余杭区', '旧余杭', '杭州市 旧余杭区', '浙江省 · 杭州市 · 余杭区（2021 年调整前）'], ['余杭区（2021 年调整前）', '余杭区', '临平区']],
+    ]) for (const query of queries) {
+      const [historical, ...current] = search(query);
+      assert.deepEqual([historical, ...current].map(place => place.district), districts, query);
+      assert.equal(historical.status, 'historical');
+      assert.match(historical.source, /^https:\/\/zfgb\.hangzhou\.gov\.cn\//);
+      assert.ok(current.every(place => !place.status && place.note.includes('杭政函〔2021〕25号') && place.source));
+    }
+    assert.deepEqual(search('杭州市余杭区').map(place => place.district), ['余杭区']);
     assert.equal(search('杭州下城区')[0].status, 'historical');
     for (const query of ['纽约', '纽约市', 'New York', 'New York City', '美国 纽约']) {
       const [place] = search(query);

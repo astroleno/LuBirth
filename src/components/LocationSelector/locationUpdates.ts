@@ -20,13 +20,19 @@ function administrativeTimeZone(province: string) {
 
 const oldHangzhouDistricts = new Map([['上城区', '上城区'], ['拱墅', '拱墅区'], ['余杭', '余杭区'],
   ['下城区', '下城区'], ['江干', '江干区']]);
+const historicDistrict = (district: string) => `${district}（2021 年调整前）`;
+const splitDistricts = new Map([
+  [historicDistrict('江干区'), { former: '江干区', current: ['上城区', '钱塘区'] }],
+  [historicDistrict('余杭区'), { former: '余杭区', current: ['余杭区', '临平区'] }],
+]);
 
 export function updateAdministrativeLocation(location: LocationData): LocationData {
   const withZone = { ...location, timeZone: administrativeTimeZone(location.province) };
   const oldName = location.city === '杭州市' && oldHangzhouDistricts.get(location.district);
   if (!oldName) return withZone;
-  return { ...withZone, district: `${oldName}（2021 年调整前）`, aliases: [`原${oldName}`, `旧${oldName}`,
-    ...(oldName === '下城区' || oldName === '江干区' ? [oldName, oldName.slice(0, -1)] : [])], status: 'historical',
+  const shortName = oldName.slice(0, -1);
+  return { ...withZone, district: historicDistrict(oldName), aliases: [`原${oldName}`, `旧${oldName}`, `原${shortName}`, `旧${shortName}`,
+    ...(oldName === '下城区' || oldName === '江干区' ? [oldName, shortName] : [])], status: 'historical',
     note: '2021 年杭州区划调整前的地点表代表点。', source: hangzhouNotice };
 }
 
@@ -42,3 +48,12 @@ export const addedLocations: LocationData[] = [
     aliases: ['倫敦', 'London'], status: 'international', note: '伦敦市区代表点。',
     source: 'https://www.geonames.org/2643743/london.html' },
 ];
+
+export function currentDistrictCandidates(location: LocationData): LocationData[] {
+  const split = splitDistricts.get(location.district);
+  if (!split || location.city !== '杭州市') return [];
+  return addedLocations.filter(place => place.city === location.city && split.current.includes(place.district)).map(place => ({
+    ...place,
+    note: `据杭政函〔2021〕25号，包含原${split.former}部分区域。${place.note}`,
+  }));
+}

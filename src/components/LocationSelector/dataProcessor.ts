@@ -1,6 +1,6 @@
 import type { LocationData, LocationTree, SearchIndex } from './types';
 import { provinces, getProvinceName, getCitiesByProvince } from './administrativeData';
-import { addedLocations, updateAdministrativeLocation } from './locationUpdates';
+import { addedLocations, currentDistrictCandidates, updateAdministrativeLocation } from './locationUpdates';
 
 // 可搜索的省级简称和部分常用城市拼音。
 const pinyinMap = new Map(Object.entries({
@@ -180,19 +180,22 @@ export function buildSearchIndex(data: LocationData[]): SearchIndex {
 // 搜索功能
 export function searchLocations(query: string, searchIndex: SearchIndex): LocationData[] {
   const queryText = normalizeSearch(query);
-  const terms = queryText.split(/[\s,、/·]+/).filter(Boolean);
+  const terms: string[] = queryText.match(/(?:\([^)]*\)|[^\s,、/·()])+/g) ?? [];
   if (!terms.length || terms.length > 3) return [];
 
   const results: LocationData[] = [];
   const seen = new Set<string>();
   const add = (locations: readonly LocationData[], includeHistorical = false) => {
     for (const location of locations) {
-      if (results.length === 20) return;
       if (location.status === 'historical' && !includeHistorical) continue;
-      const key = JSON.stringify([location.province, location.city, location.district]);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      results.push(location);
+      const candidates = location.status === 'historical' ? [location, ...currentDistrictCandidates(location)] : [location];
+      for (const candidate of candidates) {
+        if (results.length === 20) return;
+        const key = JSON.stringify([candidate.province, candidate.city, candidate.district]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        results.push(candidate);
+      }
     }
   };
 

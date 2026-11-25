@@ -6,6 +6,8 @@ const userClockLabel = '自选演示钟点。';
 
 export function resolveHistoryChoices(record: HistoryRecord, draft?: { clock: string; useDefault?: boolean }): HistoryClockChoice {
   const { time } = record;
+  if (!time || (time.precision !== 'date-only' && time.precision !== 'point' && time.precision !== 'window'))
+    throw new Error('这条资料的时刻精度尚未接入，请先核对时间资料。');
   if (!draft && time.precision === 'point') return { clock: time.clock, timeSelection: {
     origin: time.scope === 'event' ? 'history-recorded-point' : 'history-related-point', ruleVersion: null,
     label: time.scope === 'event' ? `史载钟点 · ${time.original}。` : `史载相关钟点 · ${time.original}。`,
