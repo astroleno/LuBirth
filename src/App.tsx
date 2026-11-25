@@ -30,8 +30,8 @@ export default function App() {
   const mobile = useMobileLayout();
   const state = React.useSyncExternalStore(journeyStore.subscribe, journeyStore.getSnapshot);
   const [view, setView] = React.useState<'earth' | 'sky'>(() => new URLSearchParams(location.search).get('scene') === 'sky' ? 'sky' : 'earth');
-  const [panel, setPanel] = React.useState<ExperiencePanelKind | null>(() => new URLSearchParams(location.search).get('history') === '1' ? 'history' : state.birth ? null : 'birth');
-  const [birthOpened, setBirthOpened] = React.useState(panel === 'birth');
+  const [panel, setPanel] = React.useState<ExperiencePanelKind | null>(() => new URLSearchParams(location.search).get('history') === '1' ? 'history' : null);
+  const [birthOpened, setBirthOpened] = React.useState(false);
   const [historyOpened, setHistoryOpened] = React.useState(panel === 'history');
   const [controlsHost, setControlsHost] = React.useState<HTMLDivElement | null>(null);
   const [skyImmersed, setSkyImmersed] = React.useState(false);
@@ -89,6 +89,7 @@ export default function App() {
     else setSkyImmersed(value);
   }, [view]);
   const immersed = view === 'earth' ? earthHidden : skyImmersed;
+  const promptBirth = !panel && lastPanel.current === 'birth' && !state.birth && state.current.source.kind === 'example';
   React.useEffect(() => {
     if (!immersed || panel) return;
     const key = (event: KeyboardEvent) => {
@@ -226,8 +227,9 @@ export default function App() {
             <button aria-current={view === 'sky' ? 'page' : undefined} onClick={showSky}>观天</button>
           </nav></>}
         <div className="experience-toolbar-actions">
-          {!immersed && <button ref={exploreButton} aria-expanded={!!panel} aria-controls="experience-panel"
-            onClick={() => panel ? closePanel() : openPanel(lastPanel.current)}>探索</button>}
+          {!immersed && <button ref={exploreButton} className={promptBirth ? 'experience-enter-time' : undefined}
+            aria-expanded={!!panel} aria-controls="experience-panel"
+            onClick={() => panel ? closePanel() : openPanel(lastPanel.current)}>{promptBirth ? '填写时刻' : '探索'}</button>}
           {view === 'earth' && <SceneScreenshot label="留念" unified blocked={earthPending} />}
           <button ref={immersionButton} onClick={() => setImmersed(!immersed)}>{immersed ? '显示菜单' : '沉浸'}</button>
         </div>

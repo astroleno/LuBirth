@@ -9,6 +9,8 @@ import { assetUrl } from '../../../../utils/assetUrl';
 import type { ParallaxOffset } from '../../../../performance/useParallaxInput';
 import type { Frame3, Vec3 } from '../../../../astro/referenceFrames';
 import type { LunarShadow } from '../../../../astro/lunarShadow';
+import { SKY_ATMOSPHERE_GLSL } from '../../../../spikes/sky/skyLight';
+import type { SkyAtmosphere } from '../../../../spikes/sky/skyLight';
 
 export type MoonCelestialLighting = {
   key: string; portraitLight: Vec3; phaseFraction: number; phaseAngleDeg: number; cycleAngleDeg: number;
@@ -130,6 +132,7 @@ export function Moon({
   celestialLighting,
   surfaceFrame,
   skyLayer = false,
+  skyAtmosphere,
   horizonClip = false,
   earthShadow = null,
 }: {
@@ -159,6 +162,7 @@ export function Moon({
   celestialLighting?: MoonCelestialLighting;
   surfaceFrame?: Frame3;
   skyLayer?: boolean;
+  skyAtmosphere?: SkyAtmosphere;
   horizonClip?: boolean;
   earthShadow?: LunarShadow | null;
   renderLayer?: number;
@@ -355,6 +359,10 @@ export function Moon({
         uniforms: {
           portraitProjection: { value: screenSpacePortrait && enableScreenAnchor ? 1 : 0 },
           clipGround: { value: horizonClip ? 1 : 0 },
+          skyScattering: { value: 0 },
+          skyAmounts: { value: new THREE.Vector3() },
+          skySunDirection: { value: new THREE.Vector3() },
+          skyGround: { value: 0 },
           eclipseEnabled: { value: earthShadow ? 1 : 0 },
           eclipseAxis: { value: new THREE.Vector3(...(earthShadow?.axis ?? [0, 0, 1])) },
           eclipseOffset: { value: new THREE.Vector3(...(earthShadow?.offset ?? [0, 0, 0])) },
@@ -396,6 +404,7 @@ export function Moon({
           varying vec3 vPosition;
           varying vec3 vViewPosition;
           varying vec3 vMoonOffset;
+          varying vec3 vSkyRay;
           uniform sampler2D displacementMap;
           uniform float displacementScale;
           uniform float displacementBias;
@@ -406,6 +415,7 @@ export function Moon({
           uniform float portraitProjection;
           uniform float eclipseEnabled;
           uniform float moonGeometryRadius;
+          uniform float skyScattering;
           
           void main() {
             vUv = uv;
@@ -428,14 +438,21 @@ export function Moon({
             vPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
             float worldRadius = length(modelMatrix[0].xyz) * moonGeometryRadius;
             vMoonOffset = eclipseEnabled > .5 ? mat3(modelMatrix) * displaced / worldRadius : vec3(0.);
-            gl_Position = projectionMatrix * mvPosition;
+            vec4 projectedPosition = mvPosition;
             if (portraitProjection > .5) {
               // A picture-in-picture disc uses orthographic projection within
               // its screen anchor, independent of the sky camera's wide field.
               vec4 centerView = modelViewMatrix * vec4(0., 0., 0., 1.);
               if (eclipseEnabled > .5) vMoonOffset = (mvPosition.xyz - centerView.xyz) / worldRadius;
-              gl_Position = projectionMatrix * vec4(mvPosition.xy, centerView.z, 1.);
+              projectedPosition = vec4(mvPosition.xy, centerView.z, 1.);
             }
+            vSkyRay = vec3(0.);
+            if (skyScattering > 0.) {
+              // Rotate the actual projected view ray back to local horizon coordinates.
+              vec3 ray = projectedPosition.xyz;
+              vSkyRay = vec3(dot(viewMatrix[0].xyz, ray), dot(viewMatrix[1].xyz, ray), dot(viewMatrix[2].xyz, ray));
+            }
+            gl_Position = projectionMatrix * projectedPosition;
           }
         `,
         fragmentShader: `
@@ -468,6 +485,9 @@ export function Moon({
           uniform float surgeStrength;
           uniform float surgeSigmaRad;
           uniform float clipGround;
+          uniform float skyScattering;
+          uniform float skyGround;
+          uniform vec3 skyAmounts, skySunDirection;
           uniform float eclipseEnabled;
           uniform vec3 eclipseAxis;
           uniform vec3 eclipseOffset;
@@ -479,6 +499,9 @@ export function Moon({
           varying vec3 vPosition;
           varying vec3 vViewPosition;
           varying vec3 vMoonOffset;
+          varying vec3 vSkyRay;
+
+          ${SKY_ATMOSPHERE_GLSL}
 
           // Project the apparent solar and terrestrial disks onto the same plane.
           // Their overlap is the loss of direct sunlight in the penumbra.
@@ -569,6 +592,12 @@ export function Moon({
             gl_FragColor = vec4(finalColor, 1.0);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>
+            // Scattered light is in front of an opaque disk that still blocks background objects.
+            if (skyScattering > 0.) {
+              float unlit = 1. - smoothstep(.02, .18, diffuse * terminator);
+              vec3 air = skyAtmosphereColor(vSkyRay, skySunDirection, skyAmounts, skyGround);
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, air, skyScattering * unlit);
+            }
           }
         `
       });
@@ -598,6 +627,16 @@ export function Moon({
   }, [activeMoonMap, activeDisplacementMap, activeNormalMap, terrainReady, enableUniformShading, sdirWorld, sunDirWorldForShading, lightColor, sunIntensity, terminatorSoftness, moonShadingGamma, tintColor, moonTintStrength, sunDirectionInfo, moonSurgeStrength, moonSurgeSigmaDeg, moonDisplacementScale, moonNormalScale, enableScreenAnchor, lonDeg, nightLift, useCameraLockedPhase, terminatorRadius, phaseCoupleStrength, skyLayer, horizonClip, screenSpacePortrait, earthShadow, radius]);
 
   React.useEffect(() => () => moonMaterial.dispose(), [moonMaterial]);
+  React.useLayoutEffect(() => {
+    if (!(moonMaterial instanceof THREE.ShaderMaterial)) return;
+    const { uniforms } = moonMaterial;
+    uniforms.skyScattering.value = skyAtmosphere?.light.moonScattering ?? 0;
+    if (!skyAtmosphere) return;
+    const { light, sunDirection, ground } = skyAtmosphere;
+    uniforms.skyAmounts.value.set(light.twilight, light.daylight, light.sunset);
+    uniforms.skySunDirection.value.set(...sunDirection);
+    uniforms.skyGround.value = ground ? 1 : 0;
+  }, [moonMaterial, skyAtmosphere]);
 
   // 🌙 每帧更新屏幕锚定位置
   useFrame(() => {

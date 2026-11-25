@@ -20,10 +20,29 @@ function test(name, run) { run(); checks++; console.log(`PASS ${name}`); }
 try {
   const model = await vite.ssrLoadModule('/src/spikes/sky/skyModel.ts');
   const { FrameCadence } = await vite.ssrLoadModule('/src/spikes/sky/skyPerformance.ts');
+  const { skyLight } = await vite.ssrLoadModule('/src/spikes/sky/skyLight.ts');
   const { SKY_SYSTEMS } = await vite.ssrLoadModule('/src/spikes/sky/skyCultures.ts');
   const modernBytes = await readFile(new URL('../src/spikes/sky/data/modern.json', import.meta.url));
   const desktopReference = JSON.parse(await readFile(new URL('../src/spikes/sky/data/stellarium-reference.json', import.meta.url), 'utf8'));
   const external = compareStellarium(model, catalog, desktopReference);
+  test('blue daylight and warm sunset lead continuously into the original night and star attenuation', () => {
+    const night = { starlight: 1, twilight: 0, daylight: 0, sunset: 0, moonScattering: 0 };
+    assert.deepEqual(skyLight(-25), night);
+    assert.deepEqual(skyLight(-18), night);
+    assert.deepEqual(skyLight(42), { starlight: 0, twilight: 1, daylight: 1, sunset: 0, moonScattering: 1 });
+    const sunset = skyLight(0), civil = skyLight(-6), nautical = skyLight(-12);
+    assert.ok(sunset.sunset > civil.sunset && civil.sunset > nautical.sunset);
+    assert.ok(sunset.twilight > civil.twilight && civil.twilight > nautical.twilight && nautical.twilight > night.twilight);
+    assert.ok(sunset.starlight < civil.starlight && civil.starlight < nautical.starlight && nautical.starlight < night.starlight);
+    assert.ok(sunset.moonScattering > skyLight(-3).moonScattering && skyLight(-3).moonScattering > 0);
+    assert.equal(civil.moonScattering, 0);
+    assert.equal(nautical.moonScattering, 0);
+    for (const edge of [-18, -12, -6, 0]) {
+      for (const [index, weight] of Object.values(skyLight(edge - .001)).entries()) {
+        assert.ok(Math.abs(weight - Object.values(skyLight(edge + .001))[index]) < .001);
+      }
+    }
+  });
   test('independent desktop reference: 60 geometric samples, modern catalog and coordinate transform', () => {
     assert.equal(external.sampleCount, 60);
     assert.ok(external.modernMaxArcsec < 10, 'Modern catalog difference exceeds 10 arcseconds');

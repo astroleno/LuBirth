@@ -9,9 +9,10 @@ import { projectLunarShadow } from '../../astro/lunarShadow';
 import { projectLunarSurface } from '../../astro/lunarOrientation';
 import { assetUrl } from '../../utils/assetUrl';
 import type { ScreenRect } from './skyLabelLayout';
+import type { SkyLight } from './skyLight';
 
-export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 }: {
-  frame: SkyFrame; placement: MoonPlacement; ground: boolean; portraitSize?: number;
+export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1, light }: {
+  frame: SkyFrame; placement: MoonPlacement; ground: boolean; portraitSize?: number; light: SkyLight;
 }) {
   const { camera, scene, size, invalidate, gl } = useThree();
   const [suppressed, setSuppressed] = useState(false);
@@ -31,6 +32,7 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
     return () => { active = false; texture.dispose(); };
   }, [invalidate]);
   const { observer, celestial, apparentMoon, apparentSun } = frame;
+  const skyAtmosphere = useMemo(() => ({ sunDirection: observer.sun.direction, light, ground }), [observer, light, ground]);
   const portrait = placement === 'portrait';
   const moonFrame = portrait ? observer.eqjToMoonPortrait : observer.eqjToSky;
   const earthShadow = useMemo(() => projectLunarShadow(frame.earthShadow, moonFrame), [frame.earthShadow, moonFrame]);
@@ -125,7 +127,7 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
       lightDirection={sunDirection} sunDirWorldForShading={sunDirection} lightColor={lightColor} sunIntensity={2.2}
       useTextures={!!map} moonMap={map ?? undefined} enableTidalLock enableUniformShading useCameraLockedPhase={portrait}
       celestialLighting={lighting} surfaceFrame={surfaceFrame} earthShadow={earthShadow}
-      skyLayer horizonClip={ground && !portrait} moonNormalScale={0} moonDisplacementScale={0}
+      skyLayer skyAtmosphere={skyAtmosphere} horizonClip={ground && !portrait} moonNormalScale={0} moonDisplacementScale={0}
       moonLightMinRatio={.55} moonLightMaxRatio={.8} nightLift={.008} terminatorSoftness={.012} terminatorRadius={.005}
       currentDate={celestial.utc} observerLat={observer.location.latitude} observerLon={observer.location.longitude} />}
   </>;

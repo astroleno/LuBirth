@@ -8,7 +8,6 @@
 .sky-heading p{margin:0;font-size:13px;letter-spacing:.14em}.sky-heading p span{margin-left:14px;font-size:10px;letter-spacing:.1em;color:#9ba9bb}
 .sky-heading h1{margin:14px 0 10px;font-size:38px;font-weight:350;letter-spacing:.16em;line-height:1.25}
 .sky-heading div{color:#b8c4d3;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.6}.sky-heading small{display:block;margin-top:4px;font-size:11px;color:#7e8c9e}
-.sky-heading .sky-daylight-note{max-width:min(320px,calc(100vw - 140px));margin:12px 0 0;color:#b8c4d3;font-size:12px;line-height:1.7;letter-spacing:0;text-wrap:pretty}
 .sky-feature-link{pointer-events:auto;display:block;padding:10px 0;min-height:44px;border:0;background:none;color:#ccb78e;font-size:12px;text-align:left;text-underline-offset:5px}.sky-feature-link:hover{text-decoration:underline}
 .sky-labels{pointer-events:none;overflow:hidden}.sky-labels>*{position:absolute;top:0;left:0;border:0;background:none;padding:7px 8px;margin:0;font-size:12px;font-weight:400;white-space:nowrap;color:#c3b397;text-shadow:0 1px 8px #000,0 1px 3px #000}
 .sky-labels button{pointer-events:auto;min-width:44px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.2}

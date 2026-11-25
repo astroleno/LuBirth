@@ -12,6 +12,8 @@ import { SkyObjects, HorizonGuide } from './SkyObjects';
 import { SkyArtwork } from './SkyArtwork';
 import { artworkUrl } from './ConstellationArt';
 import { MilkyWay } from './MilkyWay';
+import { skyLight } from './skyLight';
+import type { SkyLight } from './skyLight';
 import { artCacheSnapshot, disposeArtCache } from './artTextureCache';
 import { NORTH_VIEW, SkyRuntime } from './SkyRuntime';
 import type { SkyLabel, SkyView } from './SkyRuntime';
@@ -86,21 +88,22 @@ function MetricsPanel({ dpr }: { dpr: number }) {
     <pre className="sky-raw-metrics" data-testid="sky-performance-json">{JSON.stringify(metrics)}</pre>
   </>;
 }
-const Scene = memo(function Scene({ frame, settings, items, daylight, dpr, view, orientation, labels, overlay, onView, moonPlacement, IauLayer }: {
-  frame: SkyFrame; settings: Settings; items: SkyCulture[]; daylight: number; dpr: number; view: React.MutableRefObject<SkyView>;
+const Scene = memo(function Scene({ frame, settings, items, light, dpr, view, orientation, labels, overlay, onView, moonPlacement, IauLayer }: {
+  frame: SkyFrame; settings: Settings; items: SkyCulture[]; light: SkyLight; dpr: number; view: React.MutableRefObject<SkyView>;
   orientation: SkyView; labels: SkyLabel[]; overlay: React.RefObject<HTMLDivElement>; onView: (view: SkyView) => void;
   moonPlacement: MoonPlacement;
   IauLayer?: IauLayer;
 }) {
   return <Canvas frameloop={settings.measuring ? 'always' : 'demand'} dpr={dpr} camera={CAMERA} gl={GL_OPTIONS}
     fallback={<div className="sky-fallback">请使用支持 WebGL 的浏览器观看交互星空。</div>}>
-    {settings.galaxy > 0 && <MilkyWay frame={frame} ground={settings.ground} daylight={daylight} strength={settings.galaxy} />}
-    {settings.art && <SkyArtwork items={items} frame={frame} view={view} ground={settings.ground} daylight={daylight} selected={settings.culture} />}
+    <MilkyWay frame={frame} ground={settings.ground} daylight={light.starlight} strength={settings.galaxy} atmosphere={light} />
+    {settings.art && <SkyArtwork items={items} frame={frame} view={view} ground={settings.ground} daylight={light.starlight} selected={settings.culture} />}
     <SkyObjects frame={frame} magnitude={settings.magnitude} culture={settings.culture} items={items}
-      lines={settings.lines} daylight={daylight} dpr={dpr} ground={settings.ground} chinese={settings.system !== 'modern'} appearance={settings} view={view} />
-    {IauLayer && <IauLayer frame={frame.observer.eqjToSky} ground={settings.ground} daylight={daylight} />}
+      lines={settings.lines} daylight={light.starlight} dpr={dpr} ground={settings.ground} chinese={settings.system !== 'modern'} appearance={settings} view={view} />
+    {IauLayer && <IauLayer frame={frame.observer.eqjToSky} ground={settings.ground} daylight={light.starlight} />}
     <HorizonGuide />
-    <SolarSystemObjects frame={frame} placement={moonPlacement} ground={settings.ground} portraitSize={settings.moonSize ?? 1} />
+    <SolarSystemObjects frame={frame} placement={moonPlacement} ground={settings.ground}
+      portraitSize={settings.moonSize ?? 1} light={light} />
     <SkyRuntime view={view} revision={orientation} labels={labels} overlay={overlay} measuring={settings.measuring} ground={settings.ground} onView={onView} />
   </Canvas>;
 });
@@ -176,15 +179,12 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       view.current = { ...NORTH_VIEW }; setOrientation({ ...NORTH_VIEW });
     }
   }, [entryTransfer, observation, frame, initialState]);
-  const daylight = THREE.MathUtils.smoothstep(-frame.sunAlt, 0, 18);
+  const light = useMemo(() => skyLight(frame.sunAlt), [frame.sunAlt]);
   const moonVisibility = frame.apparentMoon.visibility;
   const eclipse = frame.earthShadow?.kind;
-  const daylightNote = daylight <= .025 && (frame.apparentSun.visibility === 'below'
-    ? '当地天色尚亮，星光暂被日光遮蔽。' : '当地正值白昼，星光暂被日光遮蔽。');
   const showMoonHorizon = moonPlacement === 'physical' && moonVisibility !== 'above';
   const eclipseNote = eclipse && moonEclipseNote(eclipse, moonPlacement === 'portrait' ? moonVisibility : undefined);
   const skyNotes = <>
-    {daylightNote && <p className="sky-daylight-note">{daylightNote}</p>}
     {showMoonHorizon && <p className="sky-help">
       {MOON_HORIZON_NOTES[moonVisibility]}{moonVisibility === 'below' && (settings.ground
         ? <button className="sky-feature-link" onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>
@@ -192,7 +192,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
     </p>}
     {eclipseNote && <p className="sky-help">{eclipseNote}</p>}
   </>;
-  const labels = useMemo(() => [...CARDINALS, ...(settings.lines && daylight > .025 ? items.map(item => ({
+  const labels = useMemo(() => [...CARDINALS, ...(settings.lines && light.starlight > .025 ? items.map(item => ({
     id: item.id, name: settings.art && chinese && CHINESE_ARTWORK.has(item.id) ? CHINESE_ARTWORK.get(item.id)!.title : item.name,
     subtitle: settings.art && chinese && CHINESE_ARTWORK.has(item.id) ? item.name : undefined, cardinal: false,
     position: (item.id === settings.culture || chinese) && settings.art && item.image
@@ -202,7 +202,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       .filter((p):p is [number,number,number]=>p!==null) : undefined,
     priority: item.id === settings.culture ? 100 : isMajorCulture(item) ? 50 : 10,
   })).filter((item): item is typeof item & { position: [number, number, number] } => item.position !== null)
-    .sort((a, b) => b.priority - a.priority) : [])], [frame, items, settings.culture, settings.lines, settings.art, daylight, chinese]);
+    .sort((a, b) => b.priority - a.priority) : [])], [frame, items, settings.culture, settings.lines, settings.art, light.starlight, chinese]);
   const visibleStars = useMemo(() => catalog.stars.filter((star, i) => star[4] <= settings.magnitude
     && (!settings.ground || frame.positions[i * 3 + 1] >= 0)).length, [settings.magnitude, settings.ground, frame]);
   const selected = items.find(item => item.id === settings.culture);
@@ -329,7 +329,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       : selectedArtwork ? selectedArtwork.title + ' · ' + selectedArtwork.name : selected?.name || '星空';
   const artworkOpen = (!chrome || chrome.section === 'sky') && pane === 'detail' && !!selectedArtwork;
   return <main className="sky-spike" data-portrait={artworkOpen || undefined}>
-    <SkyBoundary><div className="sky-canvas"><Scene frame={frame} settings={settings} items={items} daylight={daylight} dpr={dpr}
+    <SkyBoundary><div className="sky-canvas"><Scene frame={frame} settings={settings} items={items} light={light} dpr={dpr}
       view={view} orientation={orientation} labels={labels} overlay={overlay} onView={setOrientation} moonPlacement={moonPlacement}
       IauLayer={showIauBoundaries ? iauLayer : undefined} /></div></SkyBoundary>
     <div ref={overlay} className="sky-labels">{labels.map(label => label.cardinal
@@ -342,9 +342,9 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       <div>{location.name} · {(sharedUtc || settings.utc).replace('T', ' ').replace(/\.\d+Z$/, '').replace(/Z$/, '')} UTC</div>
       <small>{versionInfo.name}{version === 'song' && settings.art ? ' · 当代人物图绘' : ''}</small>
       {version === 'song' && <button className="sky-feature-link" onClick={openArtworkCatalog}>玉皇庙图绘 · 浏览二十八宿 ↗</button>}
-      {(daylightNote || showMoonHorizon || eclipseNote) && <div role="status">{skyNotes}</div>}
+      {(showMoonHorizon || eclipseNote) && <div role="status">{skyNotes}</div>}
     </header>}
-    {chrome && (daylightNote || showMoonHorizon || eclipseNote) && <div className="experience-sky-notes" role="status" data-sky-obstruction>{skyNotes}</div>}
+    {chrome && (showMoonHorizon || eclipseNote) && <div className="experience-sky-notes" role="status" data-sky-obstruction>{skyNotes}</div>}
     <SceneControlsOutlet host={chrome ? chrome.target : undefined} active={!!chrome?.section}>
     <section className={chrome ? 'sky-controls-embedded' : 'sky-dock'} ref={dock} data-expanded={!!pane} data-artwork={pane === 'detail' && !!selectedArtwork || undefined} aria-label="星空控制">
       {pane && <div className="sky-pane" id="sky-pane">
