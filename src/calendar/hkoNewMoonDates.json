@@ -1,0 +1,12 @@
+{
+  "source": "https://www.hko.gov.hk/tc/gts/time/conversion.htm",
+  "offsetSeconds": 28800,
+  "dates": [
+    { "modeledDate": "1914-11-18", "publishedDate": "1914-11-17", "midnightUncertainty": false },
+    { "modeledDate": "1916-02-04", "publishedDate": "1916-02-03", "midnightUncertainty": false },
+    { "modeledDate": "1920-11-11", "publishedDate": "1920-11-10", "midnightUncertainty": false },
+    { "modeledDate": "2057-09-29", "publishedDate": "2057-09-28", "midnightUncertainty": true },
+    { "modeledDate": "2089-09-04", "publishedDate": "2089-09-04", "midnightUncertainty": true },
+    { "modeledDate": "2097-08-08", "publishedDate": "2097-08-07", "midnightUncertainty": true }
+  ]
+}

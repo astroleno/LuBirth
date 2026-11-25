@@ -4,18 +4,11 @@ import { SearchMoonPhase, SearchSunLongitude } from 'astronomy-engine';
 const DAY_MS = 86_400_000;
 const FIRST_DAY = '1901-01-01';
 const LAST_DAY = '2100-12-31';
-const HKO_TABLES = 'https://www.hko.gov.hk/tc/gts/time/conversion.htm';
 const HKO_SOURCE_SHA256 = 'ca418f82960d2ca5febd1eac662b8e2b3264b1eec03292a2ffc3cf64cd05d957';
 
-// Observed differences near midnight, recorded as modeled day → published HKO day.
-const publishedMonthStarts = new Map([
-  ['1914-11-18', '1914-11-17'],
-  ['1916-02-04', '1916-02-03'],
-  ['1920-11-11', '1920-11-10'],
-  ['2057-09-29', '2057-09-28'],
-  ['2097-08-08', '2097-08-07'],
-]);
-const standardDay = instant => new Date(instant.getTime() + 8 * 3_600_000).toISOString().slice(0, 10);
+const hkoNewMoons = JSON.parse(readFileSync(new URL('../src/calendar/hkoNewMoonDates.json', import.meta.url), 'utf8'));
+const publishedMonthStarts = new Map(hkoNewMoons.dates.map(({ modeledDate, publishedDate }) => [modeledDate, publishedDate]));
+const standardDay = instant => new Date(instant.getTime() + hkoNewMoons.offsetSeconds * 1000).toISOString().slice(0, 10);
 const nextDay = instant => new Date(instant.getTime() + DAY_MS);
 
 const starts = [];
@@ -23,8 +16,10 @@ for (let instant = new Date('1900-11-10T00:00:00Z'); standardDay(instant) < '210
   const newMoon = SearchMoonPhase(0, instant, 40).date;
   const day = standardDay(newMoon);
   starts.push(publishedMonthStarts.get(day) ?? day);
+  publishedMonthStarts.delete(day);
   instant = nextDay(newMoon);
 }
+if (publishedMonthStarts.size) throw new Error(`Reverify HKO month starts for modeled dates: ${[...publishedMonthStarts.keys()].join(', ')}`);
 
 const terms = [];
 let longitude = 270;
@@ -63,7 +58,7 @@ const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta
 const metadata = {
   formatVersion: 1,
   astronomyEngine: lock.packages['node_modules/astronomy-engine'].version,
-  source: HKO_TABLES,
+  source: hkoNewMoons.source,
   sourceSha256: HKO_SOURCE_SHA256,
   supportedFrom: FIRST_DAY,
   supportedThrough: LAST_DAY,

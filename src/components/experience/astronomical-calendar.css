@@ -7,3 +7,4 @@
 .astronomical-calendar dd { display: flex; gap: 4px 12px; flex-wrap: wrap; margin: 0; }
 .astronomical-calendar time { color: #c2ccd9; font-variant-numeric: tabular-nums; }
 .astronomical-calendar-date a { color: inherit; text-underline-offset: .18em; }
+.astronomical-calendar dd.astronomical-calendar-note { margin-top: 4px; font-size: 12px; color: #a6b6ca; }

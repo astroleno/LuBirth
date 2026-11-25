@@ -40,6 +40,15 @@ try {
   assert.equal(lunarToGregorian({ year: 2100, month: 12, leap: false, day: 2 }), null);
   assert.match(renderToStaticMarkup(React.createElement(CalendarDateCorrespondence, { date: '1037-01-14', local: true })), /农历资料覆盖公历 1901–2100 年/);
 
+  for (const [date, year, month] of [
+    ['1914-11-17', 1914, 10], ['1916-02-03', 1916, 1], ['1920-11-10', 1920, 10],
+    ['2057-09-28', 2057, 9], ['2089-09-04', 2089, 8], ['2097-08-07', 2097, 7],
+  ]) {
+    const monthStart = { year, month, leap: false, day: 1 };
+    assert.deepEqual(gregorianToLunar(date), monthStart);
+    assert.equal(lunarToGregorian(monthStart), date);
+  }
+
   let count = 0;
   for (let stamp = Date.UTC(1901, 0, 1); stamp <= Date.UTC(2100, 11, 31); stamp += 86_400_000) {
     const date = new Date(stamp).toISOString().slice(0, 10);
