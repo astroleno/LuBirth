@@ -186,7 +186,7 @@ import { useTextureLoader } from './scenes/simple/utils/textureLoader';
 import { Earth } from './scenes/simple/api/components/Earth';
 import { BirthPointMarker } from './scenes/simple/api/components/BirthPointMarker';
 import { calculateCameraOrientationForBirthPoint, calculateBirthPointLocalFrame, alphaToScreenY, validateBirthPointAlignment } from './scenes/simple/utils/birthPointAlignment';
-import { Moon, type MoonTerrainStatus } from './scenes/simple/api/components/Moon';
+import type { MoonTerrainStatus } from './scenes/simple/api/components/Moon';
 import { Clouds, CloudsWithLayers } from './scenes/simple/api/components/Clouds';
 import { IntegratedCloudSystem } from './scenes/simple/api/components/IntegratedCloudSystem';
 import { AtmosphereEffects, setupAtmosphereConsoleCommands } from './scenes/simple/api/components/AtmosphereEffects';
@@ -461,6 +461,7 @@ function SceneContent({
         portraitProjection: moonMaterial?.uniforms.portraitProjection?.value,
         directionalLights: scene.getObjectsByProperty('isDirectionalLight', true).length,
         moonPosition: moon?.getWorldPosition(new THREE.Vector3()).toArray(), moonRadius: moon?.geometry.boundingSphere?.radius,
+        moonQuaternion: moon?.getWorldQuaternion(new THREE.Quaternion()).toArray(), moonGeometrySource: moon?.userData.geometrySource,
         moonScale: moon?.scale.toArray(), moonFrameKey: moon?.userData.frameKey,
         moonPhysicalKm: celestial.moonEqjKm, moonDistanceKm: celestial.moonDistanceKm,
         phaseFraction: observerState.phaseFraction, moonAltitude: observerState.moon.altitudeDeg,
@@ -847,9 +848,6 @@ function SceneContent({
         moonLightMaxRatio={composition.moonLightMaxRatio}
         tiltDeg={0}
         yawDeg={0}
-        latDeg={composition.moonLatDeg}
-        lonDeg={composition.moonLonDeg}
-        moonYawDeg={composition.moonYawDeg}
         // 使用真实太阳向量（点到光：Moon→Sun）；不再取反
         sunDirWorldForShading={new THREE.Vector3(sunWorld.x, sunWorld.y, sunWorld.z)}
         enableTidalLock={true}
@@ -1295,7 +1293,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
       setSunWorld({x,y,z}); setMoonEQD({ x: moon[0], y: moon[1], z: moon[2] });
       setIllumination(observerState.phaseFraction);
       setSunAngles({ azDeg: observerState.sun.azimuthDeg ?? 0, altDeg: observerState.sun.altitudeDeg });
-      setMoonPhaseInfo(`${Math.round(observerState.phaseFraction*100)}% 受光`);
+      setMoonPhaseInfo(`受光面积 ${Math.round(observerState.phaseFraction * 100)}%`);
       return;
     }
     try {
@@ -2149,10 +2147,10 @@ export default function SimpleTest({ observation, observationControls, initialSt
               <span className="label">光照强度: {lightInfo.intensity}</span>
             </div>
             <div className="col">
-              <span className="label">月面明暗: {(illumination * 100).toFixed(1)}%</span>
+              <span className="label">几何受光比例: {(illumination * 100).toFixed(1)}%</span>
             </div>
             <div className="col">
-              <span className="label">月相状态: {moonPhaseInfo}</span>
+              <span className="label">几何月相: {moonPhaseInfo}</span>
             </div>
             <div className="col">
               <span className="label">最后更新: {lastUpdateTime || '未更新'}</span>
@@ -2178,7 +2176,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
                 try {
                   const phase = getMoonPhase(dateISO, latDeg, lonDeg);
                   // console.log('[MoonPhase]', phase);
-                  alert(`月相明亮比例: ${phase.illumination.toFixed(2)}\n相位角: ${(phase.phaseAngleRad*180/Math.PI).toFixed(1)}°`);
+                  alert(`几何受光比例: ${phase.illumination.toFixed(2)}\n相位角: ${(phase.phaseAngleRad*180/Math.PI).toFixed(1)}°`);
                 } catch (err) {
                   // console.error(err);
                 }
@@ -2344,28 +2342,6 @@ export default function SimpleTest({ observation, observationControls, initialSt
             </div>
           </div>
           
-          {/* 月球姿态控制 */}
-          <div className="row" style={{ marginBottom: 16 }}>
-            <div className="col">
-              <label className="label">月球纬度调整: {composition.moonLatDeg}°</label>
-              <input className="input" type="range" min={-180} max={180} step={1}
-                     value={composition.moonLatDeg}
-                     onChange={(e) => updateValue('moonLatDeg', parseInt(e.target.value))} />
-            </div>
-            <div className="col">
-              <label className="label">月球经度调整: {composition.moonLonDeg}°</label>
-              <input className="input" type="range" min={-180} max={180} step={1}
-                     value={composition.moonLonDeg}
-                     onChange={(e) => updateValue('moonLonDeg', parseInt(e.target.value))} />
-            </div>
-            <div className="col">
-              <label className="label">月球水平转角: {composition.moonYawDeg || 0}°</label>
-              <input className="input" type="range" min={-180} max={180} step={1}
-                     value={composition.moonYawDeg || 0}
-                     onChange={(e) => updateValue('moonYawDeg', parseInt(e.target.value))} />
-            </div>
-          </div>
-
           {/* 月球外观（色调/亮度曲线/位移） */}
           <div className="row" style={{ marginBottom: 16 }}>
             <div className="col">

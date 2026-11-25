@@ -7,7 +7,7 @@ import { toUTCFromLocal } from '../../../../astro/ephemeris';
 import { getScreenAnchoredPosition } from '../../utils/positionUtils';
 import { assetUrl } from '../../../../utils/assetUrl';
 import type { ParallaxOffset } from '../../../../performance/useParallaxInput';
-import type { Vec3 } from '../../../../astro/referenceFrames';
+import type { Frame3, Vec3 } from '../../../../astro/referenceFrames';
 import type { LunarShadow } from '../../../../astro/lunarShadow';
 
 export type MoonCelestialLighting = {
@@ -128,6 +128,7 @@ export function Moon({
   onTerrainStatusChange,
   parallaxOffset,
   celestialLighting,
+  surfaceFrame,
   skyLayer = false,
   horizonClip = false,
   earthShadow = null,
@@ -156,6 +157,7 @@ export function Moon({
   observerLon?: number; // 观察者经度
   useCameraLockedPhase?: boolean;
   celestialLighting?: MoonCelestialLighting;
+  surfaceFrame?: Frame3;
   skyLayer?: boolean;
   horizonClip?: boolean;
   earthShadow?: LunarShadow | null;
@@ -205,6 +207,12 @@ export function Moon({
     anchor: new THREE.Vector3(), target: new THREE.Vector3(),
     forward: new THREE.Vector3(0, 0, 1), relief: new THREE.Quaternion(), euler: new THREE.Euler(),
   }), []);
+  const surfaceRotation = useMemo(() => {
+    if (!surfaceFrame) return undefined;
+    const [x, y, z] = surfaceFrame;
+    const matrix = new THREE.Matrix4().makeBasis(new THREE.Vector3(...x), new THREE.Vector3(...y), new THREE.Vector3(...z));
+    return new THREE.Quaternion().setFromRotationMatrix(matrix);
+  }, [surfaceFrame]);
   const tidalOffset = useMemo(() => {
     const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(moonYawDeg || 0));
     const lon = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(lonDeg || 0));
@@ -617,8 +625,10 @@ export function Moon({
         }
         meshRef.current.position.copy(newPosition);
         
-        // 🌙 方案B：几何旋转潮汐锁定（放弃UV旋转）
-        if (enableTidalLock) {
+        // Carry the observer's portrait axes into the current camera's world axes.
+        if (surfaceRotation) {
+          meshRef.current.quaternion.copy(camera.quaternion).multiply(surfaceRotation);
+        } else if (enableTidalLock) {
           // 先面向相机
           if (screenSpacePortrait) meshRef.current.quaternion.copy(camera.quaternion);
           else meshRef.current.lookAt(camera.position);
@@ -636,7 +646,7 @@ export function Moon({
       } catch (error) {
         console.error('[MoonScreenAnchor] Update failed:', error);
       }
-    } else if (enableTidalLock) {
+    } else if (enableTidalLock && !surfaceRotation) {
       // 🌙 传统模式潮汐锁定（合并到主useFrame中，避免执行顺序冲突）
       try {
         const moon = meshRef.current;
@@ -812,7 +822,7 @@ export function Moon({
   // 月球自转逻辑 - 非潮汐锁定时才生效，避免日期变更导致的小角度抖动
   React.useEffect(() => {
     if (!meshRef.current) return;
-    if (enableTidalLock) return; // 潮汐锁定时不做任何自转/贴图旋转，这些在前面的潮锁effect里完成
+    if (surfaceRotation || enableTidalLock) return; // 天文与潮汐锁定姿态在渲染时应用
     if (enableScreenAnchor) return; // 🌙 屏幕锚定模式下完全跳过旋转逻辑
     
     // 重置旋转
@@ -840,19 +850,19 @@ export function Moon({
     
     // 调试信息已移除，避免控制台刷屏
     
-  }, [currentDate, enableTidalLock, latDeg, lonDeg]);
+  }, [currentDate, enableTidalLock, latDeg, lonDeg, surfaceRotation]);
 
   return (
     <mesh 
       ref={meshRef}
       name={name}
-      userData={{ frameKey: celestialLighting?.key, placement: enableScreenAnchor ? 'portrait' : 'physical' }}
+      userData={{ frameKey: celestialLighting?.key, placement: enableScreenAnchor ? 'portrait' : 'physical',
+        geometrySource: terrainReady ? 'nasa-glb' : 'sphere' }}
       position={position}
+      quaternion={enableScreenAnchor ? undefined : surfaceRotation}
       scale={terrainReady ? radius : 1}
       // 🌙 渲染层级控制：确保月球始终在前景显示
       renderOrder={999}
-      // 🔧 关键修复：移除rotation prop，避免与四元数旋转冲突
-      // 月球旋转现在完全由position控制
     >
       {terrainReady ? <primitive object={terrain.geometry} attach="geometry" /> : <sphereGeometry args={[radius, 64, 64]} />}
       <primitive object={moonMaterial} attach="material" />

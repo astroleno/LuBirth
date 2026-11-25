@@ -29,8 +29,7 @@ import { journeyStore } from '../../history/journeyStore';
 import type { MoonPlacement } from '../../history/journeyStore';
 import { directionToSkyView, observationKey } from '../../history/viewBridge';
 import type { ViewTransfer } from '../../history/viewBridge';
-import { MOON_HORIZON_NOTES, MoonPlacementControl } from '../../components/MoonPlacementControl';
-import { LUNAR_ECLIPSE_LABELS } from '../../astro/lunarShadow';
+import { MOON_HORIZON_NOTES, moonEclipseNote, MoonPlacementControl } from '../../components/MoonPlacementControl';
 import { iauConstellation } from '../../astro/iauConstellations';
 import { reconstructedSongMansion, SONG_MANSION_STARS, SONG_MANSION_YEARS, songMansionBoundaries, supportsSongMansionDate } from '../../astro/songMansions';
 import { SceneControlsOutlet } from '../../components/experience/SceneControlsOutlet';
@@ -183,7 +182,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
   const daylightNote = daylight <= .025 && (frame.apparentSun.visibility === 'below'
     ? '当地天色尚亮，星光暂被日光遮蔽。' : '当地正值白昼，星光暂被日光遮蔽。');
   const showMoonHorizon = moonPlacement === 'physical' && moonVisibility !== 'above';
-  const eclipseVisible = eclipse && moonPlacement === 'physical' && moonVisibility !== 'below';
+  const eclipseNote = eclipse && moonEclipseNote(eclipse, moonPlacement === 'portrait' ? moonVisibility : undefined);
   const skyNotes = <>
     {daylightNote && <p className="sky-daylight-note">{daylightNote}</p>}
     {showMoonHorizon && <p className="sky-help">
@@ -191,7 +190,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
         ? <button className="sky-feature-link" onClick={() => update('ground', false)}>查看地平线下的天空 ↗</button>
         : '当前已关闭地平线遮挡。')}
     </p>}
-    {eclipseVisible && <p className="sky-help">此刻可见{LUNAR_ECLIPSE_LABELS[eclipse]}。</p>}
+    {eclipseNote && <p className="sky-help">{eclipseNote}</p>}
   </>;
   const labels = useMemo(() => [...CARDINALS, ...(settings.lines && daylight > .025 ? items.map(item => ({
     id: item.id, name: settings.art && chinese && CHINESE_ARTWORK.has(item.id) ? CHINESE_ARTWORK.get(item.id)!.title : item.name,
@@ -343,9 +342,9 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       <div>{location.name} · {(sharedUtc || settings.utc).replace('T', ' ').replace(/\.\d+Z$/, '').replace(/Z$/, '')} UTC</div>
       <small>{versionInfo.name}{version === 'song' && settings.art ? ' · 当代人物图绘' : ''}</small>
       {version === 'song' && <button className="sky-feature-link" onClick={openArtworkCatalog}>玉皇庙图绘 · 浏览二十八宿 ↗</button>}
-      {(daylightNote || showMoonHorizon || eclipseVisible) && <div role="status">{skyNotes}</div>}
+      {(daylightNote || showMoonHorizon || eclipseNote) && <div role="status">{skyNotes}</div>}
     </header>}
-    {chrome && (daylightNote || showMoonHorizon || eclipseVisible) && <div className="experience-sky-notes" role="status" data-sky-obstruction>{skyNotes}</div>}
+    {chrome && (daylightNote || showMoonHorizon || eclipseNote) && <div className="experience-sky-notes" role="status" data-sky-obstruction>{skyNotes}</div>}
     <SceneControlsOutlet host={chrome ? chrome.target : undefined} active={!!chrome?.section}>
     <section className={chrome ? 'sky-controls-embedded' : 'sky-dock'} ref={dock} data-expanded={!!pane} data-artwork={pane === 'detail' && !!selectedArtwork || undefined} aria-label="星空控制">
       {pane && <div className="sky-pane" id="sky-pane">

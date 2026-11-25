@@ -6,6 +6,7 @@ import type { SkyFrame } from './skyModel';
 import type { MoonPlacement } from '../../history/journeyStore';
 import { applyFrame } from '../../astro/referenceFrames';
 import { projectLunarShadow } from '../../astro/lunarShadow';
+import { projectLunarSurface } from '../../astro/lunarOrientation';
 import { assetUrl } from '../../utils/assetUrl';
 import type { ScreenRect } from './skyLabelLayout';
 
@@ -31,8 +32,9 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
   }, [invalidate]);
   const { observer, celestial, apparentMoon, apparentSun } = frame;
   const portrait = placement === 'portrait';
-  const earthShadow = useMemo(() => projectLunarShadow(frame.earthShadow, portrait ? observer.eqjToMoonPortrait : observer.eqjToSky),
-    [frame.earthShadow, observer, portrait]);
+  const moonFrame = portrait ? observer.eqjToMoonPortrait : observer.eqjToSky;
+  const earthShadow = useMemo(() => projectLunarShadow(frame.earthShadow, moonFrame), [frame.earthShadow, moonFrame]);
+  const surfaceFrame = useMemo(() => projectLunarSurface(celestial.moonBodyToEqj, moonFrame), [celestial, moonFrame]);
   const sunDirection = useMemo(() => new THREE.Vector3(...applyFrame(observer.eqjToSky, celestial.moonToSunEqj)), [observer, celestial]);
   const lightColor = useMemo(() => new THREE.Color(0xffffff), []);
   const lighting = useMemo(() => ({ key: observer.key, portraitLight: observer.portraitLight, phaseFraction: observer.phaseFraction,
@@ -90,6 +92,7 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
         portraitProjection: material?.uniforms.portraitProjection?.value,
         portraitBounds: scene.userData.portraitMoonBounds ?? null,
         moonQuaternion: moon?.quaternion.toArray(), moonFrameKey: moon?.userData.frameKey,
+        moonGeometrySource: moon?.userData.geometrySource,
         sunLightView: material?.uniforms.sunDirView?.value.toArray(),
         moonFraction: observer.phaseFraction, moonAltitude: observer.moon.altitudeDeg,
         moonAngularRadius: observer.moon.angularRadiusDeg, moonDirection: observer.moon.direction,
@@ -121,7 +124,8 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
       screenX={screenX} screenY={screenY} anchorDistance={distance}
       lightDirection={sunDirection} sunDirWorldForShading={sunDirection} lightColor={lightColor} sunIntensity={2.2}
       useTextures={!!map} moonMap={map ?? undefined} enableTidalLock enableUniformShading useCameraLockedPhase={portrait}
-      celestialLighting={lighting} earthShadow={earthShadow} skyLayer horizonClip={ground && !portrait} moonNormalScale={0} moonDisplacementScale={0}
+      celestialLighting={lighting} surfaceFrame={surfaceFrame} earthShadow={earthShadow}
+      skyLayer horizonClip={ground && !portrait} moonNormalScale={0} moonDisplacementScale={0}
       moonLightMinRatio={.55} moonLightMaxRatio={.8} nightLift={.008} terminatorSoftness={.012} terminatorRadius={.005}
       currentDate={celestial.utc} observerLat={observer.location.latitude} observerLon={observer.location.longitude} />}
   </>;

@@ -2,6 +2,7 @@ import * as Astronomy from 'astronomy-engine';
 import { applyFrame, composeFrames, cross, DEG, dot, HORIZON_TO_SKY, horizonCoordinates,
   inverseFrame, scale, subtract, unit } from './referenceFrames';
 import type { Frame3, Vec3 } from './referenceFrames';
+import { lunarBodyToEqj } from './lunarOrientation';
 
 export const EARTH_RADIUS_KM = 6378.137;
 export const MOON_RADIUS_KM = 1737.4;
@@ -51,7 +52,7 @@ export function createCelestialState(value: Date | string) {
   const phaseCosine = dot(moonToSunEqj, unit(scale(moonEqjKm, -1)));
   return { key: `${date.toISOString()}/${CELESTIAL_MODEL}`, utc: date.toISOString(), date, time,
     model: CELESTIAL_MODEL, years: time.tt / 365.25, eqjToEqd, ecefToEqj,
-    sunEqjKm, moonEqjKm, moonToSunEqj,
+    sunEqjKm, moonEqjKm, moonToSunEqj, moonBodyToEqj: lunarBodyToEqj(time),
     sunDistanceKm: Math.hypot(...sunEqjKm), moonDistanceKm: Math.hypot(...moonEqjKm),
     phaseFraction: Math.max(0, Math.min(1, (1 + phaseCosine) / 2)), cycleAngleDeg: Astronomy.MoonPhase(time) };
 }

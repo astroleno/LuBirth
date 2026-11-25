@@ -9,6 +9,10 @@ export const MOON_HORIZON_NOTES = {
   below: '月面全部在当地地平线下。', partial: '部分月面已露出当地地平线。',
 } as const;
 
+export function moonEclipseNote(eclipse: LunarShadow['kind'], visibility?: DiskVisibility) {
+  return `${LUNAR_ECLIPSE_LABELS[eclipse]}进行中，地影遮挡月面的直射阳光。${visibility === 'below' ? MOON_HORIZON_NOTES.below : ''}`;
+}
+
 export function MoonPlacementControl({ value, onChange, onLocate, visibility, eclipse }: {
   value: MoonPlacement; onChange: (value: MoonPlacement) => void; onLocate?: () => void;
   visibility?: DiskVisibility; eclipse?: LunarShadow['kind'];
@@ -22,9 +26,9 @@ export function MoonPlacementControl({ value, onChange, onLocate, visibility, ec
       <label htmlFor={id+'-physical'}><input id={id+'-physical'} name={id} type="radio" value="physical"
         checked={value === 'physical'} onChange={() => onChange('physical')} />真实位置</label>
     </div>
-    <p>{value === 'portrait' ? '保持合影构图，月相随观察时刻变化。' : '按天文位置显示，月球可能在画面外。'}</p>
+    <p>{value === 'portrait' ? '保持合影构图，几何月相随观察时刻变化。' : '按天文位置显示，月球可能在画面外。'}</p>
     {value === 'physical' && onLocate && <button type="button" className="journey-secondary" onClick={onLocate}>定位月球</button>}
     {value === 'physical' && visibility && visibility !== 'above' && <small>{MOON_HORIZON_NOTES[visibility]}</small>}
-    {eclipse && <small>此刻发生{LUNAR_ECLIPSE_LABELS[eclipse]}。</small>}
+    {eclipse && <small>{moonEclipseNote(eclipse, value === 'portrait' ? visibility : undefined)}</small>}
   </fieldset>;
 }

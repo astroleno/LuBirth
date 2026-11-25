@@ -14,6 +14,8 @@
   "lunarEclipse": {
     "source": "NASA GSFC Eclipses During 2022, November 8 total lunar eclipse, published UT times rounded to the minute.",
     "url": "https://eclipse.gsfc.nasa.gov/OH/OH2022.html",
+    "shadowConvention": "https://eclipse.gsfc.nasa.gov/LEcat5/shadow.html",
+    "catalog": "https://eclipse.gsfc.nasa.gov/LEcat5/LE2001-2100.html",
     "localVisibilitySource": "https://www-ws.gov.taipei/Download.ashx?icon=.pdf&n=Ny0yMDIy5pel5pyI6aOfLnBkZg%3D%3D&u=LzAwMS9VcGxvYWQvNDM5L2NrZmlsZS9jNmIyN2RkNy0zYTNiLTQ0ZWEtYjY0OS0wOTBmMjRjYTdkZWYucGRm",
     "contacts": [
       { "utc": "2022-11-08T08:02:00Z", "before": "none", "after": "penumbral" },
@@ -22,6 +24,13 @@
       { "utc": "2022-11-08T11:42:00Z", "before": "total", "after": "partial" },
       { "utc": "2022-11-08T12:49:00Z", "before": "partial", "after": "penumbral" },
       { "utc": "2022-11-08T13:56:00Z", "before": "penumbral", "after": "none" }
+    ],
+    "grazingEvents": [
+      { "utc": "2015-04-04T12:00:15Z", "kind": "total", "totalSeconds": 283 },
+      { "utc": "2027-07-18T16:02:53Z", "kind": "penumbral" },
+      { "utc": "2042-09-29T10:44:20Z", "kind": "penumbral" },
+      { "utc": "2082-02-13T06:26:38Z", "kind": "partial" },
+      { "utc": "2086-11-20T20:16:50Z", "kind": "partial" }
     ]
   }
 }
