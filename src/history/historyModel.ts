@@ -1,5 +1,9 @@
 export type CalendarStatus = 'conditional_gregorian_interpretation' | 'numeric_equivalence_verified'
-  | 'calculated_agreement' | 'not_applicable';
+  | 'calculated_agreement' | 'not_applicable' | 'historical_julian_conversion' | 'gregorian_documented';
+
+export function isHistoryRecordId(id: unknown): id is string {
+  return typeof id === 'string' && /^(?:dsh|curated):[A-Za-z0-9_-]+$/.test(id);
+}
 
 export type ObserverPlace = {
   name: string;
@@ -38,6 +42,8 @@ export const CALENDAR_LABELS: Record<CalendarStatus, string> = {
   numeric_equivalence_verified: '日序对应已核对',
   calculated_agreement: '历法计算结果一致',
   not_applicable: '沿用资料日期解释',
+  historical_julian_conversion: '按历史儒略历日期换算',
+  gregorian_documented: '采用史料所记的格里高利历日期',
 };
 
 export const CALENDAR_NOTES: Record<CalendarStatus, string> = {
@@ -45,4 +51,6 @@ export const CALENDAR_NOTES: Record<CalendarStatus, string> = {
   numeric_equivalence_verified: '原历与西历数字的日序对应已核对；数值相同不能证明作者采用的历法，仍须保留资料中的分歧与说明。',
   calculated_agreement: '已有历法换算得到一致日序。计算一致不等于独立史料已经证明所有日期解释。',
   not_applicable: '这里沿用资料包所给的规范日期，并保留原历文字与出处；尚未建立精确的出生或事件时刻。',
+  historical_julian_conversion: '依事件发生时当地的历法，将记载的儒略历日期换算为同一日序的前推格里高利历日期。',
+  gregorian_documented: '采用事件文书所记日期，沿用事件发生时当地的格里高利民用历法。',
 };

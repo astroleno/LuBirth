@@ -1,0 +1,166 @@
+[
+  {
+    "id": "curated:tang-founding",
+    "originalId": "tang-founding",
+    "kind": "event",
+    "name": "李渊在长安即位、建立唐朝",
+    "period": "隋唐",
+    "region": "china",
+    "date": {
+      "original": "隋义宁二年（唐武德元年）五月甲子",
+      "originalCalendar": "chinese-historical",
+      "iso": "0618-06-21",
+      "jdn": 1946951,
+      "status": "numeric_equivalence_verified",
+      "note": "《旧唐书》卷一记五月甲子即位。研究所用西历数字为 618 年 6 月 18 日，按儒略历计算为 JDN 1946951，与前推格里高利历 0618-06-21 同日，干支为甲子。旧唐书原文使用中国历法。"
+    },
+    "time": {
+      "precision": "date-only",
+      "note": "所引《旧唐书》段落记到日，仪式的具体时刻未据此确定。"
+    },
+    "place": {
+      "original": "长安太极殿（今陕西西安）",
+      "role": "event-site",
+      "precision": "city",
+      "note": "史料将即位地点记为长安太极殿。观测采用现代西安市区代表点。",
+      "observer": {
+        "name": "西安市区代表点",
+        "latitude": 34.263161,
+        "longitude": 108.948024,
+        "precision": "representative",
+        "note": "来自项目行政区坐标表的「西安市,西安」行，精度为现代市区。",
+        "source": "public/data/全国各地方省市经纬度及地方行政区号simple.csv"
+      }
+    },
+    "sources": [
+      {
+        "url": "https://zh.wikisource.org/wiki/舊唐書/卷1",
+        "title": "《旧唐书》卷一·高祖本纪（维基文库转录）"
+      },
+      {
+        "url": "https://www.sino-platonic.org/complete/spp187_taizong_emperor.pdf",
+        "title": "Xiuqin Zhou：Zhaoling: The Mausoleum of Emperor Tang Taizong（即位日期）"
+      }
+    ],
+    "notes": "",
+    "remainingChecks": [],
+    "provenance": {
+      "dataset": "curated-events-v1",
+      "file": "src/history/data/supplemental-events.json",
+      "recordHash": "01797e99a646b77a67799bcb8e1cfe40f8ba89b11774d41873980a017c815f46",
+      "productionReady": false
+    }
+  },
+  {
+    "id": "curated:william-i-coronation",
+    "originalId": "william-i-coronation",
+    "kind": "event",
+    "name": "威廉一世在威斯敏斯特教堂加冕",
+    "period": "世界其他地区",
+    "region": "world",
+    "date": {
+      "original": "25 December 1066（圣诞日）",
+      "originalCalendar": "julian",
+      "iso": "1066-12-31",
+      "jdn": 2110773,
+      "status": "historical_julian_conversion",
+      "note": "威斯敏斯特教堂记录为 1066 年 12 月 25 日。按当时英格兰使用的儒略历解释该日期，换算为前推格里高利历 1066-12-31，两者对应 JDN 2110773。"
+    },
+    "time": {
+      "precision": "date-only",
+      "note": "所引教堂记录建立加冕日期，具体钟点未据此确定。"
+    },
+    "place": {
+      "original": "英国伦敦威斯敏斯特教堂（Westminster Abbey）",
+      "role": "event-site",
+      "precision": "site",
+      "note": "加冕发生在当时的教堂。演示采用今教堂的地点代表点，现存教堂经历了后世重建。",
+      "observer": {
+        "name": "伦敦威斯敏斯特教堂代表点",
+        "latitude": 51.49939,
+        "longitude": -0.12736,
+        "precision": "representative",
+        "note": "Historic England 名录 1291494 的国家方格 TQ 30082 79490，经 OSGB36 至 WGS84 近似换算取为场址代表点。",
+        "source": "https://historicengland.org.uk/listing/the-list/list-entry/1291494/?section=overview"
+      }
+    },
+    "sources": [
+      {
+        "url": "https://www.westminster-abbey.org/history/coronations-at-the-abbey/a-history-of-coronations",
+        "title": "威斯敏斯特教堂：加冕史"
+      },
+      {
+        "url": "https://www.westminster-abbey.org/abbey-commemorations/royals/william-i-the-conqueror",
+        "title": "威斯敏斯特教堂：威廉一世的加冕日期与地点"
+      },
+      {
+        "url": "https://historicengland.org.uk/listing/the-list/list-entry/1291494/?section=overview",
+        "title": "Historic England：威斯敏斯特教堂名录 1291494 与国家方格坐标"
+      }
+    ],
+    "notes": "",
+    "remainingChecks": [],
+    "provenance": {
+      "dataset": "curated-events-v1",
+      "file": "src/history/data/supplemental-events.json",
+      "recordHash": "a3854c39aaebe679666687ade5c717f7d9fc6357e293d02c05c1c8ecdddede6a",
+      "productionReady": false
+    }
+  },
+  {
+    "id": "curated:us-constitution-signing",
+    "originalId": "us-constitution-signing",
+    "kind": "event",
+    "name": "美国宪法在费城独立厅签署",
+    "period": "世界其他地区",
+    "region": "world",
+    "date": {
+      "original": "September 17, 1787",
+      "originalCalendar": "gregorian",
+      "iso": "1787-09-17",
+      "jdn": 2374008,
+      "status": "gregorian_documented",
+      "note": "美国国家档案馆的宪法原件和说明记载了签署日期。英属北美殖民地已在 1752 年采用格里高利历，1787 年的签署日期沿用当地民用历法。"
+    },
+    "time": {
+      "precision": "date-only",
+      "note": "所引签署文书及档案说明提供日期，具体签署时刻未据此确定。"
+    },
+    "place": {
+      "original": "美国费城独立厅（Independence Hall）",
+      "role": "event-site",
+      "precision": "site",
+      "note": "美国国家档案馆将会场记为费城州议会厅（今独立厅）。观测采用 UNESCO 世界遗产地图的场址代表点。",
+      "observer": {
+        "name": "费城独立厅代表点",
+        "latitude": 39.948611,
+        "longitude": -75.15,
+        "precision": "representative",
+        "note": "UNESCO 地图坐标为北纬 39°56′55″、西经 75°09′00″。观测精度为场址。",
+        "source": "https://whc.unesco.org/en/list/78/maps/"
+      }
+    },
+    "sources": [
+      {
+        "url": "https://www.archives.gov/milestone-documents/constitution",
+        "title": "美国国家档案馆：美国宪法原件、转录与签署说明"
+      },
+      {
+        "url": "https://whc.unesco.org/en/list/78/maps/",
+        "title": "联合国教科文组织世界遗产中心：独立厅地图与坐标"
+      },
+      {
+        "url": "https://msa.maryland.gov/megafile/msa/speccol/sc5400/sc5496/051500/051573/md_gazette_calendar_change_1752.pdf",
+        "title": "马里兰州档案馆：《马里兰公报》刊载的 1752 年历法更改"
+      }
+    ],
+    "notes": "",
+    "remainingChecks": [],
+    "provenance": {
+      "dataset": "curated-events-v1",
+      "file": "src/history/data/supplemental-events.json",
+      "recordHash": "fadc7f258caf755b74275fe24aca66dcfa0fc1b1edaadbf3b8c7b11fa1516a41",
+      "productionReady": false
+    }
+  }
+]

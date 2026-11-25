@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import recordsData from './data/records.json';
-import manifest from './data/manifest.json';
+import { historyCatalog } from './historyCatalog';
 import type { HistoryRecord } from './historyModel';
 import type { Observation } from './observation';
 import { journeyStore, CULTURE_VERSIONS } from './journeyStore';
@@ -11,9 +10,8 @@ import HistoricalObservation from './HistoricalObservation';
 import { createHistoryDraftCache, personalObservationInitial } from './observationDraft';
 
 export type JourneyTab = 'history' | 'birth' | 'cultures';
-const records = recordsData as HistoryRecord[];
+const { records, periods: periodCounts } = historyCatalog;
 const FILTERS: [HistoryFilter, string][] = [['all','全部'],['birth','人物'],['event','事件'],['birthday','同月同日'],['season','相近时节'],['today','历史上的今天'],['saved','收藏']];
-const periodCounts: Record<string, number> = manifest.periods;
 const earlyCount = selectHistory(records, { period: EARLY_PERIODS }).length;
 const DISCOVER: { filter: HistoryFilter; period: string; label: string; count: number }[] = [
   { filter: 'ready', period: 'all', label: '可直接看', count: selectHistory(records, { filter: 'ready' }).length },
@@ -181,7 +179,7 @@ export default function JourneyPanel({ initialTab = 'history', onClose, onObserv
           </button>;
         })}</div>
         {!matches.length && <p className="journey-empty">{filter === 'today' ? '这一天暂未收录资料。可以浏览全部人物与事件。' : filter === 'saved' ? '收藏感兴趣的人物或事件，稍后从这里继续。' : '没有符合条件的记录，试试其他关键词或年代。'}</p>}
-        <p className="journey-coverage">{manifest.count} 条资料，覆盖 {manifest.monthDays} 个公历月日。日期、时刻与地点依据见各条详情。</p>
+        <p className="journey-coverage">{historyCatalog.count} 条资料，覆盖 {historyCatalog.monthDays} 个公历月日。日期、时刻与地点依据见各条详情。</p>
       </>)}
     </div>
   </Root>;

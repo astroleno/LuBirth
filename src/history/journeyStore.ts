@@ -1,4 +1,5 @@
 import { exampleObservation, readObservation, type Observation } from './observation';
+import { isHistoryRecordId } from './historyModel';
 
 export type CultureVersion = 'chenzhuo' | 'song' | 'yuan' | 'modern';
 export const CULTURE_VERSIONS: CultureVersion[] = ['chenzhuo', 'song', 'yuan', 'modern'];
@@ -34,7 +35,7 @@ export function createJourneyStore(ports: { session?: StoragePort; preferences?:
     if (value) {
       const saved = JSON.parse(value);
       if (!CULTURE_VERSIONS.includes(saved.culture) || !Array.isArray(saved.favorites)
-        || saved.favorites.some((id: unknown) => typeof id !== 'string' || !/^dsh:[A-Za-z0-9_-]+$/.test(id))) throw new Error('Invalid preferences');
+        || saved.favorites.some((id: unknown) => !isHistoryRecordId(id))) throw new Error('Invalid preferences');
       state = { ...state, culture: saved.culture, favorites: [...new Set<string>(saved.favorites)],
         moonPlacement: saved.moonPlacement === 'physical' ? 'physical' : 'portrait' };
     }
@@ -74,7 +75,7 @@ export function createJourneyStore(ports: { session?: StoragePort; preferences?:
       publish({ ...state, moonPlacement });
     },
     toggleFavorite(id: string) {
-      if (!/^dsh:[A-Za-z0-9_-]+$/.test(id)) throw new Error('Invalid record ID');
+      if (!isHistoryRecordId(id)) throw new Error('Invalid record ID');
       publish({ ...state, favorites: state.favorites.includes(id) ? state.favorites.filter(item => item !== id) : [...state.favorites, id] });
     },
   };

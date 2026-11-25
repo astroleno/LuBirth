@@ -23,3 +23,19 @@
 公网两入口在验收当天均返回 200，加载同一发布资源 `lubirth-8881c69a17037c9e`。各测试一次，地月首页到稳定画面分别约 14.1 秒和 8.3 秒。公网样本含实际网络与资源等待，与本地 A/B 的耗时分开记录。 [aitoshuu.me 的 LuBirth](https://aitoshuu.me/LuBirth/) · [tongye.me 的 LuBirth](https://tongye.me/LuBirth/)
 
 iPhone Air 的系统镜像已连上并可读画面。宿主拒绝点按，Safari 和 Chrome 的真机性能数据待补。本表窄屏数据来自 Mac 上的 Chrome 手机视口。
+
+## 古今同月
+
+三条补录独立保存日序、来源与观测点，和原 150 条档案合并成 153 条。原目录的 SHA-256 仍为 `a82447980edfd206941ae42093c375d68e53effe44229fb340d0d95b9a5e3ea1`。合并后的世界资料由 11 增至 13 条，隋唐由 3 增至 4 条。原档案的再生成检查缺少上游快照，已跟踪目录的哈希和独立补录测试均通过。
+
+| 事件 | 原记日期 | 用于计算的前推格里高利历 | 演示地点 |
+| --- | --- | --- | --- |
+| 李渊在长安即位、建立唐朝 | 隋义宁二年（唐武德元年）五月甲子，对应儒略历 618-06-18 | 0618-06-21，JDN 1946951 | 现有坐标表的西安城区代表点 |
+| 威廉一世在威斯敏斯特教堂加冕 | 1066 年圣诞日，按当时英格兰的儒略历解释 | 1066-12-31，JDN 2110773 | Historic England 名录的教堂格网坐标换算代表点 |
+| 美国宪法在费城独立厅签署 | 1787-09-17 | 1787-09-17，JDN 2374008 | UNESCO 独立厅场址代表点 |
+
+李渊一条由纪事原文和原历日序对照共同核实。 [《旧唐书》卷一](https://zh.wikisource.org/wiki/舊唐書/卷1) · [Xiuqin Zhou 日序对照](https://www.sino-platonic.org/complete/spp187_taizong_emperor.pdf#page=42)
+
+威廉一世与美国宪法两条采用事件机构资料，并附场址资料。 [威斯敏斯特教堂](https://www.westminster-abbey.org/history/coronations-at-the-abbey/a-history-of-coronations) · [Historic England](https://historicengland.org.uk/listing/the-list/list-entry/1291494/?section=overview) · [美国国家档案馆](https://www.archives.gov/milestone-documents/constitution) · [UNESCO 独立厅地图](https://whc.unesco.org/en/list/78/maps)
+
+三条的精度均为日期，沿用当地 20:00 演示。桌面和窄屏都能搜索新记录并看到地点与换算日期。旧条目「玄武门之变」需选择演示地点，两种视口均只点一次新城区候选，即完成当地 20:00 合照。回到个人观测并重新打开该条时保留所选地点。两套记录编号均可收藏。`node scripts/test-history-supplement.mjs` 核验目录计数、碰撞防护、日期、展示、定位与收藏恢复，现有观察和草稿用例复跑通过。
