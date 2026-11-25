@@ -12,15 +12,17 @@ interface BirthPointMarkerProps {
   composition: SimpleComposition;
   earthSize: number;
   emphasized?: boolean;
+  fullLabel?: boolean;
   reducedMotion?: boolean;
 }
 
 const LABEL_TEXTURE_WIDTH = 512;
 const LABEL_TEXTURE_HEIGHT = 128;
+const MAX_LABEL_TEXTURE_WIDTH = 2048;
 
-function createLabelTexture(label: string) {
+function createLabelTexture(label: string, fullLabel: boolean) {
   const characters = Array.from(label.trim() || '出生地');
-  const conciseLabel = characters.length > 7
+  const text = !fullLabel && characters.length > 7
     ? `${characters.slice(0, 6).join('')}…`
     : characters.join('');
   const canvas = document.createElement('canvas');
@@ -31,8 +33,8 @@ function createLabelTexture(label: string) {
 
   const font = '600 54px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
   context.font = font;
-  const measuredWidth = context.measureText(conciseLabel).width;
-  canvas.width = Math.ceil(measuredWidth + 96);
+  const measuredWidth = context.measureText(text).width;
+  canvas.width = Math.min(MAX_LABEL_TEXTURE_WIDTH, Math.ceil(measuredWidth + 96));
   context = canvas.getContext('2d');
   if (!context) throw new Error('Unable to resize birth-point label texture');
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -43,7 +45,7 @@ function createLabelTexture(label: string) {
   context.shadowBlur = 12;
   context.shadowOffsetY = 3;
   context.fillStyle = 'rgba(248,252,255,0.98)';
-  context.fillText(conciseLabel, canvas.width / 2, canvas.height / 2 + 1);
+  context.fillText(text, canvas.width / 2, canvas.height / 2 + 1, canvas.width - 96);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -53,7 +55,7 @@ function createLabelTexture(label: string) {
   texture.needsUpdate = true;
   return {
     texture,
-    widthPx: THREE.MathUtils.clamp(measuredWidth / 4 + 34, 82, 164),
+    widthPx: Math.max(measuredWidth / 4 + 34, 82),
   };
 }
 
@@ -65,6 +67,7 @@ export function BirthPointMarker({
   composition,
   earthSize,
   emphasized = false,
+  fullLabel = false,
   reducedMotion = false,
 }: BirthPointMarkerProps) {
   const longitudeDeg = composition.birthPointLongitudeDeg ?? 0;
@@ -74,12 +77,14 @@ export function BirthPointMarker({
   const { gl, size } = useThree();
   const anchorRef = useRef<THREE.Group>(null!);
   const animationElapsed = useRef(Number.POSITIVE_INFINITY);
-  const label = useMemo(() => createLabelTexture(markerLabel), [markerLabel]);
+  const label = useMemo(() => createLabelTexture(markerLabel, fullLabel), [markerLabel, fullLabel]);
+  const maxLabelWidth = fullLabel ? Math.min(320, Math.max(1, size.width - 32)) : 164;
+  const labelWidthPx = Math.min(label.widthPx, maxLabelWidth);
   const overlay = useRef<GlassMarkerOverlay>({
     canvas: gl.domElement,
     anchor: null,
     labelTexture: label.texture,
-    labelWidthPx: label.widthPx,
+    labelWidthPx,
     sizePx: 92,
     reveal: 0,
     active: false,
@@ -107,7 +112,7 @@ export function BirthPointMarker({
 
   overlay.current.canvas = gl.domElement;
   overlay.current.labelTexture = label.texture;
-  overlay.current.labelWidthPx = label.widthPx;
+  overlay.current.labelWidthPx = labelWidthPx;
   overlay.current.sizePx = (size.width <= 767 ? 82 : 92)
     * THREE.MathUtils.clamp(markerSize / 0.06, 0.75, 1.4);
 

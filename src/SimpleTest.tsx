@@ -9,6 +9,7 @@ import { useParallaxInput, type ParallaxOffset } from './performance/useParallax
 import { useParallaxCamera } from './performance/useParallaxCamera';
 import { SceneScreenshot } from './components/SceneScreenshot';
 import { assetUrl } from './utils/assetUrl';
+import { observerPlaceLabel } from './history/historyModel';
 import type { Observation } from './history/observation';
 import { observationKey, type ViewTransfer } from './history/viewBridge';
 import { createCelestialState, createObserverState, EARTH_RADIUS_KM } from './astro/celestialState';
@@ -324,6 +325,7 @@ function SceneContent({
   latDeg,
   lonDeg,
   isAlignedAndZoomed,
+  fullMarkerLabel,
   demParams,
   debugMode,
   profile,
@@ -346,6 +348,7 @@ function SceneContent({
   latDeg: number;
   lonDeg: number;
   isAlignedAndZoomed: boolean;
+  fullMarkerLabel: boolean;
   demParams: {
     demNormalStrength: number;
     demNormalWeight: number;
@@ -745,6 +748,7 @@ function SceneContent({
             composition={composition}
             earthSize={earthInfo.size}
             emphasized={isAlignedAndZoomed}
+            fullLabel={fullMarkerLabel}
             reducedMotion={reducedMotion}
           />
         </Earth>
@@ -978,6 +982,8 @@ export default function SimpleTest({ observation, observationControls, initialSt
   onPresented?: (observation: Observation) => void;
   openingCover?: boolean;
 } = {}) {
+  const markerLabel = observation?.source.kind === 'history'
+    ? observerPlaceLabel(observation.observer) : observation?.observer.name;
   const mobile = useMobileLayout();
   const [quality, setQuality] = useState<Quality>(initialState?.quality || 'balanced');
   const profile = useMemo(() => createRenderProfile(mobile, quality), [mobile, quality]);
@@ -1471,8 +1477,8 @@ export default function SimpleTest({ observation, observationControls, initialSt
     setUserModifiedTime(true);
     userModifiedTimeRef.current = true;
     setComposition(previous => ({ ...previous, birthPointLatitudeDeg: observation.observer.latitude,
-      birthPointLongitudeDeg: observation.observer.longitude, birthPointMarkerLabel: observation.observer.name }));
-  }, [observation]);
+      birthPointLongitudeDeg: observation.observer.longitude, birthPointMarkerLabel: markerLabel }));
+  }, [observation, markerLabel]);
   React.useEffect(() => {
     if (observation && dateISO === observation.utc
       && composition.birthPointLatitudeDeg === observation.observer.latitude
@@ -1712,7 +1718,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
   // Wait for the closeup controls and label to catch up with the new observation.
   const presentation = observation
     ? (!entryTransfer && dateISO === observation.utc && latDeg === observation.observer.latitude
-      && lonDeg === observation.observer.longitude && composition.birthPointMarkerLabel === observation.observer.name
+      && lonDeg === observation.observer.longitude && composition.birthPointMarkerLabel === markerLabel
       ? observation : null)
     : undefined;
 
@@ -1824,6 +1830,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
           latDeg={latDeg}
           lonDeg={lonDeg}
           isAlignedAndZoomed={isAlignedAndZoomed}
+          fullMarkerLabel={observation?.source.kind === 'history'}
           demParams={demParams}
           debugMode={debugMode}
           profile={profile}
