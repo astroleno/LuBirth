@@ -1,10 +1,12 @@
 import React, { Suspense, useEffect, useId, useState } from 'react';
 import { offsetSecondsLabel, resolveObservation, timeBasisLabel, type Observation, type TimeBasis } from './observation';
 import { resolveCivilTime, supportsTimeZone, type CivilTimeChoices } from './ianaTime';
+import { isInLunarRange } from '../calendar/lunarRange';
 import { locationLabel, selectedLocationDraft } from '../components/LocationSelector/locationDraft';
 import { commitObserverDraft, coordinateDraftError, createObserverDraft, resolveObserverDraft, type ObserverDraft } from './observationDraft';
 
 const LocationSelector = React.lazy(() => import('../components/LocationSelector').then(module => ({ default: module.LocationSelector })));
+const LunarBirthDateFields = React.lazy(() => import('../calendar/LunarCalendarFields').then(module => ({ default: module.LunarBirthDateFields })));
 
 export function ObserverPicker({ draft, onChange, label = '观测地点', showCancel = true }: {
   draft: ObserverDraft; onChange: (draft: ObserverDraft) => void; label?: string; showCancel?: boolean;
@@ -148,6 +150,7 @@ export default function ObservationForm({ initial, onSave, active = true, submit
 }) {
   const id = useId();
   const [date, setDate] = useState(initial.civilDate);
+  const [dateMode, setDateMode] = useState<'gregorian' | 'lunar'>('gregorian');
   const [clock, setClock] = useState(initial.source.kind === 'birth' ? initial.clock : initial.clock.slice(0, 5));
   const [place, setPlace] = useState(() => createObserverDraft(initial.observer));
   const observer = resolveObserverDraft(place);
@@ -157,7 +160,8 @@ export default function ObservationForm({ initial, onSave, active = true, submit
   const [zoneOverride, setZoneOverride] = useState<string | null>(initial.timeBasis.kind === 'iana'
     && initial.timeBasis.timeZone !== initial.observer.timeZone ? initial.timeBasis.timeZone : null);
   const zone = zoneOverride ?? observer?.timeZone ?? '';
-  const check = useIanaTimeChoices(active && basisKind === 'iana' && !!observer, date, clock, zone.trim());
+  const canUseDate = !!date && (dateMode === 'gregorian' || isInLunarRange(date));
+  const check = useIanaTimeChoices(active && basisKind === 'iana' && !!observer && canUseDate, date, clock, zone.trim());
   const [foldChoice, setFoldChoice] = useState<{ key: string; value: Fold | '' }>();
   const unchanged = initial.source.kind === 'birth' && date === initial.civilDate && clock === initial.clock
     && observer?.longitude === initial.observer.longitude && observer?.latitude === initial.observer.latitude;
@@ -173,19 +177,31 @@ export default function ObservationForm({ initial, onSave, active = true, submit
     else if (check.result?.kind === 'overlap' && fold) basis = check.result[fold];
   }
   const [error, setError] = useState(''), [saved, setSaved] = useState(false);
+  const clockField = <div><label htmlFor={id+'-clock'}>出生钟点</label><input id={id+'-clock'} type="time" aria-label="出生钟点"
+    step={initial.source.kind === 'birth' && initial.clock.length > 5 ? 1 : 60} required value={clock}
+    onChange={event => setClock(event.target.value)} /></div>;
   return <form className="journey-form" onChange={() => { setSaved(false); setError(''); }} onSubmit={event => {
     event.preventDefault();
     try {
       if (!observer) throw new Error('请从候选中选定出生地点，或补全有效坐标。');
+      if (!canUseDate) throw new Error('请填写可用的出生日期。');
       if (!basis) throw new Error('请补全当地时区和钟点。');
       const value = resolveObservation(date, clock, observer, basis, { kind: 'birth', label: '我的出生时刻' });
       setPlace(commitObserverDraft(place)); onSave(value); setError(''); setSaved(true);
     } catch (e) { setError((e as Error).message); }
   }}>
-    <div className="journey-columns"><div><label htmlFor={id+'-date'}>出生日期 · 公历</label><input id={id+'-date'} type="date" aria-label="出生日期" min="0001-01-01" max="2999-12-31" required value={date} onChange={e => setDate(e.target.value)} /></div>
-      <div><label htmlFor={id+'-clock'}>出生钟点</label><input id={id+'-clock'} type="time" aria-label="出生钟点"
-        step={initial.source.kind === 'birth' && initial.clock.length > 5 ? 1 : 60} required value={clock}
-        onChange={e => setClock(e.target.value)} /></div></div>
+    <div><label htmlFor={id+'-date-mode'}>出生日期历法</label>
+      <select id={id+'-date-mode'} value={dateMode} onChange={event => setDateMode(event.target.value as typeof dateMode)}>
+        <option value="gregorian">公历</option><option value="lunar">农历</option>
+      </select>
+    </div>
+    {dateMode === 'gregorian' ? <div className="journey-columns">
+      <div><label htmlFor={id+'-date'}>出生日期 · 公历</label><input id={id+'-date'} type="date" aria-label="出生日期"
+        min="0001-01-01" max="2999-12-31" required value={date} onChange={event => setDate(event.target.value)} /></div>
+      {clockField}
+    </div> : <><Suspense fallback={<p className="journey-hint" role="status">正在加载农历…</p>}>
+      <LunarBirthDateFields date={date} onDateChange={setDate} />
+    </Suspense>{clockField}</>}
     <label>出生地点</label><ObserverPicker label="出生地点" draft={place} onChange={value => {
       const next = resolveObserverDraft(value);
       if (next && (next.latitude !== observer?.latitude || next.longitude !== observer?.longitude || next.timeZone !== observer?.timeZone)) {
@@ -204,7 +220,7 @@ export default function ObservationForm({ initial, onSave, active = true, submit
     {basisKind === 'offset' && <OffsetField value={offset} onChange={setOffset} />}
     {initial.source.kind === 'example' && <p className="journey-hint">上面是示例信息。填写并保存后，才会成为你的出生基准。</p>}
     {error && <p className="journey-error" role="alert">{error}</p>}
-    <button className="journey-primary" type="submit" disabled={!observer || !date || !clock || !basis}>{submitLabel}</button>
+    <button className="journey-primary" type="submit" disabled={!observer || !canUseDate || !clock || !basis}>{submitLabel}</button>
     {saved && <p className="journey-status" role="status">出生时刻已保存，地月与观天共用这份时间地点。</p>}
   </form>;
 }
