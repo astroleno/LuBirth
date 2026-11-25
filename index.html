@@ -52,8 +52,20 @@
       .boot-noscript{max-width:640px;margin:28px auto 0}.boot-noscript h2{font-size:22px}.boot-noscript p{margin:10px 0;font-size:16px;letter-spacing:0;line-height:1.7}.boot-noscript a{color:#cfe0ff}
     </style>
     <link rel="icon" type="image/png" sizes="128x128" href="/favicon.png" />
-    <link rel="preload" as="image" href="/textures/1k_earth_daymap.webp" crossorigin="anonymous" fetchpriority="high" />
-    <link rel="preload" as="image" href="/textures/1k_moon.webp" crossorigin="anonymous" fetchpriority="high" />
+    <script>
+      const query = new URLSearchParams(location.search);
+      const textures = query.get('scene') === 'sky' && query.get('dev') !== '1'
+        ? ['1k_moon.webp'] : ['1k_earth_daymap.webp', '1k_moon.webp'];
+      for (const texture of textures) {
+        const preload = document.createElement('link');
+        preload.rel = 'preload';
+        preload.as = 'image';
+        preload.href = '%BASE_URL%textures/' + texture;
+        preload.crossOrigin = 'anonymous';
+        preload.setAttribute('fetchpriority', 'high');
+        document.head.append(preload);
+      }
+    </script>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>

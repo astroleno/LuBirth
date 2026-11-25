@@ -953,7 +953,7 @@ export type EarthViewState = {
 export default function SimpleTest({ observation, observationControls, initialState, onStateChange,
   celestial: sharedCelestial, observerState: sharedObserver, moonPlacement = 'portrait', cultureVersion = 'song',
   onMoonPlacementChange, onEnterSky, onLocateMoon, entryTransfer, onEntryTransferConsumed,
-  chrome, onUIReady, onPresented,
+  chrome, onUIReady, onPresented, openingCover,
 }: {
   observation?: Observation; observationControls?: React.ReactNode; initialState?: EarthViewState;
   onStateChange?: (value: EarthViewState) => void;
@@ -962,6 +962,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
   entryTransfer?: ViewTransfer; onEntryTransferConsumed?: (applied: ViewTransfer) => void;
   chrome?: SceneUIHost; onUIReady?: (actions: EarthUIActions | null) => void;
   onPresented?: (observation: Observation) => void;
+  openingCover?: boolean;
 } = {}) {
   const mobile = useMobileLayout();
   const [quality, setQuality] = useState<Quality>(initialState?.quality || 'balanced');
@@ -1787,10 +1788,9 @@ export default function SimpleTest({ observation, observationControls, initialSt
         }}
         style={{ background: '#000011' }}
         shadows={profile.terrainShadows && !!composition.enableTerrainShadow}
-        // 在 Overlay 淡出前冻结自转：监听 overlay 事件解锁
         onPointerMissed={() => {}}
       >
-        <RenderRuntime profile={profile} presentation={presentation}
+        <RenderRuntime profile={profile} presentation={presentation} openingCover={openingCover}
           expectedBackgroundKey={renderedComposition.showStars ? spatialFrame.key : null} onPresented={onPresented} />
         <SceneContent 
           composition={renderedComposition}

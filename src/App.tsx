@@ -1,5 +1,6 @@
 import React from 'react';
-import SimpleTest, { type EarthViewState } from './SimpleTest';
+import type { EarthViewState } from './SimpleTest';
+import { EarthScene } from './EarthScene';
 import LoadingOverlay from './components/LoadingOverlay';
 import { useMobileLayout } from './performance/renderProfile';
 import { journeyStore } from './history/journeyStore';
@@ -13,6 +14,7 @@ import type { ViewTransfer } from './history/viewBridge';
 import { SpatialValidationProbe } from './performance/SpatialValidationProbe';
 import { SceneScreenshot } from './components/SceneScreenshot';
 import { ExperiencePanel } from './components/experience/ExperiencePanel';
+import { ViewBoundary } from './components/experience/ViewBoundary';
 import { CulturePicker } from './components/experience/CulturePicker';
 import { AstronomicalCalendar } from './components/experience/AstronomicalCalendar';
 import type { EarthUIActions, ExperiencePanelKind, SceneSection, SceneUIHost } from './components/experience/SceneUI';
@@ -23,13 +25,6 @@ import './components/experience/experience.css';
 const SkyView = React.lazy(() => import('./spikes/sky/main'));
 const JourneyPanel = React.lazy(() => import('./history/JourneyPanel'));
 const LocalAudioPlayer = React.lazy(() => import('./components/LocalAudioPlayer'));
-
-class ViewBoundary extends React.Component<{ children: React.ReactNode; earth: boolean; onBack: () => void }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  render() { return this.state.failed ? <div className="journey-loading" role="alert"><div><p>画面未能载入，观察信息仍保留。</p>
-    <button className="journey-secondary" onClick={this.props.onBack}>{this.props.earth ? '重新加载' : '返回地月'}</button></div></div> : this.props.children; }
-}
 
 export default function App() {
   const mobile = useMobileLayout();
@@ -47,12 +42,12 @@ export default function App() {
   const earthActions = React.useRef<EarthUIActions | null>(null), lastPanel = React.useRef<ExperiencePanelKind>(panel || 'birth');
   const registerEarthUI = React.useCallback((actions: EarthUIActions | null) => { earthActions.current = actions; }, []);
   const [earthHidden, setEarthHidden] = React.useState(false);
-  const [earthStarted, setEarthStarted] = React.useState(view === 'earth');
+  const [initialEarthOpening] = React.useState(view === 'earth');
   const [earthOpeningComplete, setEarthOpeningComplete] = React.useState(false);
   const [earthPresented, setEarthPresented] = React.useState<Observation | null>(null);
   const [showAligning, setShowAligning] = React.useState(false);
   const finishEarthOpening = React.useCallback(() => setEarthOpeningComplete(true), []);
-  const opening = view === 'earth' && !earthOpeningComplete;
+  const opening = initialEarthOpening && view === 'earth' && !earthOpeningComplete;
   const [transfer, setTransfer] = React.useState<ViewTransfer | undefined>();
   const [earthTransfer, setEarthTransfer] = React.useState<ViewTransfer | undefined>();
   const activeEarthTransfer = earthTransfer?.observationKey === observationKey(state.current) ? earthTransfer : undefined;
@@ -153,7 +148,6 @@ export default function App() {
     const timer = setTimeout(() => setAudioReady(true), 4000);
     return () => clearTimeout(timer);
   }, []);
-  React.useEffect(() => { if (view === 'earth') setEarthStarted(true); }, [view]);
   React.useEffect(() => {
     (window as any).__luBirthJourney = { state, view, panel, scope, transfer,
       get earthView() { return earthViews.current[scope]; },
@@ -194,8 +188,8 @@ export default function App() {
     <div ref={appRoot} className="journey-app experience-app" data-experience-root data-view={view} data-composing={earthPending || undefined}
       data-opening={opening || undefined} data-panel={panel || undefined} data-immersed={immersed || undefined} data-history={state.current.source.kind === 'history' || undefined}>
       {import.meta.env.DEV && new URLSearchParams(location.search).get('spatialtest') === '1' && <SpatialValidationProbe />}
-      {/* 基础画面就绪且手写动画完成后露出场景。 */}
-      {earthStarted && <div hidden={view !== 'earth'}><LoadingOverlay
+      {/* The handwriting belongs to landing directly on Earth. */}
+      {initialEarthOpening && <div hidden={view !== 'earth'}><LoadingOverlay
         durationMs={12000}
         minShowMs={mobile ? 300 : 650}
         fadeMs={mobile ? 380 : 600}
@@ -210,7 +204,8 @@ export default function App() {
         }}>
           <div className="experience-world" {...(earthPending ? { inert: '' } : {})} aria-hidden={earthPending || undefined}>
             <React.Suspense fallback={<div className="journey-loading" role="status">正在打开{view === 'sky' ? '星空' : '地月'}…</div>}>
-              {view === 'earth' ? <SimpleTest key={scope} observation={state.current} initialState={earthViews.current[scope]} onStateChange={saveEarthView}
+              {view === 'earth' ? <EarthScene key={scope} observation={state.current} initialState={earthViews.current[scope]} onStateChange={saveEarthView}
+                openingCover={opening}
                 entryTransfer={activeEarthTransfer} onEntryTransferConsumed={consumeEarthTransfer}
                 celestial={celestial} observerState={observer} cultureVersion={state.culture}
                 moonPlacement={state.moonPlacement} onMoonPlacementChange={journeyStore.setMoonPlacement} onEnterSky={enterSky} onLocateMoon={locateMoon}

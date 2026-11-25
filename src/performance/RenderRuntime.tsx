@@ -9,12 +9,13 @@ import { FrameCadence, GpuTimer, percentile } from '../spikes/sky/skyPerformance
 import type { Observation } from '../history/observation';
 
 /** Drive only the requested frames; stop GPU work while the tab is hidden. */
-export function RenderRuntime({ profile, presentation, expectedBackgroundKey, onPresented }: {
+export function RenderRuntime({ profile, presentation, expectedBackgroundKey, onPresented, openingCover = false }: {
   profile: RenderProfile;
   // Undefined preserves standalone scene callers; null means the requested composition is pending.
   presentation?: Observation | null;
   expectedBackgroundKey?: string | null;
   onPresented?: (observation: Observation) => void;
+  openingCover?: boolean;
 }) {
   const { gl, scene, camera, invalidate, setFrameloop, setDpr, size } = useThree();
   const glass = useRef<LiquidGlassRenderer | null>(null);
@@ -24,7 +25,7 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
   const publishedObservation = useRef<Observation | null>(null);
   const resolution = useRef<ResolutionState>({ dpr: 1, slow: 0, fast: 0 });
   const sample = useRef({ since: 0, frames: 0, fps: 0 });
-  const booting = useRef(!(window as any).__lubirthOverlayFading);
+  const booting = useRef(openingCover && !(window as any).__lubirthOverlayFading);
   const renderTiming = useRef({cpu:[] as number[],gpu:[] as number[],frames:0});
   const validationTimer = useRef<GpuTimer | null>(null);
   useEffect(() => {
@@ -63,9 +64,13 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
       sample.current = { since: performance.now(), frames: 0, fps: sample.current.fps };
       resolution.current.slow = resolution.current.fast = 0;
     };
+    if (!openingCover) {
+      if (booting.current) finishBoot();
+      return;
+    }
     window.addEventListener('lubirth:overlay-fade-start', finishBoot);
     return () => window.removeEventListener('lubirth:overlay-fade-start', finishBoot);
-  }, []);
+  }, [openingCover]);
   useEffect(() => {
     glass.current = new LiquidGlassRenderer(gl.domElement);
     return () => { glass.current?.dispose(); glass.current = null; };
