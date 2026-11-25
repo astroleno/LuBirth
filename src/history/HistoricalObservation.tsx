@@ -159,11 +159,12 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
         {date?.era && <><dt>年号</dt><dd>{date.era}</dd></>}
         {date?.ganzhiYear && <><dt>原载干支年</dt><dd>{date.ganzhiYear}年</dd></>}
         {date?.ganzhiDays?.length && <><dt>原载干支日</dt><dd>{date.ganzhiDays.map(day => day+'日').join('、')}</dd></>}
-        {time && <><dt>{time.precision === 'window' ? '史载时段' : time.scope === 'event' ? '史载钟点' : '史载相关钟点'}</dt><dd>{time.original}</dd>
+        {time && <><dt>{time.precision === 'window' ? (time.scope === 'related' ? '史载相关时段' : '史载时段')
+          : time.scope === 'event' ? '史载钟点' : '史载相关钟点'}</dt><dd>{time.original}</dd>
           <dt>历史时制</dt><dd>{time.clockBasis.note}</dd></>}
         <dt>{record.kind === 'birth' ? '资料出生地' : '资料发生地'}</dt><dd>{record.place.original}</dd></dl>
       <div className="journey-notice"><strong>{CALENDAR_LABELS[record.date.status]}</strong><p>{CALENDAR_NOTES[record.date.status]}</p></div>
-      {[date?.note, record.date.note, record.place.evidence ? '' : record.place.note, record.time.note,
+      {[record.eventEvidence?.note, date?.note, record.date.note, record.place.evidence ? '' : record.place.note, record.time.note,
         record.provenance.baseRecordHash ? '' : record.notes].filter(Boolean).map((note, index) => <p className="journey-hint" key={index}>{note}</p>)}
       {!!record.remainingChecks.length && <ul>{record.remainingChecks.map((note, index) => <li key={index}>{note}</li>)}</ul>}
       {observer && <p className="journey-hint">{observer.note}<br />{observer.latitude.toFixed(4)}°，{observer.longitude.toFixed(4)}°

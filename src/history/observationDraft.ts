@@ -75,9 +75,8 @@ export function createHistoricalDraft(record: HistoryRecord, current?: Observati
   const draft: HistoricalDraft = { clockChoice: resolveHistoryChoices(record), basis: recordedBasis ? 'recorded' : 'local-mean-solar', offset: recordedBasis?.offsetMinutes ?? 480,
     placeMode: record.place.observer ? 'record' : 'custom', custom: createObserverDraft(null), reusedPlace: null,
     reusedOrigin: '', placeBeforeEdit: null, placeOpen: !record.place.observer, adjusting: false, sourceOpen: false, watched: false };
-  const priorRevision = !!record.provenance.baseRecordHash && current?.source.recordHash === record.provenance.baseRecordHash;
-  if (current?.source.kind === 'history' && current.source.recordId === record.id
-    && (current.source.recordHash === record.provenance.recordHash || priorRevision)) {
+  if (current?.source.kind === 'history' && current.source.recordId === record.id) {
+    const priorRevision = current.source.recordHash !== record.provenance.recordHash;
     draft.clockChoice = restoreHistoryChoices(record, { clock: current.clock, timeSelection: current.timeSelection }, priorRevision);
     draft.basis = current.timeBasis.kind;
     if (current.timeBasis.kind === 'iana') {

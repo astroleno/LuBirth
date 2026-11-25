@@ -26,8 +26,9 @@ const evidence = [
   { id: 'curated:william-i-coronation', civil: '1066-12-31', julian: [1066, 12, 25], jdn: 2110773, utc: '1066-12-31T20:00:31.000Z',
     query: '威廉一世', original: /25 December 1066/, site: '英国伦敦威斯敏斯特教堂（Westminster Abbey）', coords: [51.49939, -0.12736],
     url: 'https://www.westminster-abbey.org/history/coronations-at-the-abbey/a-history-of-coronations' },
-  { id: 'curated:us-constitution-signing', civil: '1787-09-17', jdn: 2374008, utc: '1787-09-18T01:00:36.000Z',
+  { id: 'curated:us-constitution-signing', civil: '1787-09-17', jdn: 2374008, utc: '1787-09-17T21:00:36.000Z',
     query: '独立厅', original: /September 17, 1787/, site: '美国费城独立厅（Independence Hall）', coords: [39.948611, -75.15],
+    clock: '16:00', clockOrigin: 'history-window-example', clockLabel: '史载相关时段 · 约下午 4 点散会',
     url: 'https://www.archives.gov/milestone-documents/constitution' },
 ];
 
@@ -63,14 +64,14 @@ try {
   const { default: JourneyPanel } = await server.ssrLoadModule('/src/history/JourneyPanel.tsx');
 
   assert.equal(historyCatalog.count, 153);
-  assert.deepEqual(historyCatalog.records.slice(base.length), curated);
+  assert.deepEqual(historyCatalog.records.slice(base.length, base.length + 2), curated.slice(0, 2));
   assert.deepEqual(historyCatalog.records.map(record => record.id), [...base, ...curated].map(record => record.id));
   const old = mergeHistoryCatalog(base, []);
   const counts = (rows, options) => selectHistory(rows, options).length;
   assert.equal(historyCatalog.monthDays, new Set([...base, ...curated].map(record => record.date.iso.slice(5))).size);
   assert.equal(counts(historyCatalog.records, { filter: 'event' }), 63);
   assert.equal(counts(historyCatalog.records, { filter: 'birth' }), 90);
-  assert.equal(counts(historyCatalog.records, { filter: 'ready' }), counts(base, { filter: 'ready' }) + 3 + 8);
+  assert.equal(counts(historyCatalog.records, { filter: 'ready' }), counts(base, { filter: 'ready' }) + 3 + 9);
   assert.equal(counts(historyCatalog.records, { period: EARLY_PERIODS }), counts(base, { period: EARLY_PERIODS }) + 1);
   assert.equal(historyCatalog.periods[WORLD_PERIOD], old.periods[WORLD_PERIOD] + 2);
   assert.equal(historyCatalog.periods['隋唐'], old.periods['隋唐'] + 1);
@@ -88,13 +89,19 @@ try {
   const observers = [];
   for (const sample of evidence) {
     const record = historyCatalog.records.find(value => value.id === sample.id);
-    const { provenance, ...body } = record;
+    const { provenance, ...body } = curated.find(value => value.id === sample.id);
     assert.equal(sha(JSON.stringify(byKey(body))), provenance.recordHash, sample.id);
     assert.equal(provenance.file, curatedPath);
     assert.equal(provenance.dataset, 'curated-events-v1');
     assert.equal(record.kind, 'event');
-    assert.deepEqual(Object.keys(record.time), ['precision', 'note']);
-    assert.equal(record.time.precision, 'date-only');
+    assert.deepEqual(Object.keys(body.time), ['precision', 'note']);
+    assert.equal(body.time.precision, 'date-only');
+    if (sample.clock) {
+      assert.equal(record.provenance.baseRecordHash, provenance.recordHash);
+      assert.equal(record.time.precision, 'window');
+      assert.equal(record.time.scope, 'related');
+      assert.match(record.time.original, /约下午 4 点散会/);
+    } else assert.equal(record.time.precision, 'date-only');
     assert.equal(record.date.iso, sample.civil);
     assert.match(record.date.original, sample.original);
     assert.equal(record.date.jdn, sample.jdn);
@@ -116,8 +123,8 @@ try {
     assert.deepEqual(observer, record.place.observer);
     assert.equal(draft.placeOpen, false);
     assert.equal(draft.basis, 'local-mean-solar');
-    assert.equal(draft.clockChoice.clock, '20:00');
-    assert.equal(draft.clockChoice.timeSelection.origin, 'event-default-20');
+    assert.equal(draft.clockChoice.clock, sample.clock ?? '20:00');
+    assert.equal(draft.clockChoice.timeSelection.origin, sample.clockOrigin ?? 'event-default-20');
     const choices = { ...draft.clockChoice, observer, timeBasis: { kind: draft.basis }, dateAcknowledged: true, placeConfirmed: true };
     const observation = historyObservation(record, choices);
     assert.equal(observation.utc, sample.utc);
@@ -134,7 +141,7 @@ try {
       record, initialDraft: { ...draft, sourceOpen: true }, onDraftChange: noop, onObserve: noop, onCulture: noop,
     }));
     for (const text of [record.date.original, record.place.original, CALENDAR_LABELS[record.date.status], record.date.note,
-      '未载时刻，默认当地晚上 8 点演示。', sample.url]) assert.ok(markup.includes(text), text);
+      sample.clockLabel ?? '未载时刻，默认当地晚上 8 点演示。', sample.url]) assert.ok(markup.includes(text), text);
     observers.push({ record, draft, observation });
   }
   assert.equal((evidence[0].jdn + 49) % 60, 0);

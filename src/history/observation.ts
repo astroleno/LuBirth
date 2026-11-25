@@ -6,7 +6,7 @@ type FixedTimeBasis = { kind: 'offset'; offsetMinutes: number } | { kind: 'local
 export type TimeBasis = FixedTimeBasis | IanaTimeBasis;
 export type TimeSelection = {
   origin: 'user-input' | 'event-default-20' | 'legacy-demo' | 'system-example'
-    | 'history-recorded-point' | 'history-window-midpoint' | 'history-related-point';
+    | 'history-recorded-point' | 'history-window-midpoint' | 'history-window-example' | 'history-related-point';
   ruleVersion: 'event-evening-v1' | null;
   label: string;
 };
@@ -71,7 +71,7 @@ export function resolveObservation(date: string, clock: string, observer: Observ
     : source.kind === 'example' ? { origin: 'system-example', ruleVersion: null, label: '当前时刻示例。' }
       : { origin: 'user-input', ruleVersion: null, label: '用户填写的出生时刻。' }) : selection;
   if (!['user-input', 'event-default-20', 'legacy-demo', 'system-example', 'history-recorded-point',
-    'history-window-midpoint', 'history-related-point'].includes(timeSelection.origin)
+    'history-window-midpoint', 'history-window-example', 'history-related-point'].includes(timeSelection.origin)
     || typeof timeSelection.label !== 'string' || timeSelection.label.length > 500
     || (source.recordKind !== undefined && !['birth', 'event'].includes(source.recordKind))
     || (timeSelection.origin === 'event-default-20' && (source.kind !== 'history' || source.recordKind !== 'event'

@@ -12,11 +12,15 @@ export function resolveHistoryChoices(record: HistoryRecord, draft?: { clock: st
     origin: time.scope === 'event' ? 'history-recorded-point' : 'history-related-point', ruleVersion: null,
     label: time.scope === 'event' ? `史载钟点 · ${time.original}。` : `史载相关钟点 · ${time.original}。`,
   } };
-  if (!draft && time.precision === 'window') return { clock: time.example, timeSelection: {
-    origin: 'history-window-midpoint', ruleVersion: null,
-    label: time.dayBoundary === 'unverified' ? `史载${time.original}，以换算日期 ${time.example} 演示。`
-      : `史载${time.original}，以 ${time.example} 作为时段中点演示。`,
-  } };
+  if (!draft && time.precision === 'window') {
+    const label = time.scope === 'related' ? '史载相关时段' : '史载时段';
+    const chosenClock = time.dayBoundary === 'unverified' ? `以换算日期 ${time.example} 演示`
+      : time.start === undefined ? `以 ${time.example} 演示` : `以 ${time.example} 作为时段中点演示`;
+    return { clock: time.example, timeSelection: { ruleVersion: null,
+      origin: time.start === undefined ? 'history-window-example' : 'history-window-midpoint',
+      label: `${label} · ${time.original}，${chosenClock}。`,
+    } };
+  }
   const eventDefaultAllowed = time.precision === 'date-only' && record.kind === 'event';
   const useDefault = draft ? !!draft.useDefault : eventDefaultAllowed;
   if (useDefault && !eventDefaultAllowed) throw new Error('默认晚间演示只适用于缺少时刻的事件。');

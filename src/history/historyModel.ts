@@ -29,16 +29,20 @@ export type HistoryDateEvidence = {
   sources: HistorySource[];
 };
 
+export type HistoryEventEvidence = { note: string; sources: HistorySource[] };
+
 type HistoryClockBasis =
   | { kind: 'unverified'; note: string; sources?: HistorySource[] }
   | { kind: 'fixed-offset'; offsetMinutes: number; note: string; sources: HistorySource[] };
 
 type RecordedTime = { original: string; note: string; source: HistorySource; clockBasis: HistoryClockBasis };
+type RecordedWindow = RecordedTime & { precision: 'window'; example: string; scope?: 'event' | 'related'; dayBoundary?: 'unverified' }
+  & ({ start: string; end: string } | { start?: never; end?: never });
 
 export type HistoryTime =
   | { precision: 'date-only'; note: string }
   | (RecordedTime & { precision: 'point'; clock: string; scope: 'event' | 'related' })
-  | (RecordedTime & { precision: 'window'; start: string; end: string; example: string; dayBoundary?: 'unverified' });
+  | RecordedWindow;
 
 export type HistorySiteEvidence = {
   coordinateSystem: 'WGS84';
@@ -52,6 +56,7 @@ export type HistoryRecord = {
   originalId: string;
   kind: 'birth' | 'event';
   name: string;
+  eventEvidence?: HistoryEventEvidence;
   period: string;
   region: 'china' | 'world';
   date: {
@@ -72,7 +77,7 @@ export type HistoryRecord = {
 };
 
 export function historyEvidenceSources(record: HistoryRecord): HistorySource[] {
-  const sources = [...(record.date.evidence?.sources ?? []), ...(record.place.evidence?.sources ?? [])];
+  const sources = [...(record.date.evidence?.sources ?? []), ...(record.place.evidence?.sources ?? []), ...(record.eventEvidence?.sources ?? [])];
   if (record.time.precision !== 'date-only') sources.push(record.time.source, ...(record.time.clockBasis.sources ?? []));
   return [...new Map(sources.map(source => [source.url, source])).values()];
 }

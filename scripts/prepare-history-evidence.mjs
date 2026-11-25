@@ -15,7 +15,7 @@ const revisions = {};
 for (const [id, entry] of Object.entries(evidence.records)) {
   assert.ok(base.has(id), id);
   const sourceIds = new Set([
-    ...(entry.date?.sources ?? []), ...(entry.place?.sources ?? []),
+    ...(entry.date?.sources ?? []), ...(entry.place?.sources ?? []), ...(entry.event?.sources ?? []),
     ...(entry.time ? [entry.time.source, ...(entry.time.clockBasis.sources ?? [])] : []),
   ]);
   const sources = Object.fromEntries([...sourceIds].map(key => {
