@@ -1,6 +1,5 @@
 import { createCelestialState, createObserverState } from '../../astro/celestialState';
 import type { CelestialState, ObserverState } from '../../astro/celestialState';
-import { applyFrame } from '../../astro/referenceFrames';
 import type { EarthSceneFrame, Frame3 } from '../../astro/referenceFrames';
 
 // Field units and source versions are recorded alongside the derived catalog.
@@ -12,7 +11,7 @@ export type SkyCatalog = { stars: StarRow[]; culture: SkyCulture[]; maxMagnitude
   hipAliases: { hip: number; hyg: number; hd: number; status: string }[] };
 export type SkyLocation = { latitude: number; longitude: number };
 export type SkyFrame = {
-  positions: Float32Array; hipIndex: Map<number, number>; aboveHorizon: number;
+  positions: Float32Array; hipIndex: ReadonlyMap<number, number>; aboveHorizon: number;
   sunAlt: number; date: Date; years: number; eqjBasis: number[][];
   key: string; projection: 'horizon' | 'earth'; celestial: CelestialState; observer: ObserverState; motion: boolean;
 };
@@ -36,9 +35,9 @@ export function parseUtcInput(value: string) {
 export function starDirection(star: StarRow, years: number, motion: boolean): [number, number, number] {
   const [, , ra, dec, , , x, y, z, vx, vy, vz] = star;
   if (motion && x !== null && y !== null && z !== null && vx !== null && vy !== null && vz !== null) {
-    const p = [x + vx * years, y + vy * years, z + vz * years];
-    const length = Math.hypot(...p);
-    if (length > 0) return [p[0] / length, p[1] / length, p[2] / length];
+    const px = x + vx * years, py = y + vy * years, pz = z + vz * years;
+    const length = Math.hypot(px, py, pz);
+    if (length > 0) return [px / length, py / length, pz / length];
   }
   const a = ra * Math.PI / 12, d = dec * Math.PI / 180;
   return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
@@ -49,23 +48,42 @@ export function horizonToWorld(north: number, west: number, zenith: number): [nu
   return [-west, zenith, -north];
 }
 
+// A catalog is an immutable snapshot. Each frame shares its ordered HIP lookup.
+const hipIndices = new WeakMap<SkyCatalog, ReadonlyMap<number, number>>();
+
+function catalogHipIndex(catalog: SkyCatalog) {
+  const cached = hipIndices.get(catalog);
+  if (cached) return cached;
+  const hipIndex = new Map<number, number>();
+  const hygIndex = new Map<number, number>();
+  catalog.stars.forEach(([hyg, hip], index) => {
+    if (!hygIndex.has(hyg)) hygIndex.set(hyg, index);
+    if (hip !== null) hipIndex.set(hip, index);
+  });
+  for (const alias of catalog.hipAliases) {
+    const index = hygIndex.get(alias.hyg);
+    if (index !== undefined) hipIndex.set(alias.hip, index);
+  }
+  hipIndices.set(catalog, hipIndex);
+  return hipIndex;
+}
+
 function projectCatalog(catalog: SkyCatalog, celestial: CelestialState, observer: ObserverState,
   transform: Frame3, motion: boolean, projection: SkyFrame['projection'], key: string): SkyFrame {
   const positions = new Float32Array(catalog.stars.length * 3);
-  const hipIndex = new Map<number, number>();
+  const hipIndex = catalogHipIndex(catalog);
   const years = celestial.years;
+  const [a, b, c] = transform;
   let aboveHorizon = 0;
   catalog.stars.forEach((star, index) => {
     const [x, y, z] = starDirection(star, years, motion);
-    const position = applyFrame(transform, [x, y, z]);
-    positions.set(position, index * 3);
-    if (position[1] > 0) aboveHorizon++;
-    if (star[1] !== null) hipIndex.set(star[1], index);
+    const offset = index * 3;
+    positions[offset] = a[0] * x + b[0] * y + c[0] * z;
+    const height = a[1] * x + b[1] * y + c[1] * z;
+    positions[offset + 1] = height;
+    positions[offset + 2] = a[2] * x + b[2] * y + c[2] * z;
+    if (height > 0) aboveHorizon++;
   });
-  for (const alias of catalog.hipAliases) {
-    const index = catalog.stars.findIndex(star => star[0] === alias.hyg);
-    if (index >= 0) hipIndex.set(alias.hip, index);
-  }
   return { positions, hipIndex, aboveHorizon, sunAlt: observer.sun.altitudeDeg, date: celestial.date,
     years, eqjBasis: transform, key, projection, celestial, observer, motion };
 }

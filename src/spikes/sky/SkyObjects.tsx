@@ -27,22 +27,37 @@ const lineFragment = `
   }
 `;
 
-function starColors() {
-  const colors = new Float32Array(catalog.stars.length * 3);
-  catalog.stars.forEach((star, index) => {
-    const color = starColor(star[5]);
-    colors.set([color.r, color.g, color.b], index * 3);
-  });
-  return colors;
+// Static CPU arrays are shared read-only; each geometry owns its GPU attributes.
+let starAttributes: { magnitude: Float32Array; tint: Float32Array } | undefined;
+
+function catalogStarAttributes() {
+  if (!starAttributes) {
+    const magnitude = new Float32Array(catalog.stars.length);
+    const tint = new Float32Array(catalog.stars.length * 3);
+    catalog.stars.forEach((star, index) => {
+      const color = starColor(star[5]);
+      magnitude[index] = star[4];
+      tint[index * 3] = color.r;
+      tint[index * 3 + 1] = color.g;
+      tint[index * 3 + 2] = color.b;
+    });
+    starAttributes = { magnitude, tint };
+  }
+  return starAttributes;
 }
 
 export function createStarGeometry(frame: SkyFrame) {
   if (frame.positions.length !== catalog.stars.length * 3) throw new Error('Sky frame and star attributes must use the same catalog');
   const geometry = new THREE.BufferGeometry();
+  const { magnitude, tint } = catalogStarAttributes();
   geometry.setAttribute('position', new THREE.BufferAttribute(frame.positions, 3));
-  geometry.setAttribute('magnitude', new THREE.Float32BufferAttribute(catalog.stars.map(star => star[4]), 1));
-  geometry.setAttribute('tint', new THREE.BufferAttribute(starColors(), 3));
+  geometry.setAttribute('magnitude', new THREE.BufferAttribute(magnitude, 1));
+  geometry.setAttribute('tint', new THREE.BufferAttribute(tint, 3));
   return geometry;
+}
+
+function lineGeometry(items: SkyCulture[], frame: SkyFrame, selected = 'all') {
+  return new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(cultureGeometry(items, frame, selected), 3));
 }
 
 export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, dpr, ground, chinese, appearance, view, lineOpacityScale = 1 }: {
@@ -56,8 +71,12 @@ export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, 
   useEffect(() => { invalidate(); }, [frame, magnitude, culture, items, lines, daylight, dpr, ground, chinese,
     brightness, colorStrength, glow, invalidate]);
   const stars = useMemo(() => createStarGeometry(frame), [frame]);
-  const geometries = useMemo(() => [items.filter(isMajorCulture), items.filter(item => !isMajorCulture(item)), items.filter(item => item.id === culture)]
-    .map(layer => new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(cultureGeometry(layer, frame, 'all'), 3))), [frame, culture, items]);
+  const baseGeometries = useMemo(() => lines ? [
+    lineGeometry(items.filter(isMajorCulture), frame),
+    lineGeometry(items.filter(item => !isMajorCulture(item)), frame),
+  ] : null, [frame, items, lines]);
+  const selectedGeometry = useMemo(() => lines && culture !== 'all' ? lineGeometry(items, frame, culture) : null,
+    [frame, items, lines, culture]);
   const material = useMemo(() => {
     const context = gl.getContext();
     return createStarMaterial(context.getParameter(context.ALIASED_POINT_SIZE_RANGE)[1]);
@@ -68,7 +87,8 @@ export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, 
   const minorMaterial = useMemo(() => lineMaterial.clone(), [lineMaterial]);
   const selectedMaterial = useMemo(() => lineMaterial.clone(), [lineMaterial]);
   useEffect(() => () => stars.dispose(), [stars]);
-  useEffect(() => () => geometries.forEach(g => g.dispose()), [geometries]);
+  useEffect(() => () => baseGeometries?.forEach(geometry => geometry.dispose()), [baseGeometries]);
+  useEffect(() => () => selectedGeometry?.dispose(), [selectedGeometry]);
   useEffect(() => () => { material.dispose(); lineMaterial.dispose(); minorMaterial.dispose(); selectedMaterial.dispose(); }, [material, lineMaterial, minorMaterial, selectedMaterial]);
   material.uniforms.limit.value = magnitude;
   material.uniforms.daylight.value = daylight;
@@ -94,10 +114,10 @@ export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, 
           const index = frame.hipIndex.get(hip)!;
           return { hip, index, localDirection: applyFrame(frame.observer.eqjToSky, starDirection(catalog.stars[index], frame.years, frame.motion)) };
         }) }} />
-    {lines && <>
-      <lineSegments name="skyConstellationLines" geometry={geometries[0]} material={lineMaterial} frustumCulled={false} dispose={null} />
-      <lineSegments name="skyMinorConstellationLines" geometry={geometries[1]} material={minorMaterial} frustumCulled={false} dispose={null} />
-      {culture !== 'all' && <lineSegments geometry={geometries[2]} material={selectedMaterial} frustumCulled={false} renderOrder={1} dispose={null} />}
+    {baseGeometries && <>
+      <lineSegments name="skyConstellationLines" geometry={baseGeometries[0]} material={lineMaterial} frustumCulled={false} dispose={null} />
+      <lineSegments name="skyMinorConstellationLines" geometry={baseGeometries[1]} material={minorMaterial} frustumCulled={false} dispose={null} />
+      {selectedGeometry && <lineSegments geometry={selectedGeometry} material={selectedMaterial} frustumCulled={false} renderOrder={1} dispose={null} />}
     </>}
   </>;
 }
