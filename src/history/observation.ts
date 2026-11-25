@@ -1,10 +1,12 @@
 import type { HistoryRecord, ObserverPlace } from './historyModel';
+import { resolveHistoryChoices } from './historyObservationPolicy';
 import { ianaOffsetSeconds, isNamedTimeZone, type IanaTimeBasis } from './ianaTime';
 
 type FixedTimeBasis = { kind: 'offset'; offsetMinutes: number } | { kind: 'local-mean-solar' };
 export type TimeBasis = FixedTimeBasis | IanaTimeBasis;
 export type TimeSelection = {
-  origin: 'user-input' | 'event-default-20' | 'legacy-demo' | 'system-example';
+  origin: 'user-input' | 'event-default-20' | 'legacy-demo' | 'system-example'
+    | 'history-recorded-point' | 'history-window-midpoint' | 'history-related-point';
   ruleVersion: 'event-evening-v1' | null;
   label: string;
 };
@@ -67,31 +69,40 @@ export function resolveObservation(date: string, clock: string, observer: Observ
     ? { origin: 'legacy-demo', ruleVersion: null, label: '此前保存的演示时刻。' }
     : source.kind === 'example' ? { origin: 'system-example', ruleVersion: null, label: '当前时刻示例。' }
       : { origin: 'user-input', ruleVersion: null, label: '用户填写的出生时刻。' }) : selection;
-  if (!['user-input', 'event-default-20', 'legacy-demo', 'system-example'].includes(timeSelection.origin)
+  if (!['user-input', 'event-default-20', 'legacy-demo', 'system-example', 'history-recorded-point',
+    'history-window-midpoint', 'history-related-point'].includes(timeSelection.origin)
     || typeof timeSelection.label !== 'string' || timeSelection.label.length > 500
     || (source.recordKind !== undefined && !['birth', 'event'].includes(source.recordKind))
     || (timeSelection.origin === 'event-default-20' && (source.kind !== 'history' || source.recordKind !== 'event'
       || !/^20:00(?::00)?$/.test(clock) || timeSelection.ruleVersion !== 'event-evening-v1'))
     || (timeSelection.origin !== 'event-default-20' && timeSelection.ruleVersion !== null)
     || (timeSelection.origin === 'system-example' && source.kind !== 'example')
-    || (timeSelection.origin === 'legacy-demo' && source.kind !== 'history')) throw new Error('演示钟点来源无效，请重新选择。');
+    || ((timeSelection.origin === 'legacy-demo' || timeSelection.origin.startsWith('history-')) && source.kind !== 'history'))
+    throw new Error('演示钟点来源无效，请重新选择。');
   return { utc: instant.toISOString(), civilDate: date, clock, timeBasis: { ...timeBasis }, observer: { ...observer },
     source: { ...source }, assumptions: [...assumptions], timeSelection: { ...timeSelection } };
 }
 
 export function historyObservation(record: HistoryRecord, choices: {
-  clock: string; observer: ObserverPlace | null; timeBasis: FixedTimeBasis; dateAcknowledged: boolean; placeConfirmed: boolean; timeSelection?: TimeSelection;
+  clock: string; observer: ObserverPlace | null; timeBasis: TimeBasis; dateAcknowledged: boolean; placeConfirmed: boolean; timeSelection?: TimeSelection;
 }) {
   if (!choices.dateAcknowledged) throw new Error('请先确认本条日期解释与演示说明。');
   if (!choices.placeConfirmed || !choices.observer) throw new Error('请选择并确认用于演示的观测地点。');
+  const suggested = resolveHistoryChoices(record);
+  const selection = choices.timeSelection ?? resolveHistoryChoices(record, { clock: choices.clock }).timeSelection;
+  if ((selection.origin.startsWith('history-') || selection.origin === 'event-default-20')
+    && (selection.origin !== suggested.timeSelection.origin || choices.clock !== suggested.clock
+      && !(selection.origin === 'event-default-20' && choices.clock === '20:00:00')))
+    throw new Error('演示钟点与本条史料的依据不符。');
   return resolveObservation(record.date.iso, choices.clock, choices.observer, choices.timeBasis,
     { kind: 'history', label: record.name, recordId: record.id, recordHash: record.provenance.recordHash, recordKind: record.kind },
-    ['演示时刻，并非已经核实的出生或事件钟点。',
-      choices.observer.precision === 'representative' ? '采用现代地点代表点，不是历史建筑的精确位置。' : '采用用户所选观测位置，不回写为历史发生地。',
+    [selection.label,
+      choices.observer.precision === 'representative' ? '采用地区代表点。'
+        : choices.observer.precision === 'historical-site' ? choices.observer.note : '采用用户所选演示地点。',
       ...(record.date.status === 'conditional_gregorian_interpretation' ? ['日期按前推格里高利历作条件性解释。'] : []),
-      ...(choices.timeBasis.kind === 'local-mean-solar' ? ['地方平太阳时是本次演示约定，不代表当时的民用时间制度。'] : []),
-      ...(choices.timeSelection?.origin === 'event-default-20' ? ['史料未载时刻，默认以所选地点的 20:00 演示，不代表事件发生瞬间。'] : [])],
-    choices.timeSelection || { origin: 'user-input', ruleVersion: null, label: '自选演示时刻，并非史料认定钟点。' });
+      ...(record.time.precision === 'date-only' ? [] : [record.time.clockBasis.note]),
+      ...(choices.timeBasis.kind === 'local-mean-solar' ? ['按所选地点经度和地方平太阳时换算演示 UTC。'] : []),
+      ...(choices.timeBasis.kind === 'iana' ? ['按所选 IANA 时区的历史数据换算演示 UTC。'] : [])], selection);
 }
 
 export function readObservation(value: unknown): Observation | null {

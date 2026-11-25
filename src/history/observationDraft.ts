@@ -1,7 +1,8 @@
 import { createLocationSearchDraft, type LocationSearchDraft } from '../components/LocationSelector/locationDraft';
 import type { HistoryRecord, ObserverPlace } from './historyModel';
-import { exampleObservation, validateObserver, type Observation } from './observation';
-import { resolveHistoryChoices, type HistoryClockChoice } from './historyObservationPolicy';
+import { exampleObservation, observationOffsetSeconds, validateObserver, type Observation } from './observation';
+import { isNamedTimeZone, type IanaTimeBasis } from './ianaTime';
+import { resolveHistoryChoices, restoreHistoryChoices, type HistoryClockChoice } from './historyObservationPolicy';
 
 export type ObserverDraft = {
   selection: ObserverPlace | null;
@@ -53,8 +54,11 @@ export type HistoryPlaceSnapshot = {
 };
 export type HistoricalDraft = {
   clockChoice: HistoryClockChoice;
-  basis: 'local-mean-solar' | 'offset';
+  basis: 'local-mean-solar' | 'offset' | 'recorded' | 'iana';
   offset: number;
+  zoneOverride?: string;
+  foldChoice?: { key: string; value: 'earlier' | 'later' | '' };
+  savedIanaBasis?: IanaTimeBasis;
   placeMode: HistoryPlaceMode;
   custom: ObserverDraft;
   reusedPlace: ObserverPlace | null;
@@ -67,17 +71,26 @@ export type HistoricalDraft = {
 };
 
 export function createHistoricalDraft(record: HistoryRecord, current?: Observation): HistoricalDraft {
-  const draft: HistoricalDraft = { clockChoice: resolveHistoryChoices(record), basis: 'local-mean-solar', offset: 480,
+  const recordedBasis = record.time.precision !== 'date-only' && record.time.clockBasis.kind === 'fixed-offset' ? record.time.clockBasis : null;
+  const draft: HistoricalDraft = { clockChoice: resolveHistoryChoices(record), basis: recordedBasis ? 'recorded' : 'local-mean-solar', offset: recordedBasis?.offsetMinutes ?? 480,
     placeMode: record.place.observer ? 'record' : 'custom', custom: createObserverDraft(null), reusedPlace: null,
     reusedOrigin: '', placeBeforeEdit: null, placeOpen: !record.place.observer, adjusting: false, sourceOpen: false, watched: false };
+  const priorRevision = !!record.provenance.baseRecordHash && current?.source.recordHash === record.provenance.baseRecordHash;
   if (current?.source.kind === 'history' && current.source.recordId === record.id
-    && current.source.recordHash === record.provenance.recordHash) {
-    draft.clockChoice = { clock: current.clock, timeSelection: { ...current.timeSelection } };
-    if (current.timeBasis.kind !== 'iana') draft.basis = current.timeBasis.kind;
-    if (current.timeBasis.kind === 'offset') draft.offset = current.timeBasis.offsetMinutes;
+    && (current.source.recordHash === record.provenance.recordHash || priorRevision)) {
+    draft.clockChoice = restoreHistoryChoices(record, { clock: current.clock, timeSelection: current.timeSelection }, priorRevision);
+    draft.basis = current.timeBasis.kind;
+    if (current.timeBasis.kind === 'iana') {
+      if (current.timeBasis.timeZone !== current.observer.timeZone) draft.zoneOverride = current.timeBasis.timeZone;
+      draft.savedIanaBasis = current.timeBasis;
+    }
+    if (current.timeBasis.kind === 'offset') {
+      draft.offset = current.timeBasis.offsetMinutes;
+      if (!priorRevision && recordedBasis?.offsetMinutes === draft.offset) draft.basis = 'recorded';
+    }
     const point = record.place.observer;
     if (!point || point.name !== current.observer.name || point.latitude !== current.observer.latitude
-      || point.longitude !== current.observer.longitude || current.observer.precision !== 'representative') {
+      || point.longitude !== current.observer.longitude || point.precision !== current.observer.precision) {
       draft.placeMode = 'custom'; draft.custom = createObserverDraft(current.observer);
     }
     draft.placeOpen = false; draft.watched = true;
@@ -126,9 +139,10 @@ function validPlace(value: unknown): value is ObserverPlace {
   if (value === null) return false;
   try {
     const place = validateObserver(value as ObserverPlace);
-    return place.name.length <= 300 && ['representative', 'user-selected'].includes(place.precision)
+    return place.name.length <= 300 && ['representative', 'historical-site', 'user-selected'].includes(place.precision)
       && typeof place.note === 'string' && place.note.length <= 2000
-      && (place.source === undefined || (typeof place.source === 'string' && place.source.length <= 1000));
+      && (place.source === undefined || (typeof place.source === 'string' && place.source.length <= 1000))
+      && (place.timeZone === undefined || isNamedTimeZone(place.timeZone));
   } catch { return false; }
 }
 
@@ -146,12 +160,21 @@ function readObserverDraft(value: unknown): ObserverDraft | null {
 function readHistoricalDraft(value: unknown, record: HistoryRecord): HistoricalDraft | null {
   try {
     const entry = value as { rule: string; hash: string; draft: HistoricalDraft };
-    if (!entry || entry.rule !== DRAFT_RULE || entry.hash !== record.provenance.recordHash) return null;
+    if (!entry || entry.rule !== DRAFT_RULE) return null;
+    const priorRevision = !!record.provenance.baseRecordHash && entry.hash === record.provenance.baseRecordHash;
+    if (entry.hash !== record.provenance.recordHash && !priorRevision) return null;
     const draft = entry.draft, custom = readObserverDraft(draft?.custom);
     if (!draft || !custom || !['record', 'current', 'personal', 'custom'].includes(draft.placeMode)
-      || !['offset', 'local-mean-solar'].includes(draft.basis)
+      || !['offset', 'local-mean-solar', 'recorded', 'iana'].includes(draft.basis)
       || (draft.reusedPlace !== null && !validPlace(draft.reusedPlace)) || typeof draft.reusedOrigin !== 'string'
       || draft.reusedOrigin.length > 500 || !['placeOpen', 'adjusting', 'sourceOpen', 'watched'].every(key => typeof draft[key as keyof HistoricalDraft] === 'boolean')) return null;
+    if (draft.zoneOverride !== undefined && (typeof draft.zoneOverride !== 'string' || draft.zoneOverride.length > 200)) return null;
+    if (draft.foldChoice && (typeof draft.foldChoice.key !== 'string' || draft.foldChoice.key.length > 250
+      || !['earlier', 'later', ''].includes(draft.foldChoice.value))) return null;
+    if (draft.savedIanaBasis) {
+      if (draft.savedIanaBasis.kind !== 'iana') return null;
+      observationOffsetSeconds(draft.savedIanaBasis, 0);
+    }
     const before = draft.placeBeforeEdit;
     if (before !== null && (!before || !['record', 'current', 'personal', 'custom'].includes(before.placeMode)
       || !readObserverDraft(before.custom) || (before.reusedPlace !== null && !validPlace(before.reusedPlace))
@@ -159,7 +182,7 @@ function readHistoricalDraft(value: unknown, record: HistoryRecord): HistoricalD
       || !historicalDraftObserver(record, { ...draft, ...before }))) return null;
     const clock = draft.clockChoice?.clock;
     if (typeof clock !== 'string' || (clock !== '' && !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(clock))) return null;
-    const clockChoice = resolveHistoryChoices(record, { clock, useDefault: draft.clockChoice.timeSelection?.origin === 'event-default-20' });
+    const clockChoice = restoreHistoryChoices(record, draft.clockChoice, priorRevision);
     const offset = draft.offset === null ? NaN : draft.offset;
     if (typeof offset !== 'number' || (Number.isFinite(offset) && (!Number.isInteger(offset) || Math.abs(offset) > 840))) return null;
     return { ...draft, clockChoice, custom, offset };

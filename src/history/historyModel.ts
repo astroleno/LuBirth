@@ -9,10 +9,41 @@ export type ObserverPlace = {
   name: string;
   latitude: number;
   longitude: number;
-  precision: 'representative' | 'user-selected';
+  precision: 'representative' | 'historical-site' | 'user-selected';
   note: string;
   source?: string;
   timeZone?: string;
+};
+
+export type HistorySource = { url: string; title: string };
+
+export type HistoryDateEvidence = {
+  originalLabel: string;
+  calendarLabel: string;
+  era?: string;
+  ganzhiYear?: string;
+  ganzhiDays?: string[];
+  lunar?: { year: number; month: number; day: number };
+  note: string;
+  sources: HistorySource[];
+};
+
+type HistoryClockBasis =
+  | { kind: 'unverified'; note: string; sources?: HistorySource[] }
+  | { kind: 'fixed-offset'; offsetMinutes: number; note: string; sources: HistorySource[] };
+
+type RecordedTime = { original: string; note: string; source: HistorySource; clockBasis: HistoryClockBasis };
+
+export type HistoryTime =
+  | { precision: 'date-only'; note: string }
+  | (RecordedTime & { precision: 'point'; clock: string; scope: 'event' | 'related' })
+  | (RecordedTime & { precision: 'window'; start: string; end: string; example: string; dayBoundary?: 'unverified' });
+
+export type HistorySiteEvidence = {
+  coordinateSystem: 'WGS84';
+  radiusMeters: number;
+  scope: 'site' | 'area';
+  sources: HistorySource[];
 };
 
 export type HistoryRecord = {
@@ -29,13 +60,29 @@ export type HistoryRecord = {
     jdn: number;
     status: CalendarStatus;
     note: string;
+    evidence?: HistoryDateEvidence;
   };
-  time: { precision: 'date-only'; note: string };
-  place: { original: string; role: string; precision: string; note: string; observer: ObserverPlace | null };
-  sources: { url: string; title: string }[];
+  time: HistoryTime;
+  place: { original: string; role: string; precision: string; note: string; observer: ObserverPlace | null; evidence?: HistorySiteEvidence };
+  sources: HistorySource[];
   notes: string;
   remainingChecks: string[];
-  provenance: { dataset: string; file: string; recordHash: string; productionReady: boolean };
+  provenance: { dataset: string; file: string; recordHash: string; baseRecordHash?: string; productionReady: boolean };
+};
+
+export function historyEvidenceSources(record: HistoryRecord): HistorySource[] {
+  const sources = [...(record.date.evidence?.sources ?? []), ...(record.place.evidence?.sources ?? [])];
+  if (record.time.precision !== 'date-only') sources.push(record.time.source, ...(record.time.clockBasis.sources ?? []));
+  return [...new Map(sources.map(source => [source.url, source])).values()];
+}
+
+export function historicalCalendarText(record: HistoryRecord): string | undefined {
+  const { original, originalCalendar, evidence } = record.date;
+  return evidence?.originalLabel ?? (originalCalendar === 'chinese-historical' || originalCalendar === 'julian' ? original : undefined);
+}
+
+export const ORIGINAL_CALENDAR_LABELS: Record<string, string> = {
+  'chinese-historical': '中国原历', gregorian: '格里高利历', julian: '儒略历', 'western-unspecified': '西历种类未明',
 };
 
 export const CALENDAR_LABELS: Record<CalendarStatus, string> = {

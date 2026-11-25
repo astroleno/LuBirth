@@ -139,9 +139,7 @@ export function ObservationSummary({ observation }: { observation: Observation }
     <strong>{observation.source.label}{observation.source.kind === 'history' ? ' · 演示' : observation.source.kind === 'example' ? ' · 示例' : ''}</strong>
     <p>{observation.civilDate}　{observation.clock}<br />{observation.observer.name}</p>
     <small>{timeBasisLabel(observation.timeBasis)}</small>
-    {observation.source.kind === 'history' && <p className="journey-hint">{observation.timeSelection?.origin === 'event-default-20'
-      ? '默认演示 20:00，并非事件发生钟点。' : observation.timeSelection?.origin === 'legacy-demo'
-        ? '此前保存的演示时刻，地点精度以资料说明为准。' : '自选演示时刻，地点精度以资料说明为准。'}</p>}
+    {observation.source.kind === 'history' && <p className="journey-hint">{observation.timeSelection.label}</p>}
   </div>;
 }
 

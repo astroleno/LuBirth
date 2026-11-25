@@ -1,4 +1,4 @@
-import type { HistoryRecord } from './historyModel';
+import { historyEvidenceSources, ORIGINAL_CALENDAR_LABELS, type HistoryRecord } from './historyModel';
 import type { Observation } from './observation';
 import { civilDate } from './observation';
 
@@ -9,7 +9,7 @@ export const WORLD_PERIOD = '世界其他地区';
 
 /** Preparation required by the record itself, before applying saved edits. */
 export function historyViewingNeeds(record: HistoryRecord) {
-  return { place: !record.place.observer, clock: record.kind === 'birth' };
+  return { place: !record.place.observer, clock: record.kind === 'birth' && record.time.precision === 'date-only' };
 }
 
 // Character variants for supported catalog searches. Keep historical name
@@ -56,12 +56,17 @@ const searchEntries = new WeakMap<HistoryRecord, SearchEntry>();
 function searchEntry(record: HistoryRecord) {
   const cached = searchEntries.get(record);
   if (cached) return cached;
+  const dateEvidence = record.date.evidence;
+  const time = record.time.precision === 'date-only' ? undefined : record.time;
   const entry = {
     metadata: normalizeSearch([
       record.name, record.place.original, record.place.observer?.name, record.date.original,
+      ORIGINAL_CALENDAR_LABELS[record.date.originalCalendar], dateEvidence?.originalLabel, dateEvidence?.calendarLabel,
+      dateEvidence?.era, dateEvidence?.ganzhiYear && `${dateEvidence.ganzhiYear}年`,
+      ...(dateEvidence?.ganzhiDays?.map(day => `${day}日`) ?? []), time?.original,
       record.date.iso, record.id, record.originalId, record.period, record.region === 'china' ? '中国' : '世界 海外 境外',
     ].join(' ')),
-    sources: record.sources.map(source => ({ source, text: normalizeSearch(source.title) })),
+    sources: [...record.sources, ...historyEvidenceSources(record)].map(source => ({ source, text: normalizeSearch(source.title) })),
   };
   searchEntries.set(record, entry);
   return entry;

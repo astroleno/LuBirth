@@ -63,13 +63,14 @@ try {
   const { default: JourneyPanel } = await server.ssrLoadModule('/src/history/JourneyPanel.tsx');
 
   assert.equal(historyCatalog.count, 153);
-  assert.deepEqual(historyCatalog.records, [...base, ...curated]);
+  assert.deepEqual(historyCatalog.records.slice(base.length), curated);
+  assert.deepEqual(historyCatalog.records.map(record => record.id), [...base, ...curated].map(record => record.id));
   const old = mergeHistoryCatalog(base, []);
   const counts = (rows, options) => selectHistory(rows, options).length;
   assert.equal(historyCatalog.monthDays, new Set([...base, ...curated].map(record => record.date.iso.slice(5))).size);
   assert.equal(counts(historyCatalog.records, { filter: 'event' }), 63);
   assert.equal(counts(historyCatalog.records, { filter: 'birth' }), 90);
-  assert.equal(counts(historyCatalog.records, { filter: 'ready' }), counts(base, { filter: 'ready' }) + 3);
+  assert.equal(counts(historyCatalog.records, { filter: 'ready' }), counts(base, { filter: 'ready' }) + 3 + 8);
   assert.equal(counts(historyCatalog.records, { period: EARLY_PERIODS }), counts(base, { period: EARLY_PERIODS }) + 1);
   assert.equal(historyCatalog.periods[WORLD_PERIOD], old.periods[WORLD_PERIOD] + 2);
   assert.equal(historyCatalog.periods['隋唐'], old.periods['隋唐'] + 1);

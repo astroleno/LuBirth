@@ -1,6 +1,7 @@
 import importedRecords from './data/records.json';
 import curatedEvents from './data/supplemental-events.json';
 import { isHistoryRecordId, type HistoryRecord } from './historyModel';
+import { applyHistoryEvidence } from './historyRecordEvidence';
 
 export function mergeHistoryCatalog(imported: readonly HistoryRecord[], curated: readonly HistoryRecord[]) {
   const ids = new Set<string>();
@@ -19,4 +20,6 @@ export function mergeHistoryCatalog(imported: readonly HistoryRecord[], curated:
   return { records: [...imported, ...curated], periods, count: ids.size, monthDays: monthDays.size };
 }
 
-export const historyCatalog = mergeHistoryCatalog(importedRecords as HistoryRecord[], curatedEvents as HistoryRecord[]);
+export const historyCatalog = mergeHistoryCatalog(
+  (importedRecords as HistoryRecord[]).map(applyHistoryEvidence), (curatedEvents as HistoryRecord[]).map(applyHistoryEvidence),
+);

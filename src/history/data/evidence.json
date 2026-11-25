@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "sources": {
+    "qingCalendar": { "url": "https://ytliu0.github.io/ChineseCalendar/table_period_chinese.html", "title": "Y. T. Liu：中国历法与西历对照表" },
+    "kangxi": { "url": "https://www.dpm.org.cn/court/lineage/226256.html", "title": "故宫博物院：康熙皇帝" },
+    "jingren": { "url": "https://www.dpm.org.cn/explore/building/236509.html", "title": "故宫博物院：景仁宫" },
+    "tongzhi": { "url": "https://www.dpm.org.cn/court/lineage/226248.html", "title": "故宫博物院：同治皇帝" },
+    "jingrenMap": { "url": "https://www.openstreetmap.org/way/40631331", "title": "OpenStreetMap：景仁宫" },
+    "chuxiuMap": { "url": "https://www.openstreetmap.org/way/40631826", "title": "OpenStreetMap：储秀宫" },
+    "wen": { "url": "https://zh.wikisource.org/wiki/宋少保、右丞相兼樞密使、信國公文山先生紀年錄", "title": "《文山先生纪年录》" },
+    "zeng": { "url": "https://zh.wikisource.org/zh-hans/曾文正公年譜", "title": "《曾文正公年谱》卷一" },
+    "zuo": { "url": "https://www.shidianguji.com/mid-page/7530033373696409638", "title": "《左文襄公年谱》卷一" },
+    "herschelPaper": { "url": "https://mathshistory.st-andrews.ac.uk/Extras/Herschel_William_papers/", "title": "赫歇尔《Account of a Comet》原文节选" },
+    "herschelHeritage": { "url": "https://historicengland.org.uk/listing/the-list/list-entry/1396262", "title": "Historic England：18–19 New King Street" },
+    "herschelGarden": { "url": "https://herschelmuseum.org.uk/about/explore/", "title": "赫歇尔天文博物馆：住宅与花园" },
+    "herschelMap": { "url": "https://www.openstreetmap.org/node/368610180", "title": "OpenStreetMap：赫歇尔天文博物馆" },
+    "chenqiao": { "url": "https://zh.wikisource.org/wiki/續資治通鑑長編_(四庫全書本)/卷001", "title": "《续资治通鉴长编》卷一" },
+    "palermo": { "url": "https://www.jpl.nasa.gov/news/ceres-keeping-well-guarded-secrets-for-215-years/", "title": "NASA JPL：皮亚齐发现谷神星的天文台" },
+    "palermoMap": { "url": "https://www.openstreetmap.org/node/2027074010", "title": "OpenStreetMap：巴勒莫天文台博物馆" },
+    "pekingGames": { "url": "https://news.sina.com.cn/c/2007-05-10/185712958138.shtml", "title": "京师大学堂的第一届运动会 · 早晨钟声" },
+    "sun": { "url": "http://m.meilanfangdajuyuan.com/ShowNews.asp?id=5540", "title": "梅兰芳大剧院：孙菊仙诞辰" },
+    "sunChronicle": { "url": "https://ctext.org/wiki.pl?chapter=637859&if=en&remap=gb", "title": "《道咸以来梨园系年小录》：孙菊仙正月初一" },
+    "qi": { "url": "https://www.hnmuseum.com/zh-hans/content/第一讲：白石其人", "title": "湖南博物院：白石其人" },
+    "liu": { "url": "https://m.thepaper.cn/newsDetail_forward_18475847", "title": "刘天华诞辰 · 原文并列两历" },
+    "shen": { "url": "http://www.courtmuseum.cn/html/content/content.html?id=206", "title": "中国法院博物馆：沈家本" },
+    "wu": { "url": "https://xzx.shnu.edu.cn/99/a6/c18435a498086/page.htm", "title": "上海师范大学：武训诞辰" },
+    "sichuan": { "url": "https://archives.scu.edu.cn/info/1001/2212.htm", "title": "四川大学档案馆：四川中西学堂档案" },
+    "libraryOpening": { "url": "https://blogs.loc.gov/loc/2015/11/opening-day-for-the-library/", "title": "美国国会图书馆：大楼开放首日" },
+    "librarySite": { "url": "https://www.aoc.gov/explore-capitol-campus/buildings-grounds/library-of-congress/thomas-jefferson-building", "title": "美国国会建筑师办公室：托马斯·杰斐逊大楼" },
+    "libraryMap": { "url": "https://www.wikidata.org/wiki/Q2615945#P625", "title": "托马斯·杰斐逊大楼地理坐标" },
+    "districtStandardTime": { "url": "https://www.govinfo.gov/content/pkg/STATUTE-23/pdf/STATUTE-23-Pg4-2.pdf", "title": "美国国会 1884 年法案：哥伦比亚特区标准时间" },
+    "railwayTime": { "url": "https://aa.usno.navy.mil/faq/us_tzones", "title": "美国海军天文台：美国时区与铁路标准时" },
+    "louvre": { "url": "https://musee.louvre.fr/decouvrir/le-palais/la-peinture-italienne-en-perspective", "title": "卢浮宫：1793 年开放与大画廊" },
+    "louvreMap": { "url": "https://www.openstreetmap.org/way/366143566", "title": "OpenStreetMap：卢浮宫大画廊" },
+    "shanghaiLight": { "url": "https://shupeidian.bjx.com.cn/html/20150420/609563.shtml", "title": "上海乍浦路电灯试验 · 两历记载" },
+    "whiteCityInvite": { "url": "https://olympic-museum-artefacts.zetcom.net/en/collection/item/102392/", "title": "奥林匹克博物馆：1908 年伦敦开幕式邀请卡" },
+    "whiteCitySite": { "url": "https://historicengland.org.uk/images-books/photos/item/DP096306", "title": "Historic England：白城体育场旧址" },
+    "whiteCityMap": { "url": "https://www.olympedia.org/venues/216", "title": "Olympedia：白城体育场场址与坐标" },
+    "gmtAct": { "url": "https://www.legislation.gov.uk/ukpga/Vict/43-44/9/enacted", "title": "英国《1880 年时间定义法》" },
+    "summerTimeAct": { "url": "https://www.legislation.gov.uk/ukpga/Geo5/6-7/14/pdfs/ukpga_19160014_en.pdf", "title": "英国《1916 年夏时制法》" }
+  },
+  "records": {
+    "dsh:H006": {
+      "date": { "status": "calculated_agreement", "originalLabel": "顺治十一年三月十八日", "calendarLabel": "清历", "era": "顺治十一年", "lunar": { "year": 1654, "month": 3, "day": 18 }, "note": "故宫博物院记原历生日，清历对照表核得同一日序。", "sources": ["kangxi", "qingCalendar"] },
+      "place": { "name": "紫禁城 · 景仁宫", "latitude": 39.918881, "longitude": 116.39176, "scope": "site", "radiusMeters": 65, "note": "故宫博物院确认出生于景仁宫。坐标为景仁宫建筑轮廓顶点均值，范围覆盖宫院。", "sources": ["jingren", "jingrenMap"] }
+    },
+    "dsh:H017": {
+      "date": { "status": "calculated_agreement", "originalLabel": "咸丰六年三月廿三日", "calendarLabel": "清历", "era": "咸丰六年", "ganzhiYear": "丙辰", "lunar": { "year": 1856, "month": 3, "day": 23 }, "note": "故宫博物院明确记咸丰六年为丙辰，清历对照表核得同一日序。", "sources": ["tongzhi", "qingCalendar"] },
+      "place": { "name": "紫禁城 · 储秀宫", "latitude": 39.919772, "longitude": 116.389516, "scope": "site", "radiusMeters": 65, "note": "故宫博物院确认出生于储秀宫。坐标为储秀宫建筑轮廓顶点均值，范围覆盖宫院。", "sources": ["tongzhi", "chuxiuMap"] }
+    },
+    "dsh:H021": {
+      "time": { "precision": "window", "start": "23:00", "end": "01:00", "example": "00:00", "dayBoundary": "unverified", "original": "子时", "note": "子时常用近似对应 23:00–次日 01:00。演示取换算日期 00:00，史料未定实际日界。", "source": "wen", "clockBasis": { "kind": "unverified", "note": "原载时辰及日界无法直接换算为精确 UTC。" } }
+    },
+    "dsh:H023": {
+      "date": { "status": "calculated_agreement", "originalLabel": "嘉庆十六年十月十一日", "calendarLabel": "清历", "era": "嘉庆十六年", "ganzhiYear": "辛未", "lunar": { "year": 1811, "month": 10, "day": 11 }, "note": "年谱记为嘉庆十六年辛未。该年闰三月，十月十一按清历对照表对应 1811-11-26。", "sources": ["zeng", "qingCalendar"] },
+      "time": { "precision": "window", "start": "21:00", "end": "23:00", "example": "22:00", "original": "亥时", "note": "亥时常用近似对应 21:00–23:00，演示取中点。", "source": "zeng", "clockBasis": { "kind": "unverified", "note": "史料记时辰，具体钟点与历史时制未核实。" } }
+    },
+    "dsh:H024": {
+      "date": { "status": "calculated_agreement", "originalLabel": "嘉庆十七年十月初七日", "calendarLabel": "清历", "era": "嘉庆十七年", "ganzhiYear": "壬申", "lunar": { "year": 1812, "month": 10, "day": 7 }, "note": "年谱记为嘉庆十七年壬申，清历对照表与湘阴县资料日期同日。", "sources": ["zuo", "qingCalendar"] },
+      "time": { "precision": "window", "start": "03:00", "end": "05:00", "example": "04:00", "original": "寅时", "note": "寅时常用近似对应 03:00–05:00，演示取中点。", "source": "zuo", "clockBasis": { "kind": "unverified", "note": "史料记时辰，具体钟点与历史时制未核实。" } }
+    },
+    "dsh:H040": {
+      "time": { "precision": "window", "start": "22:00", "end": "23:00", "example": "22:30", "original": "夜间 10 至 11 点之间", "note": "赫歇尔发表的报告记首次看到星点在当晚 10 至 11 点之间，演示取中点。", "source": "herschelPaper", "clockBasis": { "kind": "unverified", "note": "论文未注明所用钟表的时制和经度校正。" } },
+      "place": { "name": "巴斯 · 赫歇尔故居后花园", "latitude": 51.382507, "longitude": -2.366941, "scope": "site", "radiusMeters": 50, "note": "博物馆说明观测发生在后花园，历史建筑名单确认 19 号故居。坐标采用故居博物馆地图标记，约覆盖住宅和花园。", "sources": ["herschelGarden", "herschelHeritage", "herschelMap"] }
+    },
+    "dsh:H043": {
+      "date": { "status": "not_applicable", "originalLabel": "后周显德七年（宋建隆元年）正月甲辰", "calendarLabel": "中国原历", "era": "显德七年（建隆元年）", "ganzhiDays": ["癸卯", "甲辰"], "note": "原文以癸卯记夜宿陈桥，翌日甲辰记黄袍加身。本条换算日期指甲辰日。", "sources": ["chenqiao"] }
+    },
+    "dsh:H054": {
+      "place": { "name": "巴勒莫 · 皇家天文台旧址", "latitude": 38.111437, "longitude": 13.353172, "scope": "site", "radiusMeters": 80, "note": "JPL 记发现发生于巴勒莫天文台。坐标取诺曼王宫内天文台博物馆；位于同一建筑群，未定位到望远镜位置。", "sources": ["palermo", "palermoMap"] }
+    },
+    "dsh:S15-12": {
+      "time": { "precision": "point", "clock": "07:00", "scope": "related", "original": "早晨 7 点，和嘉公主府钟响", "note": "报道所记为赛前钟响，开赛的确切时间未见于该段。", "source": "pekingGames", "clockBasis": { "kind": "unverified", "note": "报道未说明当年钟点按什么时制记录。" } }
+    },
+    "dsh:N50-002": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "道光二十一年（辛丑）正月初一", "calendarLabel": "清历与西历并载", "era": "道光二十一年", "ganzhiYear": "辛丑", "lunar": { "year": 1841, "month": 1, "day": 1 }, "note": "原档并载道光二十一年辛丑正月初一和 1841 年 1 月 23 日。清历对照表核得同一日序，《梨园系年小录》亦记生日为正月初一。", "sources": ["sun", "sunChronicle", "qingCalendar"] }
+    },
+    "dsh:N50-003": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "同治二年（癸亥）十一月廿二", "calendarLabel": "清历与西历并载", "era": "同治二年", "ganzhiYear": "癸亥", "lunar": { "year": 1863, "month": 11, "day": 22 }, "note": "湖南博物院并列清历癸亥年十一月廿二和西历 1864 年 1 月 1 日。清历对照表核得同一日序。", "sources": ["qi", "qingCalendar"] }
+    },
+    "dsh:N50-004": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "正月初十", "calendarLabel": "清历与西历并载", "lunar": { "year": 1895, "month": 1, "day": 10 }, "note": "原档引文并列 1895 年 2 月 4 日与正月初十；以该西历年份检索清历，核得同一日序。原引文仅载农历月日。", "sources": ["liu", "qingCalendar"] }
+    },
+    "dsh:N50-021": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "道光二十年七月廿二", "calendarLabel": "清历与西历并载", "era": "道光二十年", "lunar": { "year": 1840, "month": 7, "day": 22 }, "note": "原档引用中国法院博物馆所列两历；清历对照表核得道光二十年七月廿二对应 1840-08-19。", "sources": ["shen", "qingCalendar"] }
+    },
+    "dsh:N50-026": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "道光十八年十月十九", "calendarLabel": "清历与西历并载", "era": "道光十八年", "lunar": { "year": 1838, "month": 10, "day": 19 }, "note": "原档列道光十八年十月十九与 1838 年 12 月 5 日。该年闰四月，清历对照表核得同一日序。", "sources": ["wu", "qingCalendar"] }
+    },
+    "dsh:N50-032": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "光绪二十二年五月初八", "calendarLabel": "清历与西历并载", "era": "光绪二十二年", "lunar": { "year": 1896, "month": 5, "day": 8 }, "note": "四川大学档案馆同时记原历和西历，清历对照表核得同一日序。", "sources": ["sichuan", "qingCalendar"] }
+    },
+    "dsh:N50-033": {
+      "time": { "precision": "point", "clock": "09:00", "scope": "event", "original": "上午 9 点正式对公众开放", "note": "美国国会图书馆馆史记大楼于当日上午 9 点开放。", "source": "libraryOpening", "clockBasis": { "kind": "fixed-offset", "offsetMinutes": -300, "note": "1884 年联邦法规定，哥伦比亚特区以西经 75° 的平太阳时为法定时间，相当于 UTC−05:00。演示按当年法定时间换算，单独的馆钟校准资料待核。", "sources": ["districtStandardTime", "railwayTime"] } },
+      "place": { "name": "华盛顿 · 国会图书馆托马斯·杰斐逊大楼", "latitude": 38.888611, "longitude": -77.005556, "scope": "site", "radiusMeters": 120, "note": "采用现存同一大楼的地理坐标，范围覆盖馆舍。", "sources": ["librarySite", "libraryMap"] }
+    },
+    "dsh:N50-034": {
+      "place": { "name": "巴黎 · 卢浮宫大画廊", "latitude": 48.859912, "longitude": 2.335249, "scope": "site", "radiusMeters": 250, "note": "卢浮宫馆史确认大画廊与 1793 年开放的中央艺术博物馆。采用丹农翼大画廊图形顶点均值作为场址代表。", "sources": ["louvre", "louvreMap"] }
+    },
+    "dsh:N50-040": {
+      "date": { "status": "numeric_equivalence_verified", "originalLabel": "光绪五年四月初八", "calendarLabel": "清历与西历并载", "era": "光绪五年", "lunar": { "year": 1879, "month": 4, "day": 8 }, "note": "原档列光绪五年四月初八与 1879 年 5 月 28 日。该年闰三月，清历对照表核得同一日序。", "sources": ["shanghaiLight", "qingCalendar"] }
+    },
+    "dsh:N50-048": {
+      "time": { "precision": "point", "clock": "15:30", "scope": "related", "original": "邀请卡预告开幕仪式为下午 3 点半", "note": "奥林匹克博物馆保存的邀请卡列出预定钟点，实际启幕分钟待核。", "source": "whiteCityInvite", "clockBasis": { "kind": "fixed-offset", "offsetMinutes": 0, "note": "当年大不列颠法定时间按格林尼治平时。英国于 1916 年起实施夏时制。", "sources": ["gmtAct", "summerTimeAct"] } },
+      "place": { "name": "伦敦 · 白城体育场旧址", "latitude": 51.51362, "longitude": -0.2274, "scope": "site", "radiusMeters": 200, "note": "体育场已拆除。点位代表原体育场范围，Historic England 记录现址保留 1908 年终点线标记。", "sources": ["whiteCityInvite", "whiteCitySite", "whiteCityMap"] }
+    }
+  },
+  "revisions": {
+    "dsh:H006": {
+      "baseRecordHash": "e560f3fe6218885261d92e50368c788d483425a7ebb9e590d02c7b40f722484e",
+      "recordHash": "8178abadee04607df06ce6857df834826c3426d10ceb734dd13d4a9c8ac066fa"
+    },
+    "dsh:H017": {
+      "baseRecordHash": "e264daa6eac43213c8137f918866a4db7e0ee12bea1a9f26cafd02e232f5aaf5",
+      "recordHash": "91aa3d2d7628f90cf066b553e971b52d9ab9ea26115536e9d01cb9a33e396c1f"
+    },
+    "dsh:H021": {
+      "baseRecordHash": "dc7c0a9913c0f48bc0c7d2200c34f13be0e2f27b4c1511993e406fcf3509ebc1",
+      "recordHash": "1a735e8dbca6895379b098c5275001ac6188b92b3b4c9fda4634e1e6a4046fb6"
+    },
+    "dsh:H023": {
+      "baseRecordHash": "0126af4a50cd99505125c59b7cf752a4974af119d3ca676fa6f09fb4fb62a8ed",
+      "recordHash": "6b09c27c1d040c896256d3e6039105c72a3c38a3895ea365c640cfe8fcadc88b"
+    },
+    "dsh:H024": {
+      "baseRecordHash": "fee82d66f18fcfd63aaef34fa021ed656c8fa3a3bcd0d298a9243e48618ba9b4",
+      "recordHash": "51e7549bcbbb8e39fce6eb3e07faebbc8f4b8139c605772c286b2fc6c0fba184"
+    },
+    "dsh:H040": {
+      "baseRecordHash": "6f0cdf9a4eda193d5d8886a42d4c6ff59ea5c305883333cb558a9622bca91757",
+      "recordHash": "06270e5400e45a39587529610023919e45033947819b52eaf7cc04e34fea55e6"
+    },
+    "dsh:H043": {
+      "baseRecordHash": "2a1498bd4dd8093c2f3c405ef36257e3bbcfbb99da671999ef0d2ead5ef682ea",
+      "recordHash": "4924c2f7e867896634a97a8a4db621b607e99f17415e571fbb24d00391b6a135"
+    },
+    "dsh:H054": {
+      "baseRecordHash": "e78cd0a19e4895e4d617171354960a9321cbae512989f2b99a24bda7337e0d5a",
+      "recordHash": "bfaa677e930dc034147efe461761a07664b4acbac42d3afb27371490dc3a2169"
+    },
+    "dsh:S15-12": {
+      "baseRecordHash": "5efffa62df03e54e73efeabdcf433c6d8e610dd9d4b686b1588c3391d1fd0ce4",
+      "recordHash": "26cffedd05f9241fbc1174d69cdf2a454114a12e6ba23edcad08278ad1556225"
+    },
+    "dsh:N50-002": {
+      "baseRecordHash": "5d41a5c692815e6fb0b32902005fd05e6b9c6df5cf628a82b4a4100689a3de6a",
+      "recordHash": "5e640c6accee12ee29a46c5df227650bd524cc2a3cb256952d510948a8d1ab68"
+    },
+    "dsh:N50-003": {
+      "baseRecordHash": "733e1d1abc265d9d1c1652c6813c04484c598e9fe28352a0e0a2aa88c93af279",
+      "recordHash": "910ac2ac43e227ffd3ee84088b5e91dd990e9fba1762603c3736826fa4247505"
+    },
+    "dsh:N50-004": {
+      "baseRecordHash": "fd1c333989a943fcc4f0adb72355583168914a194412540501b32255e9874a05",
+      "recordHash": "863601efa31af0ba6d874882e7d0943a21c97213385931cf31a5bdb5efbbfbe3"
+    },
+    "dsh:N50-021": {
+      "baseRecordHash": "ea5010ace1e1df29b1190961fca9879f465d3af6973b9c2708967ae05675226d",
+      "recordHash": "4d5b5861d6fa91c92a6008d63f9a039f68c83602ba1494a09560650529c0769d"
+    },
+    "dsh:N50-026": {
+      "baseRecordHash": "685ad1cbc495ce3be043c2e709edcca50e8ab5e9eb2ee49e959bc8925ef3fab9",
+      "recordHash": "74bb971565413cdb5bcabd4400dfe4003899390fe807066857ed9f6607e3a4e6"
+    },
+    "dsh:N50-032": {
+      "baseRecordHash": "8c3b2d417acca9acd52758bdd28199713baccaee1ebfee5445959e6e567f606d",
+      "recordHash": "b0cfde03e4e27253b69efd9a90d9daa9cee49baa02cf8ac062fe2346087bceb6"
+    },
+    "dsh:N50-033": {
+      "baseRecordHash": "4882c61af885cbed0b6d3a127a61f80f3cf17dd1f8bd92c66c2aec47188ea813",
+      "recordHash": "d85d3a0e9b7b2347027fda53ea188b830ef095e87b347acbd75e0dfd5832673a"
+    },
+    "dsh:N50-034": {
+      "baseRecordHash": "6b4204268160741ee3269653e2c105e8a9fae8ac646cad96c4a9fa22d688da9e",
+      "recordHash": "4e7607889c7346763580b72bb8cd6d6a9604a11b1eeb68cd1ecc53f8149379bf"
+    },
+    "dsh:N50-040": {
+      "baseRecordHash": "970bd897ac746d2f66e0cce8e1b49c378f60e95ce59477bf8bc518b14fd78895",
+      "recordHash": "7d3745f22fbb99b6e95830730f2f5722538d9156de2c90bc761ecc0be533718c"
+    },
+    "dsh:N50-048": {
+      "baseRecordHash": "584601fd5e1a70d1a2d3f64d2a6c0ab2c13974ed6099effef44cab28b084873c",
+      "recordHash": "0a262618c387f0cb40684497e8fc4bbf9cbb267e1eee7a51a88ff194dc82d149"
+    }
+  }
+}
