@@ -9,7 +9,8 @@ import type { Observation } from './history/observation';
 import type { SkyViewState } from './spikes/sky/main';
 import ObservationForm from './history/ObservationForm';
 import { personalObservationInitial } from './history/observationDraft';
-import { createCelestialState, createObserverState } from './astro/celestialState';
+import { createCelestialState, createObserverState, type ObserverState } from './astro/celestialState';
+import { apparentHorizonDisk } from './astro/apparentHorizon';
 import { createViewTransfer, observationKey } from './history/viewBridge';
 import type { ViewTransfer } from './history/viewBridge';
 import { SpatialValidationProbe } from './performance/SpatialValidationProbe';
@@ -27,6 +28,18 @@ import './components/experience/experience.css';
 const SkyView = React.lazy(() => import('./spikes/sky/main'));
 const JourneyPanel = React.lazy(() => import('./history/JourneyPanel'));
 const LocalAudioPlayer = React.lazy(() => import('./components/LocalAudioPlayer'));
+
+const COMPASS_DIRECTIONS = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+
+function moonBearingText(moon: ObserverState['moon']) {
+  const { azimuthDeg } = moon;
+  if (azimuthDeg === null) return `真实月位 · ${moon.altitudeDeg > 0 ? '天顶' : '天底 · 地平线下'}`;
+  const direction = COMPASS_DIRECTIONS[Math.round(azimuthDeg / 45) % COMPASS_DIRECTIONS.length];
+  const azimuth = Math.round(azimuthDeg) % 360;
+  const { visibility } = apparentHorizonDisk(moon);
+  const horizon = { above: '', partial: '部分月面露出地平线', below: '地平线下' }[visibility];
+  return `真实月位 · ${direction} ${azimuth}°${horizon ? ` · ${horizon}` : ''}`;
+}
 
 export default function App() {
   const mobile = useMobileLayout();
@@ -241,6 +254,8 @@ export default function App() {
         <p>{state.current.source.label}{state.current.source.kind === 'example' ? ' · 示例' : ''}</p>
         <p>{formatCivilDate(state.current.civilDate)} · {state.current.clock} · {state.current.source.kind === 'history'
           ? observerPlaceLabel(state.current.observer) : state.current.observer.name}</p>
+        {view === 'sky' && state.moonPlacement === 'portrait' && <small className="experience-moon-bearing">
+          {moonBearingText(observer.moon)}</small>}
         {state.current.source.kind === 'history' && <><small>{state.current.timeSelection.origin === 'event-default-20' ? '默认当地 20:00 演示' : '所选当地时刻演示'}</small>
           <button onClick={returnToPersonal}>{state.birth ? '回到我的出生时刻' : '回到此前天空'} ↗</button></>}
       </div>}
