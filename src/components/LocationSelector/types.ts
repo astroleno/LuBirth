@@ -27,7 +27,12 @@ export interface LocationTree {
 }
 
 export interface SearchIndex {
-  [key: string]: LocationData[];
+  names: ReadonlyMap<string, readonly LocationData[]>;
+  entries: readonly {
+    location: LocationData;
+    names: string[];
+    variants: ReadonlySet<string>[];
+  }[];
 }
 
 export interface SelectedLocation {

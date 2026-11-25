@@ -538,7 +538,7 @@ export const cityToProvinceMap: { [key: string]: string } = {
 
 // 获取省份名称
 export function getProvinceName(cityName: string): string {
-  return cityToProvinceMap[cityName] || '';
+  return Object.prototype.hasOwnProperty.call(cityToProvinceMap, cityName) ? cityToProvinceMap[cityName] : '';
 }
 
 // 获取省份下的所有城市

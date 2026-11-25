@@ -1,8 +1,8 @@
-import { LocationData, LocationTree, SearchIndex } from './types';
-import { provinces, cityToProvinceMap, getProvinceName, getCitiesByProvince } from './administrativeData';
+import type { LocationData, LocationTree, SearchIndex } from './types';
+import { provinces, getProvinceName, getCitiesByProvince } from './administrativeData';
 
-// 拼音转换工具
-const pinyinMap: { [key: string]: string } = {
+// 可搜索的省级简称和部分常用城市拼音。
+const pinyinMap = new Map(Object.entries({
   '北京': 'beijing',
   '上海': 'shanghai',
   '天津': 'tianjin',
@@ -36,13 +36,28 @@ const pinyinMap: { [key: string]: string } = {
   '海南': 'hainan',
   '香港': 'xianggang',
   '澳门': 'aomen',
-  '台湾': 'taiwan'
-};
+  '台湾': 'taiwan',
+  '杭州': 'hangzhou',
+  '广州': 'guangzhou',
+  '深圳': 'shenzhen',
+  '南京': 'nanjing',
+  '成都': 'chengdu',
+  '武汉': 'wuhan',
+  '西安': 'xian',
+}));
 
-// 简单的中文转拼音（主要针对省级行政区）
-function toPinyin(text: string): string {
-  return pinyinMap[text] || text.toLowerCase();
-}
+const provinceShortNames = new Map(provinces.map(province => [province.name, province.shortName]));
+const normalizeSearch = (value: string) => value.normalize('NFKC').trim().toLowerCase();
+
+// Official names for supported abbreviated labels in the coordinate table.
+// Beijing: https://mzj.beijing.gov.cn/art/2026/7/16/art_9984_692516.html
+// Hangzhou: https://zfgb.hangzhou.gov.cn/18/106220253/t106220253064/528872.shtml
+const officialDistrictNames = new Map([
+  ['北京市', ['东城区', '西城区', '朝阳区', '丰台区', '石景山区', '海淀区', '门头沟区', '房山区',
+    '通州区', '顺义区', '昌平区', '大兴区', '怀柔区', '平谷区', '密云区', '延庆区']],
+  ['杭州市', ['上城区', '拱墅区', '西湖区', '滨江区', '萧山区', '余杭区', '临平区', '钱塘区',
+    '富阳区', '临安区', '桐庐县', '淳安县', '建德市']],
+]);
 
 // 解析CSV数据
 export function parseCSVData(csvText: string): LocationData[] {
@@ -78,13 +93,13 @@ export function parseCSVData(csvText: string): LocationData[] {
 
 // 构建正确的树形结构（基于中国行政层级）
 export function buildLocationTree(data: LocationData[]): LocationTree {
-  const tree: LocationTree = { provinces: {} };
+  const tree: LocationTree = { provinces: Object.create(null) };
   
   // 首先添加所有省份
   provinces.forEach(province => {
     tree.provinces[province.name] = {
       name: province.name,
-      cities: {}
+      cities: Object.create(null)
     };
   });
   
@@ -96,7 +111,7 @@ export function buildLocationTree(data: LocationData[]): LocationTree {
     if (!tree.provinces[province]) {
       tree.provinces[province] = {
         name: province,
-        cities: {}
+        cities: Object.create(null)
       };
     }
     
@@ -104,7 +119,7 @@ export function buildLocationTree(data: LocationData[]): LocationTree {
     if (!tree.provinces[province].cities[city]) {
       tree.provinces[province].cities[city] = {
         name: city,
-        districts: {}
+        districts: Object.create(null)
       };
     }
     
@@ -121,75 +136,87 @@ export function buildLocationTree(data: LocationData[]): LocationTree {
 
 // 构建搜索索引
 export function buildSearchIndex(data: LocationData[]): SearchIndex {
-  const index: SearchIndex = {};
-  
-  data.forEach(item => {
-    const { province, city, district } = item;
-    
-    // 全名搜索
-    const fullName = `${province}${city}${district}`;
-    const cityDistrict = `${city}${district}`;
-    
-    // 添加到索引
-    [fullName, cityDistrict, province, city, district].forEach(key => {
-      if (!index[key]) {
-        index[key] = [];
-      }
-      index[key].push(item);
-    });
-    
-    // 拼音搜索
-    const pinyinKey = toPinyin(fullName);
-    if (!index[pinyinKey]) {
-      index[pinyinKey] = [];
+  const names = new Map<string, LocationData[]>();
+  const entries = data.map(location => {
+    const [province, city, district] = [location.province, location.city, location.district].map(normalizeSearch);
+    for (const key of new Set([province + city + district, city + district, province, city, district])) {
+      const matches = names.get(key);
+      if (matches) matches.push(location);
+      else names.set(key, [location]);
     }
-    index[pinyinKey].push(item);
+
+    const provinceShort = provinceShortNames.get(province) ?? province;
+    const cityShort = city.replace(/[市县]$/, '');
+    const districtShort = district.replace(/[区县市]$/, '');
+    const districtVariants = new Set([district, districtShort]);
+    const official = officialDistrictNames.get(city)?.find(name => name.slice(0, -1) === district);
+    if (official) districtVariants.add(official);
+    const provinceVariants = new Set([province, provinceShort]);
+    const cityVariants = new Set([city, cityShort]);
+    const provincePinyin = pinyinMap.get(provinceShort);
+    const cityPinyin = pinyinMap.get(cityShort);
+    if (provincePinyin) provinceVariants.add(provincePinyin);
+    if (cityPinyin) cityVariants.add(cityPinyin);
+    return { location, names: [province, city, district], variants: [provinceVariants, cityVariants, districtVariants] };
   });
-  
-  return index;
+  return { names, entries };
 }
 
 // 搜索功能
 export function searchLocations(query: string, searchIndex: SearchIndex): LocationData[] {
-  if (!query.trim()) return [];
-  
+  const terms = normalizeSearch(query).split(/[\s,、/·]+/).filter(Boolean);
+  if (!terms.length || terms.length > 3) return [];
+
   const results: LocationData[] = [];
   const seen = new Set<string>();
-  
-  // 精确匹配
-  if (searchIndex[query]) {
-    searchIndex[query].forEach(item => {
-      const key = `${item.province}-${item.city}-${item.district}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        results.push(item);
-      }
-    });
-  }
-  
-  // 模糊匹配
-  Object.keys(searchIndex).forEach(key => {
-    if (key.includes(query) && !seen.has(key)) {
-      searchIndex[key].forEach(item => {
-        const itemKey = `${item.province}-${item.city}-${item.district}`;
-        if (!seen.has(itemKey)) {
-          seen.add(itemKey);
-          results.push(item);
-        }
-      });
+  const add = (locations: readonly LocationData[]) => {
+    for (const location of locations) {
+      if (results.length === 20) return;
+      const key = JSON.stringify([location.province, location.city, location.district]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(location);
     }
-  });
-  
-  // 按相关性排序（精确匹配优先）
-  return results.sort((a, b) => {
-    const aExact = a.province === query || a.city === query || a.district === query;
-    const bExact = b.province === query || b.city === query || b.district === query;
-    
-    if (aExact && !bExact) return -1;
-    if (!aExact && bExact) return 1;
-    
-    return 0;
-  }).slice(0, 20); // 限制结果数量
+  };
+
+  const [term] = terms;
+  if (terms.length === 1) {
+    const literal = searchIndex.names.get(term) ?? [];
+    const matchesField = (location: LocationData) =>
+      [location.province, location.city, location.district].some(name => normalizeSearch(name) === term);
+    add(literal.filter(matchesField));
+    add(literal);
+    for (const [name, matches] of searchIndex.names) {
+      if (results.length === 20) break;
+      if (name !== term && name.includes(term)) add(matches);
+    }
+    if (results.length < 20) {
+      for (const { variants, location } of searchIndex.entries) {
+        if (results.length === 20) break;
+        if (variants.some(level => level.has(term))) add([location]);
+      }
+    }
+    return results;
+  }
+
+  // 每个词匹配同一条记录中后续的层级，可省略任一层。
+  const fallbacks: LocationData[] = [];
+  for (const { names, variants, location } of searchIndex.entries) {
+    let position = 0;
+    let exact = true;
+    for (const [index, level] of variants.entries()) {
+      if (!level.has(terms[position])) continue;
+      if (terms[position] !== names[index]) exact = false;
+      position++;
+    }
+    if (position === terms.length) {
+      if (exact) add([location]);
+      else fallbacks.push(location);
+    }
+    if (results.length === 20) return results;
+  }
+  add(fallbacks);
+  return results;
 }
 
 // 获取省份列表
