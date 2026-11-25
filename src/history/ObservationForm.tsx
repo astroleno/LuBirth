@@ -4,6 +4,8 @@ import { resolveCivilTime, supportsTimeZone, type CivilTimeChoices } from './ian
 import { isInLunarRange } from '../calendar/lunarRange';
 import { locationLabel, selectedLocationDraft } from '../components/LocationSelector/locationDraft';
 import { commitObserverDraft, coordinateDraftError, createObserverDraft, resolveObserverDraft, type ObserverDraft } from './observationDraft';
+import { observerPlaceLabel } from './historyModel';
+import { formatCivilDate } from '../utils/formatCivilDate';
 
 const LocationSelector = React.lazy(() => import('../components/LocationSelector').then(module => ({ default: module.LocationSelector })));
 const LunarBirthDateFields = React.lazy(() => import('../calendar/LunarCalendarFields').then(module => ({ default: module.LunarBirthDateFields })));
@@ -150,7 +152,8 @@ export function ObservationSummary({ observation }: { observation: Observation }
   return <div className="journey-observation" data-observation-utc={observation.utc}
     data-observation-latitude={observation.observer.latitude} data-observation-longitude={observation.observer.longitude}>
     <strong>{observation.source.label}{observation.source.kind === 'history' ? ' · 演示' : observation.source.kind === 'example' ? ' · 示例' : ''}</strong>
-    <p>{observation.civilDate}　{observation.clock}<br />{observation.observer.name}</p>
+    <p>{formatCivilDate(observation.civilDate)}　{observation.clock}<br />
+      {observation.source.kind === 'history' ? observerPlaceLabel(observation.observer) : observation.observer.name}</p>
     <small>{timeBasisLabel(observation.timeBasis)}</small>
     {observation.source.kind === 'history' && <p className="journey-hint">{observation.timeSelection.label}</p>}
   </div>;

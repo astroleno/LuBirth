@@ -181,10 +181,10 @@ try {
   const unexpandedChineseDates = records.filter(record => record.date.originalCalendar === 'chinese-historical' && !record.date.evidence);
   assert.equal(unexpandedChineseDates.length, 40);
   assert.ok(unexpandedChineseDates.every(record => historicalCalendarText(record) === record.date.original));
-  assert.match(markup(suShi), /journey-watch-date">景祐三年十二月十九日（中国原历） <span>· 换算公历 1037-01-14/);
-  assert.match(markup(qiBaishi), /journey-watch-date">同治二年（癸亥）十一月廿二 <span>· 换算公历 1864-01-01/);
+  assert.match(markup(suShi), /journey-watch-date"><strong>景祐三年十二月十九日（中国原历）<\/strong><span>换算公历 1037 年 1 月 14 日/);
+  assert.match(markup(qiBaishi), /journey-watch-date"><strong>同治二年（癸亥）十一月廿二<\/strong><span>换算公历 1864 年 1 月 1 日/);
   const tangFounding = byId.get('curated:tang-founding');
-  assert.match(markup(tangFounding), /journey-watch-date">[^<]+ <span>· 换算公历 0618-06-21 · 20:00 当地/);
+  assert.match(markup(tangFounding), /journey-watch-date"><strong>[^<]+<\/strong><span>换算公历 618 年 6 月 21 日 · 20:00 当地/);
   assert.match(markup(tangFounding), /<button class="journey-primary" type="submit" aria-describedby="[^"]+">观看地月合照<\/button>/);
 
   const oldRecord = raw.find(record => record.id === library.id);

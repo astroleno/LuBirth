@@ -60,16 +60,18 @@ function lineGeometry(items: SkyCulture[], frame: SkyFrame, selected = 'all') {
   return new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(cultureGeometry(items, frame, selected), 3));
 }
 
-export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, dpr, ground, chinese, appearance, view, lineOpacityScale = 1 }: {
+export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, dpr, ground, chinese, appearance, view,
+  lineOpacityScale = 1, lineColor = '#97b9da' }: {
   frame: SkyFrame; magnitude: number; culture: string; items: SkyCulture[]; lines: boolean; daylight: number; dpr: number; ground: boolean; chinese: boolean;
   appearance: StarAppearance;
   view: React.MutableRefObject<SkyView>;
   lineOpacityScale?: number;
+  lineColor?: string;
 }) {
   const { gl, invalidate } = useThree();
   const { brightness, colorStrength, glow } = appearance;
   useEffect(() => { invalidate(); }, [frame, magnitude, culture, items, lines, daylight, dpr, ground, chinese,
-    brightness, colorStrength, glow, invalidate]);
+    brightness, colorStrength, glow, lineOpacityScale, lineColor, invalidate]);
   const stars = useMemo(() => createStarGeometry(frame), [frame]);
   const baseGeometries = useMemo(() => lines ? [
     lineGeometry(items.filter(isMajorCulture), frame),
@@ -100,7 +102,7 @@ export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, 
   for (const line of [lineMaterial, minorMaterial, selectedMaterial]) {
     line.uniforms.daylight.value = daylight;
     line.uniforms.ground.value = ground ? 1 : 0;
-    line.uniforms.color.value.set('#97b9da');
+    line.uniforms.color.value.set(lineColor);
   }
   lineMaterial.uniforms.intensity.value = Math.min(1, (chinese ? .42 : .26) * lineOpacityScale);
   selectedMaterial.uniforms.intensity.value = .65;

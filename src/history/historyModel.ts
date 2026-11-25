@@ -16,6 +16,12 @@ export type ObserverPlace = {
   alternateTimeZone?: string;
 };
 
+export function observerPlaceLabel({ name, precision }: ObserverPlace) {
+  if (precision !== 'representative' || /代表点[）)]$/.test(name)) return name;
+  const placeName = name.replace(/\s*·\s*地区代表点$|代表点$/, '').trimEnd();
+  return placeName ? `${placeName}（地区代表点）` : name;
+}
+
 export type HistorySource = { url: string; title: string };
 
 export type HistoryDateEvidence = {

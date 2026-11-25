@@ -4,6 +4,7 @@ import { EarthScene } from './EarthScene';
 import LoadingOverlay from './components/LoadingOverlay';
 import { useMobileLayout } from './performance/renderProfile';
 import { journeyStore } from './history/journeyStore';
+import { observerPlaceLabel } from './history/historyModel';
 import type { Observation } from './history/observation';
 import type { SkyViewState } from './spikes/sky/main';
 import ObservationForm from './history/ObservationForm';
@@ -19,6 +20,7 @@ import { CulturePicker } from './components/experience/CulturePicker';
 import { AstronomicalCalendar } from './components/experience/AstronomicalCalendar';
 import type { EarthUIActions, ExperiencePanelKind, SceneSection, SceneUIHost } from './components/experience/SceneUI';
 import { assetUrl } from './utils/assetUrl';
+import { formatCivilDate } from './utils/formatCivilDate';
 import './history/journey.css';
 import './components/experience/experience.css';
 
@@ -231,14 +233,15 @@ export default function App() {
             aria-expanded={!!panel} aria-controls="experience-panel"
             onClick={() => panel ? closePanel() : openPanel(lastPanel.current)}>{promptBirth ? '填写时刻' : '探索'}</button>}
           {view === 'earth' && <SceneScreenshot label="留念" unified blocked={earthPending} />}
-          <button ref={immersionButton} onClick={() => setImmersed(!immersed)}>{immersed ? '显示菜单' : '沉浸'}</button>
+          <button ref={immersionButton} aria-keyshortcuts={immersed ? 'Escape' : undefined}
+            onClick={() => setImmersed(!immersed)}>{immersed ? '退出沉浸' : '沉浸'}</button>
         </div>
       </header>
       {!panel && !immersed && <div className="experience-observation" data-sky-obstruction>
         <p>{state.current.source.label}{state.current.source.kind === 'example' ? ' · 示例' : ''}</p>
-        <p>{state.current.civilDate} · {state.current.clock} · {state.current.observer.name}</p>
-        {state.current.source.kind === 'history' && <><small>{state.current.timeSelection.origin === 'event-default-20' ? '默认当地 20:00 演示' : '所选当地时刻演示'}
-          {state.current.observer.precision === 'representative' ? ' · 地区代表点' : ''}</small>
+        <p>{formatCivilDate(state.current.civilDate)} · {state.current.clock} · {state.current.source.kind === 'history'
+          ? observerPlaceLabel(state.current.observer) : state.current.observer.name}</p>
+        {state.current.source.kind === 'history' && <><small>{state.current.timeSelection.origin === 'event-default-20' ? '默认当地 20:00 演示' : '所选当地时刻演示'}</small>
           <button onClick={returnToPersonal}>{state.birth ? '回到我的出生时刻' : '回到此前天空'} ↗</button></>}
       </div>}
       <ExperiencePanel active={panel} onChange={openPanel} onClose={closePanel} onHost={setControlsHost} scene={view} returnFocus={exploreButton}>

@@ -1,4 +1,5 @@
 import { offsetSecondsLabel, readObservation, timeBasisLabel, type Observation } from '../history/observation';
+import { observerPlaceLabel } from '../history/historyModel';
 import type { MoonPlacement } from '../history/journeyStore';
 import { formatCivilDate } from '../utils/formatCivilDate';
 import type { KeepsakeHistorySummary } from './historySummary';
@@ -106,9 +107,8 @@ export function cardContext(draft: KeepsakeDraft, options: CardOptions, historyS
   const details = summary?.originalDate ? [summary.originalDate, '换算公历 ' + date] : [date];
   if (options.showClock) details.push(observation.clock + ' · ' + (observation.timeBasis.kind === 'iana'
     ? offsetSecondsLabel(observation.timeBasis.offsetSeconds) : timeBasisLabel(observation.timeBasis)));
-  if (options.showPlace) details.push(observation.observer.name
-    + (observation.observer.precision === 'representative' && !observation.observer.name.endsWith('代表点') ? ' · 地区代表点' : ''));
-  const notes = moonPlacement === 'portrait' ? ['月球位置已为合影调整。'] : [];
+  if (options.showPlace) details.push(observerPlaceLabel(observation.observer));
+  const notes = moonPlacement === 'portrait' ? ['月球按合影构图。'] : [];
   if (history) {
     const origin = observation.timeSelection?.origin ?? 'legacy-demo';
     notes.push(historyClockNote(origin, summary?.time));

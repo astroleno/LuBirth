@@ -1,12 +1,13 @@
 import React, { useId, useState, useSyncExternalStore } from 'react';
 import type { HistoryRecord } from './historyModel';
-import { CALENDAR_LABELS, CALENDAR_NOTES, historicalCalendarText, historyEvidenceSources, ORIGINAL_CALENDAR_LABELS } from './historyModel';
+import { CALENDAR_LABELS, CALENDAR_NOTES, historicalCalendarText, historyEvidenceSources, observerPlaceLabel, ORIGINAL_CALENDAR_LABELS } from './historyModel';
 import { historyObservation, type Observation, type TimeBasis } from './observation';
 import { journeyStore } from './journeyStore';
 import { CULTURE_INFO, contemporaryCulture } from './cultureVersions';
 import { ObserverPicker, OffsetField, IanaTimeFields, useIanaTimeChoices } from './ObservationForm';
 import { resolveHistoryChoices } from './historyObservationPolicy';
 import { beginHistoricalPlaceEdit, cancelHistoricalPlaceEdit, commitObserverDraft, historicalDraftObserver, observationPlaceOrigin, type HistoricalDraft, type HistoryPlaceMode } from './observationDraft';
+import { formatCivilDate } from '../utils/formatCivilDate';
 
 export default function HistoricalObservation({ record, initialDraft, onDraftChange, onObserve, onCulture }: {
   record: HistoryRecord; initialDraft: HistoricalDraft; onDraftChange: (draft: HistoricalDraft) => void;
@@ -26,6 +27,7 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
   const observer = historicalDraftObserver(record, draft), clock = draft.clockChoice.clock;
   const date = record.date.evidence, time = record.time.precision === 'date-only' ? null : record.time;
   const originalDate = historicalCalendarText(record);
+  const displayDate = formatCivilDate(record.date.iso);
   const recordedBasis = time?.clockBasis.kind === 'fixed-offset' ? time.clockBasis : null;
   const zone = draft.zoneOverride ?? observer?.timeZone ?? '';
   const zoneCheck = useIanaTimeChoices(draft.basis === 'iana' && !!observer, record.date.iso, clock, zone.trim());
@@ -90,11 +92,12 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
         onObserve(observation);
       } catch (reason) { setError((reason as Error).message); }
     }}>
-      <p className="journey-watch-date">{originalDate ?? record.date.iso} <span>· {originalDate && `换算公历 ${record.date.iso} · `}
-        {clock ? clock + (draft.basis === 'recorded' ? ' 当年时制' : ' 当地') : '请选择演示钟点'}</span></p>
+      <p className="journey-watch-date"><strong>{originalDate ?? displayDate}</strong>
+        <span>{originalDate && `换算公历 ${displayDate} · `}
+          {clock ? clock + (draft.basis === 'recorded' ? ' 当年时制' : ' 当地') : '请选择演示钟点'}</span></p>
       {clockEntryOpen && !draft.adjusting && <div className="journey-required-clock">{clockField}</div>}
       {!draft.placeOpen && observer ? <div className="journey-watch-place">
-        <strong>{observer.name}</strong><button ref={changePlace} type="button" className="journey-text-action" aria-label="更改演示地点"
+        <strong>{observerPlaceLabel(observer)}</strong><button ref={changePlace} type="button" className="journey-text-action" aria-label="更改演示地点"
           onClick={() => update(beginHistoricalPlaceEdit(record, draft), false)}>更改地点</button>
       </div> : <div className="journey-place-editor">
         <div className="journey-place-actions"><label htmlFor={id+'-place'}>在哪里观看</label>
@@ -102,7 +105,7 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
             onClick={() => update(cancelHistoricalPlaceEdit(draft), false)}>取消更改</button>}
         </div>
         <select ref={placeMode} id={id+'-place'} name="history-place" value={draft.placeMode} onChange={event => selectPlace(event.target.value as HistoryPlaceMode)}>
-          {record.place.observer && <option value="record">{record.place.observer.name} · {record.place.observer.precision === 'historical-site' ? '场址范围' : '资料相关地区'}</option>}
+          {record.place.observer && <option value="record">{observerPlaceLabel(record.place.observer)}{record.place.observer.precision === 'historical-site' ? ' · 场址范围' : ''}</option>}
           <option value="custom">另选演示地点</option>
           <option value="current">沿用画面地点 · {currentOptionName}（{currentOrigin}）</option>
           {state.birth && <option value="personal">沿用我的出生地点 · {draft.placeMode === 'personal' && draft.reusedPlace ? draft.reusedPlace.name : state.birth.observer.name}</option>}
@@ -119,10 +122,9 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
       </div>}
       <p className="journey-watch-assumptions journey-hint" id={id+'-assumptions'}>
         {clockExplanation}
-        {clock && draft.basis === 'local-mean-solar' && '演示 UTC 按所选经度换算。'}
+        {clock && draft.basis === 'local-mean-solar' && '按地方平太阳时换算。'}
         {clock && draft.basis === 'recorded' && '按有史料依据的时制换算。'}
         {record.date.status === 'conditional_gregorian_interpretation' && '日期按前推公历作条件性解释。'}
-        {observer?.precision === 'representative' && '采用地区代表点。'}
       </p>
       {error && <p className="journey-error" role="alert">{error}</p>}
       <button ref={confirm} className="journey-primary" type="submit" aria-describedby={id+'-assumptions'} disabled={!ready}>
@@ -154,7 +156,7 @@ export default function HistoricalObservation({ record, initialDraft, onDraftCha
     <details className="journey-details journey-source-details" open={draft.sourceOpen} onToggle={event => {
       if (event.currentTarget.open !== draft.sourceOpen) update({ sourceOpen: event.currentTarget.open }, false);
     }}><summary>原日期、地点与史料依据</summary>
-      <dl className="journey-facts"><dt>换算公历</dt><dd>{record.date.iso}</dd><dt>原日期</dt><dd>{record.date.original}</dd>
+      <dl className="journey-facts"><dt>换算公历</dt><dd>{displayDate}</dd><dt>原日期</dt><dd>{record.date.original}</dd>
         <dt>原历</dt><dd>{date?.calendarLabel ?? ORIGINAL_CALENDAR_LABELS[record.date.originalCalendar] ?? record.date.originalCalendar}</dd>
         {date?.era && <><dt>年号</dt><dd>{date.era}</dd></>}
         {date?.ganzhiYear && <><dt>原载干支年</dt><dd>{date.ganzhiYear}年</dd></>}

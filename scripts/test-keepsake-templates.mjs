@@ -12,6 +12,7 @@ let passed = 0;
 const test = async (name, run) => { await run(); passed++; console.log('PASS', name); };
 try {
   const draft = await server.ssrLoadModule('/src/keepsake/draft.ts');
+  const { observerPlaceLabel } = await server.ssrLoadModule('/src/history/historyModel.ts');
   const { resolveObservation, historyObservation } = await server.ssrLoadModule('/src/history/observation.ts');
   const templates = await server.ssrLoadModule('/src/keepsake/templates.ts');
   const png = await server.ssrLoadModule('/src/keepsake/png-metadata.ts');
@@ -60,10 +61,10 @@ try {
     const card = capture(personal), options = draft.initialCardOptions(card);
     let context = draft.cardContext(card, options);
     assert.deepEqual(context.details, ['2000 年 1 月 1 日']);
-    assert.match(context.notes.join(' '), /月球位置已为合影调整/);
+    assert.match(context.notes.join(' '), /月球按合影构图/);
     context = draft.cardContext(card, { ...options, showClock: true, showPlace: true });
     assert.ok(context.details.includes('00:30 · UTC+08:00'));
-    assert.match(context.details.join(' '), /地区代表点/);
+    assert.ok(context.details.includes(`${personal.observer.name}（地区代表点）`));
     const historical = resolveObservation('0755-12-16', '20:00', place, { kind: 'local-mean-solar' },
       { kind: 'history', label: '历史事件测试', recordId: 'dsh:test', recordKind: 'event' }, ['前推格里高利历'],
       { origin: 'event-default-20', ruleVersion: 'event-evening-v1', label: '演示时刻' });
@@ -104,7 +105,7 @@ try {
       assert.ok(!hidden.details.includes(observation.observer.name), id);
       const shown = draft.cardContext(card, { ...options, showClock: true, showPlace: true });
       assert.ok(shown.details.some(value => value.startsWith(clock)), id);
-      assert.ok(shown.details.some(value => value.startsWith(observation.observer.name)), id);
+      assert.ok(shown.details.includes(observerPlaceLabel(observation.observer)), id);
     }
     const historical = visit('H031'), summary = await loadKeepsakeHistorySummary(historical);
     const card = capture(historical, { historySummary: summary });

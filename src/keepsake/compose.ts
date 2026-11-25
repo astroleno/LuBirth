@@ -49,9 +49,11 @@ export async function composeBirthCard(draft: KeepsakeDraft, options: CardOption
     const information = cardContext(draft, options, historySummary);
     const base = layoutBirthCard(draft.sourceWidth, draft.sourceHeight, 0);
     const font = "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-    context.font = `${24 * base.unit}px ${font}`;
+    const titleFont = draft.observation.source.kind === 'history'
+      ? "'Songti SC', 'STSong', 'Noto Serif CJK SC', 'SimSun', serif" : font;
+    context.font = `${24 * base.unit}px ${titleFont}`;
     const headings = wrapCardText(context, information.heading, base.contentWidth);
-    context.font = `500 ${34 * base.unit}px ${font}`;
+    context.font = `500 ${34 * base.unit}px ${titleFont}`;
     const date = wrapCardText(context, information.details[0], base.contentWidth);
     context.font = `${25 * base.unit}px ${font}`;
     const details = information.details.slice(1).flatMap(line => wrapCardText(context, line, base.contentWidth));
@@ -75,14 +77,14 @@ export async function composeBirthCard(draft: KeepsakeDraft, options: CardOption
     context.fillStyle = '#f4efe5'; context.fillRect(0, 0, layout.width, layout.height);
     context.drawImage(scene, 0, 0, layout.width, layout.imageHeight);
     let y = layout.footerY + topPadding;
-    context.textBaseline = 'top'; context.fillStyle = '#5a615f'; context.font = `${24 * unit}px ${font}`;
+    context.textBaseline = 'top'; context.fillStyle = '#5a615f'; context.font = `${24 * unit}px ${titleFont}`;
     for (const line of headings) { context.fillText(line, padding, y); y += headingLeading; }
     // Recompose the original mark at the full card's required size, separately
     // from the adjustable handwriting, as in Inko's official composition tools.
     context.drawImage(handwriting, inkX, inkY, inkWidth, inkHeight,
       padding + (contentWidth - wordWidth) * position, layout.footerY + inkTop, wordWidth, wordHeight);
     y = layout.footerY + dateTop;
-    context.fillStyle = '#263b41'; context.font = `500 ${34 * unit}px ${font}`;
+    context.fillStyle = '#263b41'; context.font = `500 ${34 * unit}px ${titleFont}`;
     for (const line of date) { context.fillText(line, padding, y); y += dateLeading; }
     context.fillStyle = '#4a5959'; context.font = `${25 * unit}px ${font}`;
     for (const line of details) { context.fillText(line, padding, y); y += detailLeading; }

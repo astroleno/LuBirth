@@ -8,6 +8,7 @@ import { EARLY_PERIODS, WORLD_PERIOD, historyViewingNeeds, localToday, matchedHi
 import ObservationForm, { ObservationSummary } from './ObservationForm';
 import HistoricalObservation from './HistoricalObservation';
 import { createHistoryDraftCache, personalObservationInitial } from './observationDraft';
+import { formatCivilDate } from '../utils/formatCivilDate';
 
 export type JourneyTab = 'history' | 'birth' | 'cultures';
 const { records, periods: periodCounts } = historyCatalog;
@@ -172,7 +173,7 @@ export default function JourneyPanel({ initialTab = 'history', onClose, onObserv
           const relation = relationLabel(record, state.birth);
           return <button key={record.id} id={'history-record-'+record.id} onClick={() => navigate(record.id)}>
             <span className="journey-record-name">{record.name}<span className="journey-record-condition">{preparation}</span></span>
-            <span className="journey-record-meta">{record.date.iso} · {record.period} · {record.kind === 'birth' ? '出生' : '事件'}</span>
+            <span className="journey-record-meta">{formatCivilDate(record.date.iso)} · {record.period} · {record.kind === 'birth' ? '出生' : '事件'}</span>
             <span className="journey-record-meta">{record.place.original}</span>
             {source && <span className="journey-record-source">出处 · {source.title}</span>}
             {relation && <span className="journey-relation">{relation}</span>}

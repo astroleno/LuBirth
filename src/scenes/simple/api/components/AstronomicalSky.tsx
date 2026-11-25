@@ -47,6 +47,7 @@ export default function AstronomicalSky({ celestial, observer, frame, culture, g
     {galaxy > 0 && <MilkyWay frame={projection} ground={false} daylight={1} strength={galaxy} />}
     {artwork && <SkyArtwork items={items} frame={projection} view={view} ground={false} daylight={1} selected="all" opacityScale={1.45} />}
     <SkyObjects frame={projection} magnitude={6.5} culture="all" items={items} lines={artwork} daylight={1}
-      dpr={gl.getPixelRatio()} ground={false} chinese={culture !== 'modern'} appearance={BACKGROUND_STAR_APPEARANCE} view={view} lineOpacityScale={1.6} />
+      dpr={gl.getPixelRatio()} ground={false} chinese={culture !== 'modern'} appearance={BACKGROUND_STAR_APPEARANCE} view={view}
+      lineColor={culture === 'song' ? '#b8a991' : undefined} lineOpacityScale={culture === 'song' ? 1.2 : 1.6} />
   </>, background.scene, { camera: background.camera });
 }

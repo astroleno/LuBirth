@@ -67,10 +67,10 @@ const PLACES: Record<string, SkyLocation & { name: string; timeZone?: string }> 
   south: { name: '悉尼', latitude: -33.8688, longitude: 151.2093, timeZone: 'Australia/Sydney' },
 };
 const CARDINALS: SkyLabel[] = [
-  { id: 'north', name: '北 · N', position: [0, 0, -1], cardinal: true },
-  { id: 'east', name: '东 · E', position: [1, 0, 0], cardinal: true },
-  { id: 'south', name: '南 · S', position: [0, 0, 1], cardinal: true },
-  { id: 'west', name: '西 · W', position: [-1, 0, 0], cardinal: true },
+  { id: 'north', name: '北', position: [0, 0, -1], cardinal: true },
+  { id: 'east', name: '东', position: [1, 0, 0], cardinal: true },
+  { id: 'south', name: '南', position: [0, 0, 1], cardinal: true },
+  { id: 'west', name: '西', position: [-1, 0, 0], cardinal: true },
 ];
 const SourceLink = ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href} target="_blank" rel="noreferrer">{children} ↗</a>;
 
@@ -428,7 +428,8 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
           </form>}{!chrome && <AstronomicalCalendar utc={frame.celestial.utc} observation={observation} timeZone={location.timeZone} />}</>}
           {pane === 'appearance' && <>
             <MoonPlacementControl value={moonPlacement} onChange={changeMoonPlacement}
-              visibility={moonVisibility} eclipse={eclipse} onLocate={() => showView(directionToSkyView(frame.apparentMoon.direction, view.current.fov))} />
+              showPortraitHorizon visibility={moonVisibility} eclipse={eclipse}
+              onLocate={() => showView(directionToSkyView(frame.apparentMoon.direction, view.current.fov))} />
             {moonPlacement === 'portrait' && <div><label htmlFor="sky-moon-size">合影月球大小<output>{(settings.moonSize ?? 1).toFixed(1)}×</output></label>
               <input id="sky-moon-size" type="range" min=".6" max="1.5" step=".1" value={settings.moonSize ?? 1} onChange={e => update('moonSize', Number(e.target.value))} /></div>}
             <div className="sky-field-row"><label className="sky-check"><input id="sky-lines" type="checkbox" checked={settings.lines} onChange={e => update('lines', e.target.checked)} />连线与名称</label>
