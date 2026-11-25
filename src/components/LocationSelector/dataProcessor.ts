@@ -1,5 +1,6 @@
 import type { LocationData, LocationTree, SearchIndex } from './types';
 import { provinces, getProvinceName, getCitiesByProvince } from './administrativeData';
+import { addedLocations, updateAdministrativeLocation } from './locationUpdates';
 
 // 可搜索的省级简称和部分常用城市拼音。
 const pinyinMap = new Map(Object.entries({
@@ -79,16 +80,16 @@ export function parseCSVData(csvText: string): LocationData[] {
       continue;
     }
     
-    data.push({
+    data.push(updateAdministrativeLocation({
       province,
       city,
       district,
       lon: parseFloat(lon),
       lat: parseFloat(lat)
-    });
+    }));
   }
   
-  return data;
+  return [...data, ...addedLocations];
 }
 
 // 构建正确的树形结构（基于中国行政层级）
@@ -105,7 +106,8 @@ export function buildLocationTree(data: LocationData[]): LocationTree {
   
   // 然后添加城市和区县数据
   data.forEach(item => {
-    const { province, city, district, lon, lat } = item;
+    if (item.status) return;
+    const { province, city, district } = item;
     
     // 确保省份存在
     if (!tree.provinces[province]) {
@@ -124,11 +126,7 @@ export function buildLocationTree(data: LocationData[]): LocationTree {
     }
     
     // 添加区县
-    tree.provinces[province].cities[city].districts[district] = {
-      name: district,
-      lon,
-      lat
-    };
+    tree.provinces[province].cities[city].districts[district] = item;
   });
   
   return tree;
@@ -137,18 +135,26 @@ export function buildLocationTree(data: LocationData[]): LocationTree {
 // 构建搜索索引
 export function buildSearchIndex(data: LocationData[]): SearchIndex {
   const names = new Map<string, LocationData[]>();
+  const qualifiedNames = new Map<string, LocationData[]>();
+  const indexNames = (index: Map<string, LocationData[]>, keys: Iterable<string>, location: LocationData) => {
+    for (const key of new Set(keys)) {
+      if (!key) continue;
+      const matches = index.get(key);
+      if (matches) matches.push(location);
+      else index.set(key, [location]);
+    }
+  };
   const entries = data.map(location => {
     const [province, city, district] = [location.province, location.city, location.district].map(normalizeSearch);
-    for (const key of new Set([province + city + district, city + district, province, city, district])) {
-      const matches = names.get(key);
-      if (matches) matches.push(location);
-      else names.set(key, [location]);
-    }
+    indexNames(names, [province + city + district, city + district, province, city, district], location);
 
     const provinceShort = provinceShortNames.get(province) ?? province;
     const cityShort = city.replace(/[市县]$/, '');
     const districtShort = district.replace(/[区县市]$/, '');
     const districtVariants = new Set([district, districtShort]);
+    const aliases = location.aliases?.map(normalizeSearch) ?? [];
+    if (location.status !== 'international') for (const alias of aliases) districtVariants.add(alias);
+    indexNames(qualifiedNames, aliases, location);
     const official = officialDistrictNames.get(city)?.find(name => name.slice(0, -1) === district);
     if (official) districtVariants.add(official);
     const provinceVariants = new Set([province, provinceShort]);
@@ -157,27 +163,41 @@ export function buildSearchIndex(data: LocationData[]): SearchIndex {
     const cityPinyin = pinyinMap.get(cityShort);
     if (provincePinyin) provinceVariants.add(provincePinyin);
     if (cityPinyin) cityVariants.add(cityPinyin);
+    if (location.status === 'international') for (const alias of aliases) cityVariants.add(alias);
+    if (district) {
+      const combined = [];
+      for (const districtName of districtVariants) for (const cityName of cityVariants) {
+        combined.push(cityName + districtName);
+        for (const provinceName of provinceVariants) combined.push(provinceName + cityName + districtName);
+      }
+      indexNames(qualifiedNames, combined, location);
+    }
     return { location, names: [province, city, district], variants: [provinceVariants, cityVariants, districtVariants] };
   });
-  return { names, entries };
+  return { names, qualifiedNames, entries };
 }
 
 // 搜索功能
 export function searchLocations(query: string, searchIndex: SearchIndex): LocationData[] {
-  const terms = normalizeSearch(query).split(/[\s,、/·]+/).filter(Boolean);
+  const queryText = normalizeSearch(query);
+  const terms = queryText.split(/[\s,、/·]+/).filter(Boolean);
   if (!terms.length || terms.length > 3) return [];
 
   const results: LocationData[] = [];
   const seen = new Set<string>();
-  const add = (locations: readonly LocationData[]) => {
+  const add = (locations: readonly LocationData[], includeHistorical = false) => {
     for (const location of locations) {
       if (results.length === 20) return;
+      if (location.status === 'historical' && !includeHistorical) continue;
       const key = JSON.stringify([location.province, location.city, location.district]);
       if (seen.has(key)) continue;
       seen.add(key);
       results.push(location);
     }
   };
+
+  add(searchIndex.qualifiedNames.get(queryText) ?? [], true);
+  if (results.length) return results;
 
   const [term] = terms;
   if (terms.length === 1) {
@@ -209,13 +229,13 @@ export function searchLocations(query: string, searchIndex: SearchIndex): Locati
       if (terms[position] !== names[index]) exact = false;
       position++;
     }
-    if (position === terms.length) {
-      if (exact) add([location]);
+    if (position === terms.length && (location.status !== 'historical' || terms.some(term => variants[2].has(term)))) {
+      if (exact) add([location], true);
       else fallbacks.push(location);
     }
     if (results.length === 20) return results;
   }
-  add(fallbacks);
+  add(fallbacks, true);
   return results;
 }
 
@@ -243,10 +263,10 @@ export function getDistricts(tree: LocationTree, province: string, city: string)
 
 // 获取位置坐标
 export function getLocationCoords(tree: LocationTree, province: string, city: string, district: string): { lon: number; lat: number } | null {
-  if (!tree.provinces[province] || !tree.provinces[province].cities[city]) return null;
-  
-  const districtData = tree.provinces[province].cities[city].districts[district];
-  if (!districtData) return null;
-  
-  return { lon: districtData.lon, lat: districtData.lat };
+  const place = getSelectedLocation(tree, province, city, district);
+  return place ? { lon: place.lon, lat: place.lat } : null;
+}
+
+export function getSelectedLocation(tree: LocationTree, province: string, city: string, district: string): LocationData | null {
+  return tree.provinces[province]?.cities[city]?.districts[district] ?? null;
 }

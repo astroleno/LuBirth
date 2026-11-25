@@ -73,7 +73,7 @@ export function createHistoricalDraft(record: HistoryRecord, current?: Observati
   if (current?.source.kind === 'history' && current.source.recordId === record.id
     && current.source.recordHash === record.provenance.recordHash) {
     draft.clockChoice = { clock: current.clock, timeSelection: { ...current.timeSelection } };
-    draft.basis = current.timeBasis.kind;
+    if (current.timeBasis.kind !== 'iana') draft.basis = current.timeBasis.kind;
     if (current.timeBasis.kind === 'offset') draft.offset = current.timeBasis.offsetMinutes;
     const point = record.place.observer;
     if (!point || point.name !== current.observer.name || point.latitude !== current.observer.latitude

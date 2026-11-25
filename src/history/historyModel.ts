@@ -12,6 +12,7 @@ export type ObserverPlace = {
   precision: 'representative' | 'user-selected';
   note: string;
   source?: string;
+  timeZone?: string;
 };
 
 export type HistoryRecord = {

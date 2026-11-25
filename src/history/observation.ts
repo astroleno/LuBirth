@@ -1,6 +1,8 @@
 import type { HistoryRecord, ObserverPlace } from './historyModel';
+import { ianaOffsetSeconds, isNamedTimeZone, type IanaTimeBasis } from './ianaTime';
 
-export type TimeBasis = { kind: 'offset'; offsetMinutes: number } | { kind: 'local-mean-solar' };
+type FixedTimeBasis = { kind: 'offset'; offsetMinutes: number } | { kind: 'local-mean-solar' };
+export type TimeBasis = FixedTimeBasis | IanaTimeBasis;
 export type TimeSelection = {
   origin: 'user-input' | 'event-default-20' | 'legacy-demo' | 'system-example';
   ruleVersion: 'event-evening-v1' | null;
@@ -32,15 +34,20 @@ export function civilDate(iso: string) {
 
 export function validateObserver(observer: ObserverPlace) {
   if (!observer || !observer.name?.trim() || !Number.isFinite(observer.latitude) || Math.abs(observer.latitude) > 90
-    || !Number.isFinite(observer.longitude) || Math.abs(observer.longitude) > 180)
+    || !Number.isFinite(observer.longitude) || Math.abs(observer.longitude) > 180
+    || (observer.timeZone !== undefined && !isNamedTimeZone(observer.timeZone)))
     throw new Error('请明确选择观测地点，并填写有效经纬度。');
   return observer;
 }
 
-export function observationOffsetSeconds(timeBasis: TimeBasis, longitude: number) {
+export function observationOffsetSeconds(timeBasis: TimeBasis, longitude: number, instant?: Date) {
   if (timeBasis.kind === 'local-mean-solar') return Math.round(longitude * 240);
   if (timeBasis.kind === 'offset' && Number.isInteger(timeBasis.offsetMinutes) && Math.abs(timeBasis.offsetMinutes) <= 840)
     return timeBasis.offsetMinutes * 60;
+  if (timeBasis.kind === 'iana' && isNamedTimeZone(timeBasis.timeZone)
+    && Number.isInteger(timeBasis.offsetSeconds) && Math.abs(timeBasis.offsetSeconds) < 86400
+    && (timeBasis.disambiguation === undefined || ['earlier', 'later'].includes(timeBasis.disambiguation)))
+    return instant ? ianaOffsetSeconds(timeBasis.timeZone, instant) : timeBasis.offsetSeconds;
   throw new Error('请选择有效的时间解释。');
 }
 
@@ -73,7 +80,7 @@ export function resolveObservation(date: string, clock: string, observer: Observ
 }
 
 export function historyObservation(record: HistoryRecord, choices: {
-  clock: string; observer: ObserverPlace | null; timeBasis: TimeBasis; dateAcknowledged: boolean; placeConfirmed: boolean; timeSelection?: TimeSelection;
+  clock: string; observer: ObserverPlace | null; timeBasis: FixedTimeBasis; dateAcknowledged: boolean; placeConfirmed: boolean; timeSelection?: TimeSelection;
 }) {
   if (!choices.dateAcknowledged) throw new Error('请先确认本条日期解释与演示说明。');
   if (!choices.placeConfirmed || !choices.observer) throw new Error('请选择并确认用于演示的观测地点。');
@@ -100,18 +107,25 @@ export function readObservation(value: unknown): Observation | null {
 }
 
 export function offsetLabel(minutes: number) {
-  const value = Math.abs(minutes);
-  return `UTC${minutes < 0 ? '−' : '+'}${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+  return offsetSecondsLabel(minutes * 60);
+}
+
+export function offsetSecondsLabel(seconds: number) {
+  const value = Math.abs(seconds);
+  const parts = [Math.floor(value / 3600), Math.floor(value / 60) % 60];
+  if (value % 60) parts.push(value % 60);
+  return `UTC${seconds < 0 ? '−' : '+'}${parts.map(part => String(part).padStart(2, '0')).join(':')}`;
 }
 
 export function timeBasisLabel(basis: TimeBasis) {
+  if (basis.kind === 'iana') return `${basis.timeZone} · ${offsetSecondsLabel(basis.offsetSeconds)}`;
   return basis.kind === 'local-mean-solar' ? '地方平太阳时 · 演示约定' : offsetLabel(basis.offsetMinutes);
 }
 
 export function exampleObservation(now = new Date()): Observation {
   const shifted = new Date(now.getTime() + 480 * 60000).toISOString();
   return resolveObservation(shifted.slice(0, 10), shifted.slice(11, 19),
-    { name: '上海', latitude: 31.2304, longitude: 121.4737, precision: 'representative', note: '初始示例地点' },
+    { name: '上海', latitude: 31.2304, longitude: 121.4737, precision: 'representative', note: '初始示例地点', timeZone: 'Asia/Shanghai' },
     { kind: 'offset', offsetMinutes: 480 }, { kind: 'example', label: '此时的上海' });
 }
 

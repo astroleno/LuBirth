@@ -4,6 +4,11 @@ export interface LocationData {
   district: string;
   lon: number;
   lat: number;
+  timeZone?: string;
+  aliases?: readonly string[];
+  status?: 'international' | 'historical';
+  note?: string;
+  source?: string;
 }
 
 export interface LocationTree {
@@ -14,11 +19,7 @@ export interface LocationTree {
         [key: string]: {
           name: string;
           districts: {
-            [key: string]: {
-              name: string;
-              lon: number;
-              lat: number;
-            };
+            [key: string]: LocationData;
           };
         };
       };
@@ -28,6 +29,7 @@ export interface LocationTree {
 
 export interface SearchIndex {
   names: ReadonlyMap<string, readonly LocationData[]>;
+  qualifiedNames: ReadonlyMap<string, readonly LocationData[]>;
   entries: readonly {
     location: LocationData;
     names: string[];
@@ -35,10 +37,4 @@ export interface SearchIndex {
   }[];
 }
 
-export interface SelectedLocation {
-  province: string;
-  city: string;
-  district: string;
-  lon: number;
-  lat: number;
-}
+export type SelectedLocation = LocationData;

@@ -245,7 +245,7 @@ export default function App() {
           {state.current.source.kind === 'history' && <button className="journey-text-action" onClick={() => {
             returnToPersonal(); closePanel();
           }}>{state.birth ? '回到我的出生时刻' : '回到此前天空'} ↗</button>}
-          <ObservationForm initial={personalObservationInitial(state)} onSave={saveBirth} submitLabel="查看出生合照" />
+          <ObservationForm active={panel === 'birth' && !opening} initial={personalObservationInitial(state)} onSave={saveBirth} submitLabel="查看出生合照" />
           <p className="journey-hint">信息保存在当前浏览器会话，不会发送给史料或笔迹网站。</p>
         </section>}
         {historyOpened && <section hidden={panel !== 'history'}><React.Suspense fallback={<p role="status">正在打开古今资料…</p>}>

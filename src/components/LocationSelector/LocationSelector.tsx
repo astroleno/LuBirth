@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LocationTree, SearchIndex, SelectedLocation } from './types';
-import { parseCSVData, buildLocationTree, buildSearchIndex, getDistricts, getLocationCoords,
+import { parseCSVData, buildLocationTree, buildSearchIndex, getDistricts, getSelectedLocation,
   searchLocations, getCitiesByProvinceName } from './dataProcessor';
 import { provinces } from './administrativeData';
 import { assetUrl } from '../../utils/assetUrl';
@@ -54,9 +54,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationCh
       if (!active) return;
       setData(value);
       if (initialLocation?.province && initialLocation.city && initialLocation.district) {
-        const coords = getLocationCoords(value.tree, initialLocation.province, initialLocation.city, initialLocation.district);
-        if (coords) {
-          const place = { province: initialLocation.province, city: initialLocation.city, district: initialLocation.district, ...coords };
+        const place = getSelectedLocation(value.tree, initialLocation.province, initialLocation.city, initialLocation.district);
+        if (place) {
           if (controlled === undefined) setLocal(selectedLocationDraft(place));
           callback.current(place);
         }
@@ -133,7 +132,9 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationCh
           key={`${place.province}/${place.city}/${place.district}`} aria-selected={index === activeIndex} tabIndex={-1}
           className="search-result-item" onPointerMove={() => setActiveIndex(index)} onClick={() => commit(place)}>
           <span className="result-name">{locationLabel(place)}</span>
-          <span className="result-coords">{place.lat.toFixed(4)}°，{place.lon.toFixed(4)}°</span>
+          <span className="result-coords">
+            {place.status === 'international' ? `${place.timeZone} · ` : ''}{place.lat.toFixed(4)}°，{place.lon.toFixed(4)}°
+          </span>
         </button>)}
       </div>}
     </div>
@@ -152,8 +153,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({ onLocationCh
       <select aria-label={fieldLabel+'区县'} className="cascader-select" value={draft.district} disabled={!draft.city}
         onChange={event => {
           const district = event.target.value;
-          const coords = district ? getLocationCoords(data.tree, draft.province, draft.city, district) : null;
-          if (coords) commit({ province: draft.province, city: draft.city, district, ...coords });
+          const place = district ? getSelectedLocation(data.tree, draft.province, draft.city, district) : null;
+          if (place) commit(place);
           else update({ ...draft, district, pending: true });
         }}>
         <option value="">选择区县</option>{districts.map(district => <option key={district}>{district}</option>)}

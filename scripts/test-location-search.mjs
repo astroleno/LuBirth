@@ -26,11 +26,11 @@ const server = await createServer({
 });
 
 try {
-  const { parseCSVData, buildSearchIndex, buildLocationTree, getLocationCoords, searchLocations } = await server.ssrLoadModule(processor);
+  const { parseCSVData, buildSearchIndex, buildLocationTree, getLocationCoords, getSelectedLocation, searchLocations } = await server.ssrLoadModule(processor);
   const rows = parseCSVData(baseline ? readBaseline(csv) : await fs.readFile(csv, 'utf8'));
   const index = buildSearchIndex(rows);
   const search = query => searchLocations(query, index);
-  const hangzhou = rows.filter(row => row.city === '杭州市');
+  const hangzhou = rows.filter(row => row.city === '杭州市' && row.status !== 'historical');
   const shangcheng = hangzhou.find(row => row.district === '上城区');
   const xihu = hangzhou.find(row => row.district === '西湖');
   const beijing = rows.filter(row => row.city === '北京市');
@@ -62,6 +62,24 @@ try {
   if (!baseline) {
     assert.deepEqual(search('杭州'), hangzhou);
     assert.deepEqual(search('北京'), beijing);
+    assert.deepEqual(search('北京朝阳区').map(row => [row.city, row.district]), [['北京市', '朝阳']]);
+    for (const district of ['临平区', '钱塘区', '上城区', '拱墅区', '余杭区']) {
+      const [place] = search(`杭州${district}`);
+      assert.equal(place.district, district);
+      assert.equal(place.timeZone, 'Asia/Shanghai');
+      assert.equal(place.status, undefined);
+      assert.match(place.source, /^https:\/\//);
+    }
+    assert.equal(search('杭州市').some(place => place.status === 'historical'), false);
+    assert.equal(search('杭州江干区')[0].district, '江干区（2021 年调整前）');
+    assert.equal(search('杭州原余杭区')[0].district, '余杭区（2021 年调整前）');
+    assert.equal(search('杭州下城区')[0].status, 'historical');
+    for (const query of ['纽约', '纽约市', 'New York', 'New York City', '美国 纽约']) {
+      const [place] = search(query);
+      assert.equal(place.city, '纽约');
+      assert.equal(place.timeZone, 'America/New_York');
+    }
+    for (const query of ['伦敦', 'London']) assert.equal(search(query)[0].timeZone, 'Europe/London');
     assert.deepEqual(search('朝阳').map(row => [row.city, row.district]), [
       ['北京市', '朝阳'], ['朝阳市', '朝阳'], ['朝阳市', '双塔'], ['朝阳市', '龙城'],
       ['朝阳市', '朝阳县'], ['朝阳市', '建平'], ['朝阳市', '喀左'], ['朝阳市', '北票'],
@@ -82,6 +100,8 @@ try {
     assert.equal(haidian.lat, 39.956074);
     assert.equal(haidian.lon, 116.310316);
     const tree = buildLocationTree(rows);
+    assert.equal(getSelectedLocation(tree, '浙江省', '杭州市', '临平区').timeZone, 'Asia/Shanghai');
+    assert.equal(getSelectedLocation(tree, '浙江省', '杭州市', '江干区（2021 年调整前）'), null);
     assert.deepEqual(getLocationCoords(tree, haidian.province, haidian.city, haidian.district),
       { lat: haidian.lat, lon: haidian.lon });
     assert.equal(getLocationCoords(tree, '__proto__', '北京市', '海淀'), null);
