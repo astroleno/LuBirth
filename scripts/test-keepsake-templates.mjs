@@ -59,8 +59,8 @@ try {
   await test('Birth fields are opt-in; modes, examples and historical assumptions remain explicit', () => {
     const card = capture(personal), options = draft.initialCardOptions(card);
     let context = draft.cardContext(card, options);
-    assert.deepEqual(context.details, ['2000-01-01']);
-    assert.match(context.notes.join(' '), /合影位置/);
+    assert.deepEqual(context.details, ['2000 年 1 月 1 日']);
+    assert.match(context.notes.join(' '), /月球位置已为合影调整/);
     context = draft.cardContext(card, { ...options, showClock: true, showPlace: true });
     assert.ok(context.details.includes('00:30 · UTC+08:00'));
     assert.match(context.details.join(' '), /地区代表点/);
@@ -78,7 +78,7 @@ try {
     assert.match(context.notes.join(' '), /条件性/);
     const example = resolveObservation('2026-10-24', '20:00', place, { kind: 'offset', offsetMinutes: 480 }, { kind: 'example', label: '此时' });
     assert.match(draft.cardContext(capture(example), options).notes.join(' '), /不代表真实出生/);
-    assert.match(draft.cardContext({ ...card, moonPlacement: 'physical' }, options).notes.join(' '), /物理位置/);
+    assert.deepEqual(draft.cardContext({ ...card, moonPlacement: 'physical' }, options).notes, []);
   });
   await test('Historical cards resolve source dates and describe the clock evidence without printing hidden details', async () => {
     const { historyCatalog } = await server.ssrLoadModule('/src/history/historyCatalog.ts');

@@ -1,5 +1,6 @@
 import { offsetSecondsLabel, readObservation, timeBasisLabel, type Observation } from '../history/observation';
 import type { MoonPlacement } from '../history/journeyStore';
+import { formatCivilDate } from '../utils/formatCivilDate';
 import type { KeepsakeHistorySummary } from './historySummary';
 import { defaultTemplate, type TemplateId } from './templates';
 
@@ -84,11 +85,6 @@ const HISTORY_CLOCK_NOTES: Record<Observation['timeSelection']['origin'], string
   'system-example': '按示例钟点演示。',
 };
 
-function historyCardDate(civilDate: string) {
-  const [year, month, day] = civilDate.split('-').map(Number);
-  return `${year} 年 ${month} 月 ${day} 日`;
-}
-
 function historyClockNote(origin: Observation['timeSelection']['origin'], time: KeepsakeHistorySummary['time']) {
   if (origin === 'history-window-example' || origin === 'history-window-midpoint') {
     if (time?.dayBoundary === 'unverified') return '史载时段的日界待核，按换算日期选点演示。';
@@ -106,14 +102,13 @@ export function cardContext(draft: KeepsakeDraft, options: CardOptions, historyS
   const heading = history ? observation.source.label + ' · 历史演示'
     : observation.source.kind === 'example' ? '此时的地月 · 示例' : '你的出生天空';
   const summary = matchingHistorySummary(observation, historySummary);
-  const date = historyCardDate(observation.civilDate);
-  const details = !history ? [observation.civilDate]
-    : summary?.originalDate ? [summary.originalDate, '换算公历 ' + date] : ['公元 ' + date];
+  const date = formatCivilDate(observation.civilDate);
+  const details = summary?.originalDate ? [summary.originalDate, '换算公历 ' + date] : [date];
   if (options.showClock) details.push(observation.clock + ' · ' + (observation.timeBasis.kind === 'iana'
     ? offsetSecondsLabel(observation.timeBasis.offsetSeconds) : timeBasisLabel(observation.timeBasis)));
   if (options.showPlace) details.push(observation.observer.name
     + (observation.observer.precision === 'representative' && !observation.observer.name.endsWith('代表点') ? ' · 地区代表点' : ''));
-  const notes = [moonPlacement === 'portrait' ? '月球 · 合影位置' : '月球 · 物理位置'];
+  const notes = moonPlacement === 'portrait' ? ['月球位置已为合影调整。'] : [];
   if (history) {
     const origin = observation.timeSelection?.origin ?? 'legacy-demo';
     notes.push(historyClockNote(origin, summary?.time));

@@ -90,9 +90,12 @@ def main():
         card_elements, loading_elements, masks = [], [], []
         for index, glyph in enumerate(glyphs):
             sx, sy, sw, sh = glyph['sprite']['rect']
-            alpha = Image.fromarray(255 - np.asarray(atlas.crop((sx, sy, sx + sw, sy + sh))))
-            ink = Image.new('RGBA', alpha.size, (0, 0, 0, 255)); ink.putalpha(alpha)
-            light = Image.new('RGBA', alpha.size, (230, 221, 202, 255)); light.putalpha(alpha)
+            alpha = 255 - np.asarray(atlas.crop((sx, sy, sx + sw, sy + sh)))
+            # The gray atlas leaves alpha 1 across its blank pixels. Keep the
+            # rest of the original alpha ramp and the existing opening glyphs.
+            card_alpha = Image.fromarray(np.where(alpha == 1, 0, alpha))
+            ink = Image.new('RGBA', card_alpha.size, (0, 0, 0, 255)); ink.putalpha(card_alpha)
+            light = Image.new('RGBA', card_alpha.size, (230, 221, 202, 255)); light.putalpha(Image.fromarray(alpha))
             a, b, c, d, e, f = glyph['m']; c -= x0; f -= y0
             transform = f'matrix({a:.7f} {d:.7f} {b:.7f} {e:.7f} {c:.7f} {f:.7f})'
             inverse = np.linalg.inv([[a, b, c], [d, e, f], [0, 0, 1]])
@@ -127,7 +130,7 @@ def main():
     (ROOT / 'src/keepsake/data/templates.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
     provenance = {'sourceJob': scene['job']['id'], 'createdAt': scene['job']['created_at'], 'style': 'No.012 / preset writer 640',
         'model': scene['job']['model'], 'text': scene['text'], 'sourceFiles': {p.name: sha256(p.read_bytes()).hexdigest()
-        for p in SOURCE.iterdir() if p.suffix in ('.png', '.zip')}, 'derivative': 'Original atlas alpha and affine transforms; per-glyph SVG masks; loading contains only glyphs; card retains original visible label; byte-exact source PNG AIGC and XMP chunks.'}
+        for p in SOURCE.iterdir() if p.suffix in ('.png', '.zip')}, 'derivative': 'Card glyphs remove the atlas alpha-1 background floor and retain the remaining alpha ramp. Opening glyphs keep the original atlas alpha and SVG masks. Cards retain the original visible label and byte-exact source PNG AIGC and XMP chunks.'}
     (OUT / 'provenance.json').write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + '\n')
 
 
