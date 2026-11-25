@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { layoutGlassMarker, projectCameraSphereBounds } from '../src/performance/glassMarkerLayout.ts';
+import { layoutGlassMarker, markerBackdropRegion, projectCameraSphereBounds } from '../src/performance/glassMarkerLayout.ts';
 
 // Real overlapping footprints from the rendered 2026-10-21 Shanghai close-up.
 const fixtures = [
@@ -73,3 +73,36 @@ for (const cropped of [false, true]) {
 }
 assert.equal(projectCameraSphereBounds(new THREE.Sphere(new THREE.Vector3(0, 0, 1), 1), new THREE.Matrix4().elements, 390, 844), null);
 console.log(`Marker layout: ${checked} reveal/layout cases passed; 16px clearance, readable text, stable placement; 4 independent sphere projections passed.`);
+
+// Test bilinear sample taps at viewport edges, with both axes rounded
+// independently to drawing-buffer pixels. Shader coordinates start at texel centres.
+let cropChecks = 0;
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  for (const dpr of [.75, .913, 1.5, 2]) {
+    const buffer = { width: Math.floor(viewport.width * dpr), height: Math.floor(viewport.height * dpr) };
+    const shaderRatio = buffer.width / viewport.width;
+    for (const [x, y] of [[-54, -12], [viewport.width - 14, viewport.height - 12], [viewport.width / 2, viewport.height / 2]]) {
+      const rect = { x, y, width: 136.25, height: 150.25 };
+      const scale = 1.4 * 1.0176;
+      const region = markerBackdropRegion(rect, scale, viewport, buffer);
+      assert.ok(region.width > 0 && region.height > 0 && region.x >= 0 && region.y >= 0);
+      assert.ok(region.x + region.width <= buffer.width && region.y + region.height <= buffer.height);
+      for (const [position, length] of [['x', 'width'], ['y', 'height']]) {
+        const view = viewport[length], pixels = buffer[length];
+        const first = Math.max(0, Math.ceil(rect[position] * pixels / view - .5));
+        const last = Math.min(pixels - 1, Math.floor((rect[position] + rect[length]) * pixels / view - .5));
+        for (const fragment of [first + .5, last + .5]) {
+          for (const refraction of [-17, 17]) for (const fringe of [-.465, .465]) {
+            const lensUV = Math.max(.001, Math.min(.999, (fragment / shaderRatio + refraction * scale) / view));
+            const texel = (lensUV + fringe * scale / view) * pixels - .5;
+            const low = Math.max(0, Math.min(pixels - 1, Math.floor(texel)));
+            const high = Math.max(0, Math.min(pixels - 1, Math.ceil(texel)));
+            assert.ok(low >= region[position] && high < region[position] + region[length], 'Crop must contain both full-screen bilinear taps');
+          }
+        }
+      }
+      cropChecks++;
+    }
+  }
+}
+console.log(`Marker backdrop: ${cropChecks} crop-edge and DPR cases contain the original bilinear samples.`);

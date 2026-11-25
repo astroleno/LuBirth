@@ -13,6 +13,7 @@ interface LoadingOverlayProps {
   readyEventName?: string;
   // 预热帧数：收到就绪后先渲染几帧再淡出
   prewarmFrames?: number;
+  presentationReady?: boolean;
   // 黑底完全退场后再显示应用操作界面。
   onComplete?: () => void;
 }
@@ -24,6 +25,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
     fadeMs: configuredFadeMs = 800,
     readyEventName = 'lubirth:assets-ready',
     prewarmFrames = 3,
+    presentationReady = true,
     onComplete
   } = props;
   const reducedMotion = useReducedMotion();
@@ -85,7 +87,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
 
   // Reveal only after both are complete; never cut a fast-load animation short.
   React.useEffect(() => {
-    if (!sceneReady || !handwritingComplete) return;
+    if (!sceneReady || !handwritingComplete || !presentationReady) return;
     let rafId: number;
     let prewarmCount = 0;
     const pump = () => {
@@ -95,7 +97,7 @@ export default function LoadingOverlay(props: LoadingOverlayProps) {
     const timer = setTimeout(() => { rafId = requestAnimationFrame(pump); },
       Math.max(0, minShowMs - (performance.now() - mountedAtRef.current)));
     return () => { clearTimeout(timer); cancelAnimationFrame(rafId); };
-  }, [sceneReady, handwritingComplete, minShowMs, prewarmFrames, startFadeOut]);
+  }, [sceneReady, handwritingComplete, presentationReady, minShowMs, prewarmFrames, startFadeOut]);
 
   if (!visible) return null;
 

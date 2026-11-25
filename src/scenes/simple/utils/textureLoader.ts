@@ -10,6 +10,7 @@ type TextureOptions = {
   priority?: number;
   upgradePriority?: number;
   exclusive?: boolean;
+  onUnavailable?: (unavailable: boolean) => void;
 };
 
 type TextureJob = {
@@ -77,9 +78,11 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
     priority = 2,
     upgradePriority = priority + 10,
     exclusive = false,
+    onUnavailable,
   } = options;
   React.useEffect(() => {
     setTexture(null);
+    onUnavailable?.(false);
     if (!enabled) return;
     let canceled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -118,6 +121,7 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
     const load = (list: string[], index = 0, onReady?: () => void, requestPriority = priority, exclusive = false) => {
       if (canceled) return;
       if (index >= list.length) {
+        if (!currentTexture.current) onUnavailable?.(true);
         window.dispatchEvent(new CustomEvent('lubirth:asset-error', { detail: { path: paths[0] } }));
         return;
       }
@@ -168,7 +172,7 @@ function useManagedTexture(paths: string[], enabled = true, options: TextureOpti
       retired.forEach(t => t.dispose());
       currentTexture.current = null;
     };
-  }, [paths, enabled, maxSize, staged, delayMs, priority, upgradePriority, exclusive]);
+  }, [paths, enabled, maxSize, staged, delayMs, priority, upgradePriority, exclusive, onUnavailable]);
   React.useEffect(() => {
     if (!texture || texture.anisotropy === anisotropy) return;
     texture.anisotropy = anisotropy;
@@ -285,10 +289,13 @@ export function useTextureLoader(config: {
   const enabled = !!config.useTextures;
   const options = { maxSize: config.maxSize, anisotropy: config.anisotropy, staged: config.stagedLowFirst };
   const baseOptions = { ...options, delayMs: 5000 };
-  const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, { ...baseOptions, priority: 0 });
+  const [earthUnavailable, setEarthUnavailable] = React.useState(false);
+  const [moonUnavailable, setMoonUnavailable] = React.useState(false);
+  const earthMap = useManagedTexture(TEXTURE_PATHS.earthDay, enabled, { ...baseOptions, priority: 0, onUnavailable: setEarthUnavailable });
   const moonEnabled = enabled && config.useMoon !== false;
-  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, { ...baseOptions, priority: 0 });
+  const moonMap = useManagedTexture(TEXTURE_PATHS.moon, moonEnabled, { ...baseOptions, priority: 0, onUnavailable: setMoonUnavailable });
   const baseReady = !!earthMap && (!moonEnabled || !!moonMap);
+  const baseMapsSettled = !enabled || ((!!earthMap || earthUnavailable) && (!moonEnabled || !!moonMap || moonUnavailable));
   const closeupNightEnabled = enabled && (config.closeupNightMaxSize ?? 0) > (config.maxSize ?? 8192);
   const closeupNight = useManagedTexture(CLOSEUP_NIGHT_PATHS, closeupNightEnabled, {
     maxSize: config.closeupNightMaxSize, anisotropy: config.anisotropy, priority: 12, exclusive: true,
@@ -316,6 +323,6 @@ export function useTextureLoader(config: {
       window.dispatchEvent(new CustomEvent('lubirth:assets-ready'));
     }
   }, [earthMap, moonMap, moonEnabled, baseReady, enabled]);
-  return { earthMap, earthNight, earthNormal, earthSpecular, earthDisplacement, earthClouds,
+  return { baseMapsSettled, earthMap, earthNight, earthNormal, earthSpecular, earthDisplacement, earthClouds,
     moonMap, moonNormalMap, moonDisplacementMap, starsMilky };
 }

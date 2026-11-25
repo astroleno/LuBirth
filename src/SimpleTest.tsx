@@ -365,7 +365,7 @@ function SceneContent({
   moonPlacement: MoonPlacement;
   cultureVersion: CultureVersion;
 }): JSX.Element {
-  const { camera, scene, size, gl } = useThree();
+  const { camera, scene, size, gl, invalidate } = useThree();
   const reducedMotion = useReducedMotion();
   const [moonTerrainStatus, setMoonTerrainStatus] = React.useState<MoonTerrainStatus>('idle');
   const [validationMoonSuppressed, setValidationMoonSuppressed] = React.useState(false);
@@ -521,6 +521,7 @@ function SceneContent({
   };
   
   const {
+    baseMapsSettled,
     earthMap,
     earthNight, 
     earthNormal,
@@ -532,6 +533,10 @@ function SceneContent({
     moonDisplacementMap,
     starsMilky
   } = useTextureLoader(textureConfig);
+  React.useLayoutEffect(() => {
+    scene.userData.baseMapsSettled = baseMapsSettled;
+    invalidate();
+  }, [scene, baseMapsSettled, invalidate]);
   
   // 调试信息（统一经 logger 输出）
   React.useEffect(() => {
@@ -948,14 +953,15 @@ export type EarthViewState = {
 export default function SimpleTest({ observation, observationControls, initialState, onStateChange,
   celestial: sharedCelestial, observerState: sharedObserver, moonPlacement = 'portrait', cultureVersion = 'song',
   onMoonPlacementChange, onEnterSky, onLocateMoon, entryTransfer, onEntryTransferConsumed,
-  chrome, onUIReady,
+  chrome, onUIReady, onPresented,
 }: {
   observation?: Observation; observationControls?: React.ReactNode; initialState?: EarthViewState;
   onStateChange?: (value: EarthViewState) => void;
   celestial?: CelestialState; observerState?: ObserverState; moonPlacement?: MoonPlacement; cultureVersion?: CultureVersion;
   onMoonPlacementChange?: (value: MoonPlacement) => void; onEnterSky?: () => void; onLocateMoon?: () => void;
-  entryTransfer?: ViewTransfer; onEntryTransferConsumed?: () => void;
+  entryTransfer?: ViewTransfer; onEntryTransferConsumed?: (applied: ViewTransfer) => void;
   chrome?: SceneUIHost; onUIReady?: (actions: EarthUIActions | null) => void;
+  onPresented?: (observation: Observation) => void;
 } = {}) {
   const mobile = useMobileLayout();
   const [quality, setQuality] = useState<Quality>(initialState?.quality || 'balanced');
@@ -1066,7 +1072,7 @@ export default function SimpleTest({ observation, observationControls, initialSt
       document.removeEventListener('keydown', onEscape);
     };
   }, [exitFullscreen]);
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     onUIReady?.({ setImmersed: value => value ? setUiHidden(true) : exitFullscreen() });
     return () => onUIReady?.(null);
   }, [onUIReady, exitFullscreen]);
@@ -1655,6 +1661,11 @@ export default function SimpleTest({ observation, observationControls, initialSt
   }, [composition, dateISO, latDeg, lonDeg, updateSunlight, spatialFrame]);
 
   const consumedEntry = React.useRef<ViewTransfer>();
+  React.useLayoutEffect(() => {
+    if (entryTransfer?.reason === 'birth-point' && observation && entryTransfer.observationKey === observationKey(observation)) {
+      setUiHidden(true);
+    }
+  }, [entryTransfer, observation]);
   React.useEffect(() => {
     if (!entryTransfer || consumedEntry.current === entryTransfer || !observation
       || entryTransfer.reason !== 'birth-point' || entryTransfer.observationKey !== observationKey(observation)
@@ -1662,8 +1673,10 @@ export default function SimpleTest({ observation, observationControls, initialSt
       || composition.birthPointLatitudeDeg !== observation.observer.latitude
       || composition.birthPointLongitudeDeg !== observation.observer.longitude) return;
     consumedEntry.current = entryTransfer;
-    applyBirthPointCloseup(true);
-    onEntryTransferConsumed?.();
+    // Immersion starts with the request. A menu opened while the shot is
+    // aligning must stay open when the delayed composition is applied.
+    applyBirthPointCloseup(false);
+    onEntryTransferConsumed?.(entryTransfer);
   }, [entryTransfer, observation, dateISO, latDeg, lonDeg, composition, applyBirthPointCloseup, onEntryTransferConsumed]);
 
   // An edited observation must move an already aligned camera to its new point.
@@ -1679,7 +1692,12 @@ export default function SimpleTest({ observation, observationControls, initialSt
     setComposition(previous => ({ ...previous, ...next.composition }));
   }, [observerState, celestial.utc, spatialFrame, composition, isAlignedAndZoomed]);
 
-  
+  // Wait for the closeup controls and label to catch up with the new observation.
+  const presentation = observation
+    ? (!entryTransfer && dateISO === observation.utc && latDeg === observation.observer.latitude
+      && lonDeg === observation.observer.longitude && composition.birthPointMarkerLabel === observation.observer.name
+      ? observation : null)
+    : undefined;
 
   // 保持首屏：晨昏线居中（不自动对齐出生点；改为用户手动触发）
 
@@ -1772,7 +1790,8 @@ export default function SimpleTest({ observation, observationControls, initialSt
         // 在 Overlay 淡出前冻结自转：监听 overlay 事件解锁
         onPointerMissed={() => {}}
       >
-        <RenderRuntime profile={profile} />
+        <RenderRuntime profile={profile} presentation={presentation}
+          expectedBackgroundKey={renderedComposition.showStars ? spatialFrame.key : null} onPresented={onPresented} />
         <SceneContent 
           composition={renderedComposition}
           celestial={celestial}

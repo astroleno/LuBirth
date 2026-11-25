@@ -4,7 +4,11 @@ import {
   getGlassMarkerOverlays,
   type GlassMarkerOverlay,
 } from './GlassOverlayRegistry';
-import { layoutGlassMarker, projectCameraSphereBounds, type ScreenBounds } from './glassMarkerLayout';
+import {
+  layoutGlassMarker, markerBackdropRegion, projectCameraSphereBounds,
+  MARKER_DISPERSION_PX, MARKER_MAX_FRINGE, MARKER_REFRACTION_PX,
+  type BackdropRegion, type ScreenBounds,
+} from './glassMarkerLayout';
 import { GlassControlInteractions, GLASS_CONTROL_SELECTOR, MAX_GLASS_CONTROLS, type GlassControlState } from './GlassControlInteractions';
 
 const rectVertexShader = `
@@ -134,6 +138,7 @@ void main() {
 const markerFragmentShader = `
 precision highp float;
 uniform sampler2D backdrop;
+uniform vec4 backdropTransform;
 uniform vec2 viewport;
 uniform float pixelRatio;
 uniform vec4 rect;
@@ -144,6 +149,10 @@ uniform float markerOpacity;
 uniform float reveal;
 uniform float highQuality;
 uniform float fallback;
+
+vec3 sampleBackdrop(vec2 screenUv) {
+  return texture2D(backdrop, screenUv * backdropTransform.zw + backdropTransform.xy).rgb;
+}
 
 float pinDistance(vec2 local) {
   if (pinScale < 0.001) return 10000.0;
@@ -173,7 +182,7 @@ void main() {
   if (fallback < 0.5 && distance > 15.0 * u) discard;
 
   vec2 baseUv = clamp(pixel / viewport, 0.001, 0.999);
-  vec3 base = fallback > 0.5 ? vec3(0.035, 0.055, 0.08) : texture2D(backdrop, baseUv).rgb;
+  vec3 base = fallback > 0.5 ? vec3(0.035, 0.055, 0.08) : sampleBackdrop(baseUv);
   float inside = 1.0 - smoothstep(-0.7 * u, 0.7 * u, distance);
   float depth = max(-distance, 0.0);
   float bevel = 13.0 * u;
@@ -189,21 +198,21 @@ void main() {
     pinDistance(local + vec2(0.0, epsilon)) - pinDistance(local - vec2(0.0, epsilon))
   );
   vec2 normal = normalize(gradient + vec2(0.0001));
-  vec2 offset = -normal * lens * 17.0 * u;
+  vec2 offset = -normal * lens * ${MARKER_REFRACTION_PX.toFixed(1)} * u;
   vec2 uv = clamp((pixel + offset) / viewport, 0.001, 0.999);
   // Subpixel dispersion keeps bright city lights from splitting into RGB bars
   // when a short-screen label sits over the globe. Refraction stays unchanged.
-  vec2 fringe = normal * lens * 0.3 * u / viewport;
+  vec2 fringe = normal * lens * ${MARKER_DISPERSION_PX} * u / viewport;
 
   vec3 low = vec3(
-    texture2D(backdrop, uv + fringe * 1.35).r,
-    texture2D(backdrop, uv).g,
-    texture2D(backdrop, uv - fringe * 1.35).b
+    sampleBackdrop(uv + fringe * 1.35).r,
+    sampleBackdrop(uv).g,
+    sampleBackdrop(uv - fringe * 1.35).b
   );
   vec3 high = vec3(
-    texture2D(backdrop, uv + fringe * 1.55).r * 0.72 + texture2D(backdrop, uv + fringe * 0.75).r * 0.28,
-    texture2D(backdrop, uv + fringe * 0.18).g * 0.5 + texture2D(backdrop, uv - fringe * 0.18).g * 0.5,
-    texture2D(backdrop, uv - fringe * 1.55).b * 0.72 + texture2D(backdrop, uv - fringe * 0.75).b * 0.28
+    sampleBackdrop(uv + fringe * ${MARKER_MAX_FRINGE}).r * 0.72 + sampleBackdrop(uv + fringe * 0.75).r * 0.28,
+    sampleBackdrop(uv + fringe * 0.18).g * 0.5 + sampleBackdrop(uv - fringe * 0.18).g * 0.5,
+    sampleBackdrop(uv - fringe * ${MARKER_MAX_FRINGE}).b * 0.72 + sampleBackdrop(uv - fringe * 0.75).b * 0.28
   );
   vec3 glass = mix(low, high, step(0.5, highQuality));
 
@@ -270,6 +279,19 @@ type GlassRect = {
   controls: { state: GlassControlState; rect: THREE.Vector4; radius: number; primary: boolean }[];
 };
 
+type PositionedMarker = {
+  overlay: GlassMarkerOverlay;
+  rect: BackdropRegion;
+  markerScale: number;
+  pinScale: number;
+  anchorOffsetY: number;
+  opacity: number;
+  reveal: number;
+  labelWidth: number;
+  labelCenterX: number;
+  labelCenterY: number;
+};
+
 export interface LiquidGlassRenderOptions {
   uiGlass: boolean;
   includeUi?: boolean;
@@ -318,6 +340,7 @@ export class LiquidGlassRenderer {
     depthWrite: false,
     uniforms: {
       backdrop: { value: this.fallbackTexture },
+      backdropTransform: { value: new THREE.Vector4(0, 0, 1, 1) },
       viewport: { value: new THREE.Vector2() },
       pixelRatio: { value: 1 },
       rect: { value: new THREE.Vector4() },
@@ -484,9 +507,7 @@ export class LiquidGlassRenderer {
     this.observed = elements;
   }
 
-  private ensureBackdrop(gl: THREE.WebGLRenderer) {
-    const width = this.canvas.width;
-    const height = this.canvas.height;
+  private copyBackdrop(gl: THREE.WebGLRenderer, { x, y, width, height }: BackdropRegion) {
     if (!this.texture || this.texture.image.width !== width || this.texture.image.height !== height) {
       this.texture?.dispose();
       this.texture = new THREE.FramebufferTexture(width, height);
@@ -495,6 +516,10 @@ export class LiquidGlassRenderer {
       this.markerMaterial.uniforms.backdrop.value = this.texture;
       this.stats.textureBytes = width * height * 4;
     }
+    this.origin.set(x, y);
+    this.markerMaterial.uniforms.backdropTransform.value.set(
+      -x / width, -y / height, this.canvas.width / width, this.canvas.height / height,
+    );
     const copyFramebuffer = gl.copyFramebufferToTexture as unknown as (position: THREE.Vector2, texture: THREE.Texture) => void;
     copyFramebuffer.call(gl, this.origin, this.texture);
     this.stats.copies++;
@@ -508,15 +533,9 @@ export class LiquidGlassRenderer {
     this.stats.textureBytes = 0;
   }
 
-  private renderMarker(
-    gl: THREE.WebGLRenderer,
-    renderCamera: THREE.Camera,
-    overlay: GlassMarkerOverlay,
-    highQuality: boolean,
-    fallback: boolean,
-  ) {
+  private positionMarker(renderCamera: THREE.Camera, overlay: GlassMarkerOverlay): PositionedMarker | null {
     const anchor = overlay.anchor;
-    if (!anchor) return;
+    if (!anchor) return null;
     anchor.getWorldPosition(this.worldPosition);
     this.worldNormal.copy(this.worldPosition).normalize();
     this.cameraDirection.copy(renderCamera.position).sub(this.worldPosition).normalize();
@@ -530,13 +549,13 @@ export class LiquidGlassRenderer {
     if (this.projected.z < -1 || this.projected.z > 1
       || this.projected.x < -1 || this.projected.x > 1
       || this.projected.y < -1 || this.projected.y > 1
-      || surfaceVisibility <= 0.001) return;
+      || surfaceVisibility <= 0.001) return null;
 
     const projectedAnchorX = (this.projected.x * 0.5 + 0.5) * this.width;
     const projectedAnchorY = (this.projected.y * 0.5 + 0.5) * this.height;
     const reveal = THREE.MathUtils.clamp(overlay.reveal, 0, 1.08);
     const opacity = THREE.MathUtils.clamp(overlay.reveal, 0, 1) * surfaceVisibility;
-    if (opacity <= 0.001) return;
+    if (opacity <= 0.001) return null;
     const scale = 0.78 + 0.22 * reveal;
     const markerScale = overlay.sizePx / 92 * scale;
     const labelWidth = overlay.labelWidthPx * scale;
@@ -557,12 +576,21 @@ export class LiquidGlassRenderer {
     this.stats.markerLabelPlacement = layout.labelPlacement;
     this.stats.markerPinScale = layout.pinScale;
 
+    return {
+      overlay, rect: { x: rectX, y: rectY, width: rectWidth, height: rectHeight },
+      markerScale, pinScale: layout.pinScale, anchorOffsetY: anchorY - rectY, reveal, opacity,
+      labelWidth, labelCenterX: anchorX, labelCenterY,
+    };
+  }
+
+  private renderMarker(gl: THREE.WebGLRenderer, marker: PositionedMarker, highQuality: boolean, fallback: boolean) {
+    const { overlay, rect, markerScale, pinScale, anchorOffsetY, reveal, opacity, labelWidth, labelCenterX, labelCenterY } = marker;
     this.markerMaterial.uniforms.viewport.value.set(this.width, this.height);
     this.markerMaterial.uniforms.pixelRatio.value = this.canvas.width / Math.max(this.width, 1);
-    this.markerMaterial.uniforms.rect.value.set(rectX, rectY, rectWidth, rectHeight);
+    this.markerMaterial.uniforms.rect.value.set(rect.x, rect.y, rect.width, rect.height);
     this.markerMaterial.uniforms.markerScale.value = markerScale;
-    this.markerMaterial.uniforms.pinScale.value = layout.pinScale;
-    this.markerMaterial.uniforms.anchorOffsetY.value = anchorY - rectY;
+    this.markerMaterial.uniforms.pinScale.value = pinScale;
+    this.markerMaterial.uniforms.anchorOffsetY.value = anchorOffsetY;
     this.markerMaterial.uniforms.markerOpacity.value = opacity;
     this.markerMaterial.uniforms.reveal.value = reveal;
     this.markerMaterial.uniforms.highQuality.value = highQuality ? 1 : 0;
@@ -571,7 +599,7 @@ export class LiquidGlassRenderer {
     const labelHeight = 32 * markerScale;
     this.labelMaterial.uniforms.viewport.value.set(this.width, this.height);
     this.labelMaterial.uniforms.rect.value.set(
-      anchorX - (labelWidth - 16 * markerScale) * 0.5,
+      labelCenterX - (labelWidth - 16 * markerScale) * 0.5,
       labelCenterY - labelHeight * 0.5,
       labelWidth - 16 * markerScale,
       labelHeight,
@@ -615,19 +643,25 @@ export class LiquidGlassRenderer {
     this.stats.activeMarkers = markerDiagnostics.active;
     const accessibilityFallback = this.reducedTransparency.matches || this.contrast.matches;
     const drawUi = options.includeUi !== false && options.uiGlass && !accessibilityFallback && this.rects.length > 0;
-    const needsBackdrop = drawUi || (markers.length > 0 && !accessibilityFallback);
-    if (!drawUi && !markers.length) {
+    const positioned = markers.map(marker => this.positionMarker(renderCamera, marker))
+      .filter((marker): marker is PositionedMarker => marker !== null);
+    if (!drawUi && !positioned.length) {
       this.releaseBackdrop();
       return;
     }
-    if (needsBackdrop) this.ensureBackdrop(gl);
-    else this.releaseBackdrop();
+    if (drawUi || !accessibilityFallback) {
+      const buffer = { width: this.canvas.width, height: this.canvas.height };
+      const region = !drawUi && positioned.length === 1
+        ? markerBackdropRegion(positioned[0].rect, positioned[0].markerScale, { width: this.width, height: this.height }, buffer)
+        : { x: 0, y: 0, ...buffer };
+      this.copyBackdrop(gl, region);
+    } else this.releaseBackdrop();
 
     const autoClear = gl.autoClear;
     gl.autoClear = false;
     try {
-      for (const marker of markers) {
-        this.renderMarker(gl, renderCamera, marker, options.highQualityMarker, accessibilityFallback);
+      for (const marker of positioned) {
+        this.renderMarker(gl, marker, options.highQualityMarker, accessibilityFallback);
       }
       if (drawUi) {
         this.uiMaterial.uniforms.viewport.value.set(this.width, this.height);

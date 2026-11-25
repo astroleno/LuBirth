@@ -7,11 +7,12 @@ import './SceneScreenshot.css';
 
 const KeepsakeEditor = React.lazy(() => import('./keepsake/KeepsakeEditor'));
 
-export function SceneScreenshot({ label = '截图', unified = false }: { label?: string; unified?: boolean }) {
+export function SceneScreenshot({ label = '截图', unified = false, blocked = false }: { label?: string; unified?: boolean; blocked?: boolean }) {
   const [image, setImage] = React.useState<string | null>(null);
   const [capturePending, setCapturePending] = React.useState(false);
   const [captureError, setCaptureError] = React.useState('');
   const captureReady = React.useSyncExternalStore(subscribeCaptureStatus, captureIsReady, () => false);
+  const ready = captureReady && !blocked;
   const mounted = React.useRef(false), capturing = React.useRef(false);
   const [draft, setDraft] = React.useState<KeepsakeDraft | null>(null);
   const [draftError, setDraftError] = React.useState('');
@@ -49,7 +50,9 @@ export function SceneScreenshot({ label = '截图', unified = false }: { label?:
   }, [image, editing]);
   const close = () => { setImage(null); setDraft(null); setEditing(false); };
   const capture = async () => {
-      if (capturing.current || !captureIsReady()) return;
+    if (capturing.current || blocked || !captureIsReady()) return;
+    const initial = journeyStore.getSnapshot();
+    const renderCapture = (window as any).captureLuBirth as (() => string) | undefined;
       capturing.current = true;
       setCapturePending(true);
       setCaptureError('');
@@ -71,9 +74,13 @@ export function SceneScreenshot({ label = '截图', unified = false }: { label?:
           }
           if (!ready) throw new Error('画面还在调整尺寸，请重试截图。');
         }
-        const captured = (window as any).captureLuBirth?.();
-        if (!captured) throw new Error('画面尚未准备好，请稍后重试。');
         const state = journeyStore.getSnapshot();
+        if (!captureIsReady() || (window as any).captureLuBirth !== renderCapture
+          || state.current !== initial.current || state.moonPlacement !== initial.moonPlacement) {
+          throw new Error('画面正在切换，请在就绪后留念。');
+        }
+        const captured = renderCapture?.();
+        if (!captured) throw new Error('画面尚未准备好，请稍后重试。');
         try {
           setDraft(captureKeepsakeDraft({ image: captured, observation: state.current, moonPlacement: state.moonPlacement,
             renderedFrameKey: (window as any).getLuBirthPerformance?.()?.backgroundFrameKey ?? null,
@@ -88,8 +95,8 @@ export function SceneScreenshot({ label = '截图', unified = false }: { label?:
       finally { capturing.current = false; if (mounted.current) setCapturePending(false); }
   };
   return <>
-    <button ref={triggerRef} className="btn" style={{ flex: 1 }} disabled={capturePending || !captureReady} onClick={() => void capture()}>{capturePending ? '准备截图…' : !captureReady ? '画面准备中…' : label}</button>
-    {captureError && <div className="scene-capture-error" role="status"><span>{captureError}</span><button disabled={capturePending || !captureReady} onClick={() => void capture()}>重试截图</button><button aria-label="收起截图提示" onClick={() => setCaptureError('')}>×</button></div>}
+    <button ref={triggerRef} className="btn" style={{ flex: 1 }} disabled={capturePending || !ready} onClick={() => void capture()}>{capturePending ? '准备截图…' : !ready && !unified ? '画面准备中…' : label}</button>
+    {captureError && <div className="scene-capture-error" role="status"><span>{captureError}</span><button disabled={capturePending || !ready} onClick={() => void capture()}>重试截图</button><button aria-label="收起截图提示" onClick={() => setCaptureError('')}>×</button></div>}
     {image && createPortal(<div ref={dialogRef} className="screenshot-preview" role="dialog" aria-modal="true" aria-label={unified ? '留住这一刻' : editing ? '制作纪念卡' : '地月截图'} onClick={close} onKeyDown={event => {
       if (event.key !== 'Tab') return;
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),summary')]

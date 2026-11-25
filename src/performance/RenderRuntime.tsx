@@ -1,19 +1,27 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RenderProfile } from './renderProfile';
 import { LiquidGlassRenderer } from './LiquidGlassRenderer';
 import { captureIsReady, publishCaptureReady } from './captureStatus';
 import { adaptResolution, resolutionCeiling, type ResolutionState } from './adaptiveResolution';
-import { GpuTimer, percentile } from '../spikes/sky/skyPerformance';
+import { FrameCadence, GpuTimer, percentile } from '../spikes/sky/skyPerformance';
+import type { Observation } from '../history/observation';
 
 /** Drive only the requested frames; stop GPU work while the tab is hidden. */
-export function RenderRuntime({ profile }: { profile: RenderProfile }) {
+export function RenderRuntime({ profile, presentation, expectedBackgroundKey, onPresented }: {
+  profile: RenderProfile;
+  // Undefined preserves standalone scene callers; null means the requested composition is pending.
+  presentation?: Observation | null;
+  expectedBackgroundKey?: string | null;
+  onPresented?: (observation: Observation) => void;
+}) {
   const { gl, scene, camera, invalidate, setFrameloop, setDpr, size } = useThree();
   const glass = useRef<LiquidGlassRenderer | null>(null);
   const sceneStats = useRef({ triangles: 0, calls: 0 });
   const frames = useRef(0);
   const captureRef = useRef<(() => string) | null>(null);
+  const publishedObservation = useRef<Observation | null>(null);
   const resolution = useRef<ResolutionState>({ dpr: 1, slow: 0, fast: 0 });
   const sample = useRef({ since: 0, frames: 0, fps: 0 });
   const booting = useRef(!(window as any).__lubirthOverlayFading);
@@ -62,7 +70,14 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     glass.current = new LiquidGlassRenderer(gl.domElement);
     return () => { glass.current?.dispose(); glass.current = null; };
   }, [gl]);
+  useLayoutEffect(() => {
+    publishedObservation.current = null;
+    if (captureRef.current && (window as any).captureLuBirth === captureRef.current) publishCaptureReady(false);
+    invalidate();
+  }, [presentation, expectedBackgroundKey, invalidate]);
   useFrame(() => {
+    // R3F can still deliver an already queued frame after a visibility change.
+    if (document.hidden) return;
     // Canvas resize/layout updates can reapply its declarative DPR. Restore the
     // adaptive value before drawing so mode transitions never jump back to the
     // full device DPR for an expensive frame.
@@ -76,12 +91,9 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     }
     const renderStart = performance.now();
     const rendered = renderScene();
-    if (validationTimer.current) {
-      validationTimer.current.end();
-      renderTiming.current.cpu.push(performance.now()-renderStart);
-      renderTiming.current.cpu=renderTiming.current.cpu.slice(-240); renderTiming.current.frames++;
-    }
-    scene.userData.renderedSpatialFrameKey = scene.userData.astronomicalBackground?.scene.userData.frameKey ?? null;
+    const background = scene.userData.astronomicalBackground?.scene as THREE.Scene | undefined;
+    const renderedBackgroundKey = background?.userData.frameKey ?? null;
+    scene.userData.renderedSpatialFrameKey = renderedBackgroundKey;
     frames.current++;
     sceneStats.current.triangles = rendered.triangles;
     sceneStats.current.calls = rendered.calls;
@@ -90,8 +102,21 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
       highQualityMarker: !profile.mobile && profile.quality !== 'battery',
       moon: scene.getObjectByName('moonMesh'),
     });
-    if (captureRef.current && (window as any).captureLuBirth === captureRef.current && !captureIsReady()) {
-      publishCaptureReady(true);
+    if (validationTimer.current) {
+      validationTimer.current.end();
+      renderTiming.current.cpu.push(performance.now()-renderStart);
+      renderTiming.current.cpu=renderTiming.current.cpu.slice(-240); renderTiming.current.frames++;
+    }
+    const backgroundMatches = expectedBackgroundKey === undefined || (renderedBackgroundKey === expectedBackgroundKey
+      && (expectedBackgroundKey === null || background?.getObjectByName('skyStars')?.userData.frameKey === expectedBackgroundKey));
+    const presented = presentation === undefined
+      || (presentation !== null && backgroundMatches && scene.userData.baseMapsSettled === true && rendered.calls > 0);
+    if (presented) {
+      if (captureRef.current && (window as any).captureLuBirth === captureRef.current && !captureIsReady()) publishCaptureReady(true);
+      if (presentation && publishedObservation.current !== presentation) {
+        publishedObservation.current = presentation;
+        onPresented?.(presentation);
+      }
     }
     const now = performance.now();
     if (now < sample.current.since) return;
@@ -108,15 +133,22 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     sample.current.frames = 0;
   }, 1);
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
+    let request: number;
+    const cadence = new FrameCadence(1000 / profile.fps);
+    const tick = (now: number) => {
+      if (document.hidden) return;
+      if (cadence.take(now)) invalidate();
+      request = requestAnimationFrame(tick);
+    };
     const update = () => {
-      clearInterval(timer);
+      cancelAnimationFrame(request);
+      cadence.reset();
       setFrameloop(document.hidden ? 'never' : 'demand');
       sample.current = { since: performance.now(), frames: 0, fps: 0 };
       resolution.current.slow = resolution.current.fast = 0;
       if (!document.hidden) {
         invalidate();
-        timer = setInterval(invalidate, 1000 / profile.fps);
+        request = requestAnimationFrame(tick);
       }
     };
     update();
@@ -150,7 +182,7 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
         gpuSamples:renderTiming.current.gpu.length,cpuP95:percentile(renderTiming.current.cpu,.95),gpuP95:percentile(renderTiming.current.gpu,.95),
         cpuMean:renderTiming.current.cpu.reduce((a,b)=>a+b,0)/Math.max(1,renderTiming.current.cpu.length),
         gpuMean:renderTiming.current.gpu.reduce((a,b)=>a+b,0)/Math.max(1,renderTiming.current.gpu.length),
-        gpuSupported:validationTimer.current.supported,scope:'Complete scene drawing; excludes separate glass context, React/layout and asset loading'} : null,
+        gpuSupported:validationTimer.current.supported,scope:'Scene drawing and glass pass on the same context; excludes asset loading and other React work'} : null,
       backgroundFrameKey: scene.userData.astronomicalBackground?.scene.userData.frameKey ?? null,
       moonTriangles: (() => {
         const moon = scene.getObjectByName('moonMesh');
@@ -191,7 +223,7 @@ export function RenderRuntime({ profile }: { profile: RenderProfile }) {
     publishCaptureReady(false);
     invalidate();
     return () => {
-      clearInterval(timer);
+      cancelAnimationFrame(request);
       document.removeEventListener('visibilitychange', update);
       if ((window as any).captureLuBirth === capture) {
         delete (window as any).captureLuBirth;

@@ -8,7 +8,7 @@ import type { SkyViewState } from './spikes/sky/main';
 import ObservationForm from './history/ObservationForm';
 import { personalObservationInitial } from './history/observationDraft';
 import { createCelestialState, createObserverState } from './astro/celestialState';
-import { createViewTransfer } from './history/viewBridge';
+import { createViewTransfer, observationKey } from './history/viewBridge';
 import type { ViewTransfer } from './history/viewBridge';
 import { SpatialValidationProbe } from './performance/SpatialValidationProbe';
 import { SceneScreenshot } from './components/SceneScreenshot';
@@ -23,11 +23,11 @@ const SkyView = React.lazy(() => import('./spikes/sky/main'));
 const JourneyPanel = React.lazy(() => import('./history/JourneyPanel'));
 const LocalAudioPlayer = React.lazy(() => import('./components/LocalAudioPlayer'));
 
-class ViewBoundary extends React.Component<{ children: React.ReactNode; onBack: () => void }, { failed: boolean }> {
+class ViewBoundary extends React.Component<{ children: React.ReactNode; earth: boolean; onBack: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() { return this.state.failed ? <div className="journey-loading" role="alert"><div><p>画面未能载入，观察信息仍保留。</p>
-    <button className="journey-secondary" onClick={this.props.onBack}>返回地月</button></div></div> : this.props.children; }
+    <button className="journey-secondary" onClick={this.props.onBack}>{this.props.earth ? '重新加载' : '返回地月'}</button></div></div> : this.props.children; }
 }
 
 export default function App() {
@@ -48,10 +48,22 @@ export default function App() {
   const [earthHidden, setEarthHidden] = React.useState(false);
   const [earthStarted, setEarthStarted] = React.useState(view === 'earth');
   const [earthOpeningComplete, setEarthOpeningComplete] = React.useState(false);
+  const [earthPresented, setEarthPresented] = React.useState<Observation | null>(null);
+  const [showAligning, setShowAligning] = React.useState(false);
   const finishEarthOpening = React.useCallback(() => setEarthOpeningComplete(true), []);
   const opening = view === 'earth' && !earthOpeningComplete;
   const [transfer, setTransfer] = React.useState<ViewTransfer | undefined>();
   const [earthTransfer, setEarthTransfer] = React.useState<ViewTransfer | undefined>();
+  const activeEarthTransfer = earthTransfer?.observationKey === observationKey(state.current) ? earthTransfer : undefined;
+  const earthPending = view === 'earth' && (earthPresented !== state.current || !!activeEarthTransfer);
+  React.useEffect(() => {
+    if (!earthPending || opening) { setShowAligning(false); return; }
+    const timer = setTimeout(() => setShowAligning(true), 350);
+    return () => clearTimeout(timer);
+  }, [earthPending, opening]);
+  const onEarthPresented = React.useCallback((observation: Observation) => {
+    if (journeyStore.getSnapshot().current === observation) setEarthPresented(observation);
+  }, []);
   const celestial = React.useMemo(() => createCelestialState(state.current.utc), [state.current.utc]);
   const observer = React.useMemo(() => createObserverState(celestial, state.current.observer),
     [celestial, state.current.observer.latitude, state.current.observer.longitude]);
@@ -74,7 +86,10 @@ export default function App() {
     [controlsHost, panel, openScenePanel, closePanel]);
   const setImmersed = React.useCallback((value: boolean) => {
     if (value) setPanel(null);
-    if (view === 'earth') earthActions.current?.setImmersed(value);
+    if (view === 'earth') {
+      setEarthHidden(value);
+      earthActions.current?.setImmersed(value);
+    }
     else setSkyImmersed(value);
   }, [view]);
   const immersed = view === 'earth' ? earthHidden : skyImmersed;
@@ -90,12 +105,16 @@ export default function App() {
   React.useEffect(() => {
     if (immersed && (document.activeElement === document.body || document.activeElement?.closest('#experience-panel'))) immersionButton.current?.focus();
   }, [immersed]);
-  const consumeEarthTransfer = React.useCallback(() => setEarthTransfer(undefined), []);
+  const consumeEarthTransfer = React.useCallback((applied: ViewTransfer) => {
+    setEarthTransfer(pending => pending === applied ? undefined : pending);
+  }, []);
   const enterHistory = React.useCallback((observation: Observation) => { journeyStore.enterHistory(observation);
+    setEarthPresented(null);
     setEarthTransfer(createViewTransfer(observation, 'birth-point'));
     setEarthHidden(true); setPanel(null); setView('earth'); }, []);
   const saveBirth = React.useCallback((observation: Observation) => {
     journeyStore.setBirth(observation); setEarthTransfer(createViewTransfer(observation, 'birth-point'));
+    setEarthPresented(null);
     setEarthHidden(true); setPanel(null); setView('earth');
   }, []);
   const enterSky = React.useCallback(() => { setTransfer(createViewTransfer(state.current, 'birth-point')); setPanel(null); setView('sky'); }, [state.current]);
@@ -106,6 +125,16 @@ export default function App() {
   const showSky = React.useCallback(() => {
     setTransfer(createViewTransfer(state.current, 'navigation')); setSkyImmersed(false); setView('sky');
   }, [state.current]);
+  const showEarth = React.useCallback(() => {
+    if (view === 'earth') return;
+    setEarthPresented(null);
+    setView('earth');
+  }, [view]);
+  const returnToPersonal = React.useCallback(() => {
+    setEarthPresented(null);
+    setEarthTransfer(undefined);
+    journeyStore.returnToPersonal();
+  }, []);
   const fullscreen = React.useCallback(async () => {
     if (appFullscreen) {
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
@@ -161,7 +190,7 @@ export default function App() {
 
   // 使用 SimpleTest 组件作为主场景
   return (
-    <div ref={appRoot} className="journey-app experience-app" data-experience-root data-view={view}
+    <div ref={appRoot} className="journey-app experience-app" data-experience-root data-view={view} data-composing={earthPending || undefined}
       data-opening={opening || undefined} data-panel={panel || undefined} data-immersed={immersed || undefined} data-history={state.current.source.kind === 'history' || undefined}>
       {import.meta.env.DEV && new URLSearchParams(location.search).get('spatialtest') === '1' && <SpatialValidationProbe />}
       {/* 基础画面就绪且手写动画完成后露出场景。 */}
@@ -170,33 +199,40 @@ export default function App() {
         minShowMs={mobile ? 300 : 650}
         fadeMs={mobile ? 380 : 600}
         prewarmFrames={1}
+        presentationReady={!earthPending}
         onComplete={finishEarthOpening}
       /></div>}
       <div className="journey-scene" {...(opening ? { inert: '' } : {})} aria-hidden={opening || undefined}>
-        <ViewBoundary key={view + scope} onBack={() => { setView('earth'); setPanel(null); }}>
-          <React.Suspense fallback={<div className="journey-loading" role="status">正在打开{view === 'sky' ? '星空' : '地月'}…</div>}>
-            {view === 'earth' ? <SimpleTest key={scope} observation={state.current} initialState={earthViews.current[scope]} onStateChange={saveEarthView}
-              entryTransfer={earthTransfer} onEntryTransferConsumed={consumeEarthTransfer}
-              celestial={celestial} observerState={observer} cultureVersion={state.culture}
-              moonPlacement={state.moonPlacement} onMoonPlacementChange={journeyStore.setMoonPlacement} onEnterSky={enterSky} onLocateMoon={locateMoon}
-              chrome={sceneUI} onUIReady={registerEarthUI} />
-              : <SkyView key={scope} observation={state.current} cultureVersion={state.culture} onCultureChange={journeyStore.setCulture}
-                celestial={celestial} moonPlacement={state.moonPlacement} onMoonPlacementChange={journeyStore.setMoonPlacement} entryTransfer={transfer}
-                onEditObservation={() => openPanel('birth')} initialState={skyViews.current[scope]} onStateChange={saveSkyView} chrome={sceneUI} />}
-          </React.Suspense>
+        <ViewBoundary key={view + scope} earth={view === 'earth'} onBack={() => {
+          if (view === 'earth') window.location.reload();
+          else { showEarth(); setPanel(null); }
+        }}>
+          <div className="experience-world" {...(earthPending ? { inert: '' } : {})} aria-hidden={earthPending || undefined}>
+            <React.Suspense fallback={<div className="journey-loading" role="status">正在打开{view === 'sky' ? '星空' : '地月'}…</div>}>
+              {view === 'earth' ? <SimpleTest key={scope} observation={state.current} initialState={earthViews.current[scope]} onStateChange={saveEarthView}
+                entryTransfer={activeEarthTransfer} onEntryTransferConsumed={consumeEarthTransfer}
+                celestial={celestial} observerState={observer} cultureVersion={state.culture}
+                moonPlacement={state.moonPlacement} onMoonPlacementChange={journeyStore.setMoonPlacement} onEnterSky={enterSky} onLocateMoon={locateMoon}
+                chrome={sceneUI} onUIReady={registerEarthUI} onPresented={onEarthPresented} />
+                : <SkyView key={scope} observation={state.current} cultureVersion={state.culture} onCultureChange={journeyStore.setCulture}
+                  celestial={celestial} moonPlacement={state.moonPlacement} onMoonPlacementChange={journeyStore.setMoonPlacement} entryTransfer={transfer}
+                  onEditObservation={() => openPanel('birth')} initialState={skyViews.current[scope]} onStateChange={saveSkyView} chrome={sceneUI} />}
+            </React.Suspense>
+          </div>
+          {earthPending && showAligning && !opening && <p className="experience-aligning" role="status">正在对齐地月…</p>}
         </ViewBoundary>
       </div>
       <div className="experience-chrome" {...(opening ? { inert: '' } : {})} aria-hidden={opening || undefined}>
       <header className={'experience-toolbar' + (immersed ? ' is-immersed' : '')} data-sky-obstruction>
         {!immersed && <><span className="experience-brand">LuBirth</span>
           <nav aria-label="观看方式" className="experience-views">
-            <button aria-current={view === 'earth' ? 'page' : undefined} onClick={() => setView('earth')}>地月</button>
+            <button aria-current={view === 'earth' ? 'page' : undefined} onClick={showEarth}>地月</button>
             <button aria-current={view === 'sky' ? 'page' : undefined} onClick={showSky}>观天</button>
           </nav></>}
         <div className="experience-toolbar-actions">
           {!immersed && <button ref={exploreButton} aria-expanded={!!panel} aria-controls="experience-panel"
             onClick={() => panel ? closePanel() : openPanel(lastPanel.current)}>探索</button>}
-          {view === 'earth' && <SceneScreenshot label="留念" unified />}
+          {view === 'earth' && <SceneScreenshot label="留念" unified blocked={earthPending} />}
           <button ref={immersionButton} onClick={() => setImmersed(!immersed)}>{immersed ? '显示菜单' : '沉浸'}</button>
         </div>
       </header>
@@ -205,13 +241,13 @@ export default function App() {
         <p>{state.current.civilDate} · {state.current.clock} · {state.current.observer.name}</p>
         {state.current.source.kind === 'history' && <><small>{state.current.timeSelection.origin === 'event-default-20' ? '默认当地 20:00 演示' : '所选当地时刻演示'}
           {state.current.observer.precision === 'representative' ? ' · 地区代表点' : ''}</small>
-          {!immersed && <button onClick={() => journeyStore.returnToPersonal()}>{state.birth ? '回到我的出生时刻' : '回到此前天空'} ↗</button>}</>}
+          <button onClick={returnToPersonal}>{state.birth ? '回到我的出生时刻' : '回到此前天空'} ↗</button></>}
       </div>}
       <ExperiencePanel active={panel} onChange={openPanel} onClose={closePanel} onHost={setControlsHost} scene={view} returnFocus={exploreButton}>
         {birthOpened && <section hidden={panel !== 'birth'}>
           <p className="experience-intro">填写出生时刻与地点，查看当时的地月。</p>
           {state.current.source.kind === 'history' && <button className="journey-text-action" onClick={() => {
-            journeyStore.returnToPersonal(); closePanel();
+            returnToPersonal(); closePanel();
           }}>{state.birth ? '回到我的出生时刻' : '回到此前天空'} ↗</button>}
           <ObservationForm initial={personalObservationInitial(state)} onSave={saveBirth} submitLabel="查看出生合照" />
           <p className="journey-hint">信息保存在当前浏览器会话，不会发送给史料或笔迹网站。</p>

@@ -7,6 +7,46 @@ export interface ScreenBounds {
 }
 
 export const MARKER_MOON_CLEARANCE_PX = 16;
+export const MARKER_REFRACTION_PX = 17;
+export const MARKER_DISPERSION_PX = 0.3;
+export const MARKER_MAX_FRINGE = 1.55;
+
+export interface BackdropRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The marker shader clamps the full-screen UV before adding its colour fringe. */
+export function markerBackdropRegion(
+  rect: BackdropRegion,
+  scale: number,
+  viewport: { width: number; height: number },
+  buffer: { width: number; height: number },
+): BackdropRegion {
+  const pixelRatio = buffer.width / viewport.width;
+  const refraction = MARKER_REFRACTION_PX * scale;
+  const fringe = MARKER_DISPERSION_PX * MARKER_MAX_FRINGE * scale;
+
+  const axis = (start: number, extent: number, viewSize: number, bufferSize: number) => {
+    const sample = (point: number, offset: number) => {
+      const fragment = Math.max(0, Math.min(1, point / viewSize)) * bufferSize;
+      const uv = (fragment / pixelRatio + offset) / viewSize;
+      return Math.max(.001, Math.min(.999, uv)) * bufferSize;
+    };
+    // Leave a full texel for bilinear filtering. Quantize only the allocation,
+    // so the crop can follow the pin without reallocating at each position.
+    const margin = fringe * bufferSize / viewSize + 1;
+    const left = Math.max(0, Math.floor(sample(start, -refraction) - margin));
+    const right = Math.min(bufferSize, Math.ceil(sample(start + extent, refraction) + margin));
+    const size = Math.min(bufferSize, Math.ceil((right - left) / 64) * 64);
+    return { origin: Math.min(left, bufferSize - size), size };
+  };
+  const x = axis(rect.x, rect.width, viewport.width, buffer.width);
+  const y = axis(rect.y, rect.height, viewport.height, buffer.height);
+  return { x: x.origin, y: y.origin, width: x.size, height: y.size };
+}
 
 /** Project the silhouette of a camera-space sphere, including off-axis perspective. */
 export function projectCameraSphereBounds(
