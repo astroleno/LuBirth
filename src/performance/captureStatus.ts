@@ -1,9 +1,19 @@
 export const CAPTURE_STATUS_EVENT = 'lubirth:capture-status';
 
+export type SceneCapturePair = Readonly<{ original: string; clean: string }>;
+export type SceneCapture = {
+  (): string;
+  (mode: 'original-and-clean'): SceneCapturePair;
+};
+
 type CaptureWindow = Window & {
-  captureLuBirth?: () => string;
+  captureLuBirth?: SceneCapture;
   __luBirthCaptureReady?: boolean;
 };
+
+export function getSceneCapture(): SceneCapture | undefined {
+  return typeof window === 'undefined' ? undefined : (window as CaptureWindow).captureLuBirth;
+}
 
 export function captureIsReady(): boolean {
   if (typeof window === 'undefined') return false;

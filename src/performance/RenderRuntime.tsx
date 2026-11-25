@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RenderProfile } from './renderProfile';
 import { LiquidGlassRenderer } from './LiquidGlassRenderer';
-import { captureIsReady, publishCaptureReady } from './captureStatus';
+import { captureIsReady, getSceneCapture, publishCaptureReady, type SceneCapture, type SceneCapturePair } from './captureStatus';
 import { adaptResolution, resolutionCeiling, type ResolutionState } from './adaptiveResolution';
 import { FrameCadence, GpuTimer, percentile } from '../spikes/sky/skyPerformance';
 import type { Observation } from '../history/observation';
@@ -21,7 +21,7 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
   const glass = useRef<LiquidGlassRenderer | null>(null);
   const sceneStats = useRef({ triangles: 0, calls: 0 });
   const frames = useRef(0);
-  const captureRef = useRef<(() => string) | null>(null);
+  const captureRef = useRef<SceneCapture | null>(null);
   const publishedObservation = useRef<Observation | null>(null);
   const resolution = useRef<ResolutionState>({ dpr: 1, slow: 0, fast: 0 });
   const sample = useRef({ since: 0, frames: 0, fps: 0 });
@@ -77,7 +77,7 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
   }, [gl]);
   useLayoutEffect(() => {
     publishedObservation.current = null;
-    if (captureRef.current && (window as any).captureLuBirth === captureRef.current) publishCaptureReady(false);
+    if (captureRef.current && getSceneCapture() === captureRef.current) publishCaptureReady(false);
     invalidate();
   }, [presentation, expectedBackgroundKey, invalidate]);
   useFrame(() => {
@@ -117,7 +117,7 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
     const presented = presentation === undefined
       || (presentation !== null && backgroundMatches && scene.userData.baseMapsSettled === true && rendered.calls > 0);
     if (presented) {
-      if (captureRef.current && (window as any).captureLuBirth === captureRef.current && !captureIsReady()) publishCaptureReady(true);
+      if (captureRef.current && getSceneCapture() === captureRef.current && !captureIsReady()) publishCaptureReady(true);
       if (presentation && publishedObservation.current !== presentation) {
         publishedObservation.current = presentation;
         onPresented?.(presentation);
@@ -159,17 +159,21 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
     update();
     document.addEventListener('visibilitychange', update);
     // Render and read in the same task: screenshots do not need a persistent buffer.
-    const capture = () => {
+    function capture(): string;
+    function capture(mode: 'original-and-clean'): SceneCapturePair;
+    function capture(mode?: 'original-and-clean') {
       scene.updateMatrixWorld(true);
       renderScene();
+      const clean = mode === 'original-and-clean' ? gl.domElement.toDataURL('image/png') : undefined;
       glass.current?.render(gl, camera, {
         uiGlass: false,
         includeUi: false,
         highQualityMarker: !profile.mobile && profile.quality !== 'battery',
         moon: scene.getObjectByName('moonMesh'),
       });
-      return gl.domElement.toDataURL('image/png');
-    };
+      const original = gl.domElement.toDataURL('image/png');
+      return clean === undefined ? original : { original, clean };
+    }
     const diagnostics = () => ({
       profile,
       frames: frames.current,
@@ -230,7 +234,7 @@ export function RenderRuntime({ profile, presentation, expectedBackgroundKey, on
     return () => {
       cancelAnimationFrame(request);
       document.removeEventListener('visibilitychange', update);
-      if ((window as any).captureLuBirth === capture) {
+      if (getSceneCapture() === capture) {
         delete (window as any).captureLuBirth;
         delete (window as any).getLuBirthPerformance;
         publishCaptureReady(false);

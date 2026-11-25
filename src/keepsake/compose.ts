@@ -1,4 +1,5 @@
-import { cardContext, type CardOptions, type KeepsakeDraft } from './draft';
+import { cardContext, cardSceneImage, matchingHistorySummary, type CardOptions, type KeepsakeDraft } from './draft';
+import { loadKeepsakeHistorySummary } from './historySummary';
 import { layoutBirthCard, layoutInkoLabel } from './layout';
 import { handwritingAsset, templateUrl } from './templates';
 import { writeInkoPngMetadata } from './png-metadata';
@@ -35,33 +36,36 @@ export async function composeBirthCard(draft: KeepsakeDraft, options: CardOption
   const asset = handwritingAsset(options.templateId);
   if (!asset) throw new Error('手写模板尚未准备好，原始截图仍可保存。');
   signal?.throwIfAborted();
-  const [scene, handwriting, label] = await Promise.all([
-    loadCardImage(draft.sceneImage, signal, '原始取景'), loadCardImage(templateUrl(asset.card), signal, '手写寄语'),
+  const [scene, handwriting, label, historySummary] = await Promise.all([
+    loadCardImage(cardSceneImage(draft), signal, '纪念卡取景'), loadCardImage(templateUrl(asset.card), signal, '手写寄语'),
     loadCardImage(templateUrl(asset.label.path), signal, '卡片标识'),
+    matchingHistorySummary(draft.observation, draft.historySummary) ?? loadKeepsakeHistorySummary(draft.observation).catch(() => undefined),
   ]);
   signal?.throwIfAborted();
   const canvas = document.createElement('canvas');
   try {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('当前浏览器暂时不能合成图片。');
-    const information = cardContext(draft, options);
+    const information = cardContext(draft, options, historySummary);
     const base = layoutBirthCard(draft.sourceWidth, draft.sourceHeight, 0);
     const font = "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-    context.font = `${28 * base.unit}px ${font}`;
+    context.font = `${24 * base.unit}px ${font}`;
     const headings = wrapCardText(context, information.heading, base.contentWidth);
-    context.font = `${27 * base.unit}px ${font}`;
-    const details = information.details.flatMap(line => wrapCardText(context, line, base.contentWidth));
+    context.font = `500 ${34 * base.unit}px ${font}`;
+    const date = wrapCardText(context, information.details[0], base.contentWidth);
+    context.font = `${25 * base.unit}px ${font}`;
+    const details = information.details.slice(1).flatMap(line => wrapCardText(context, line, base.contentWidth));
     context.font = `${23 * base.unit}px ${font}`;
-    const notes = information.notes.flatMap(line => wrapCardText(context, line, base.contentWidth));
+    const notes = wrapCardText(context, information.notes.join('　'), base.contentWidth);
     const signature = information.signature ? wrapCardText(context, '— ' + information.signature, base.contentWidth) : [];
-    const layout = layoutBirthCard(draft.sourceWidth, draft.sourceHeight, headings.length + details.length + notes.length + signature.length);
+    const layout = layoutBirthCard(draft.sourceWidth, draft.sourceHeight, headings.length + date.length + details.length + notes.length + signature.length);
     canvas.width = layout.width; canvas.height = layout.height;
     context.fillStyle = '#f4efe5'; context.fillRect(0, 0, layout.width, layout.height);
     context.drawImage(scene, 0, 0, layout.width, layout.imageHeight);
     const { unit, padding, contentWidth } = layout;
     let y = layout.footerY + 48 * unit;
-    context.textBaseline = 'top'; context.fillStyle = '#5a615f'; context.font = `${28 * unit}px ${font}`;
-    for (const line of headings) { context.fillText(line, padding, y); y += 38 * unit; }
+    context.textBaseline = 'top'; context.fillStyle = '#5a615f'; context.font = `${24 * unit}px ${font}`;
+    for (const line of headings) { context.fillText(line, padding, y); y += 34 * unit; }
     y += 16 * unit;
     const scale = Number.isFinite(options.textScale) ? Math.min(1.2, Math.max(.8, options.textScale)) : 1;
     const position = Number.isFinite(options.textPosition) ? Math.min(1, Math.max(0, options.textPosition)) : .5;
@@ -73,8 +77,10 @@ export async function composeBirthCard(draft: KeepsakeDraft, options: CardOption
     context.drawImage(handwriting, inkX, inkY, inkWidth, inkHeight,
       padding + (contentWidth - wordWidth) * position, y, wordWidth, wordHeight);
     y += Math.max(110 * unit, wordHeight) + 28 * unit;
-    context.fillStyle = '#293c42'; context.font = `${27 * unit}px ${font}`;
-    for (const line of details) { context.fillText(line, padding, y); y += 38 * unit; }
+    context.fillStyle = '#263b41'; context.font = `500 ${34 * unit}px ${font}`;
+    for (const line of date) { context.fillText(line, padding, y); y += 46 * unit; }
+    context.fillStyle = '#4a5959'; context.font = `${25 * unit}px ${font}`;
+    for (const line of details) { context.fillText(line, padding, y); y += 36 * unit; }
     context.font = `${23 * unit}px ${font}`;
     for (const line of signature) { context.fillText(line, padding, y); y += 33 * unit; }
     y += 14 * unit; context.fillStyle = '#67706c';

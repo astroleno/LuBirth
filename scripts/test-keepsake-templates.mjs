@@ -12,18 +12,20 @@ let passed = 0;
 const test = async (name, run) => { await run(); passed++; console.log('PASS', name); };
 try {
   const draft = await server.ssrLoadModule('/src/keepsake/draft.ts');
-  const { resolveObservation } = await server.ssrLoadModule('/src/history/observation.ts');
+  const { resolveObservation, historyObservation } = await server.ssrLoadModule('/src/history/observation.ts');
   const templates = await server.ssrLoadModule('/src/keepsake/templates.ts');
   const png = await server.ssrLoadModule('/src/keepsake/png-metadata.ts');
   const { createCardZip } = await server.ssrLoadModule('/src/keepsake/zip.ts');
   const { layoutBirthCard, layoutInkoLabel } = await server.ssrLoadModule('/src/keepsake/layout.ts');
   const { wrapCardText } = await server.ssrLoadModule('/src/keepsake/compose.ts');
+  const { loadKeepsakeHistorySummary } = await server.ssrLoadModule('/src/keepsake/historySummary.ts');
   const bytes = new Uint8Array(await fs.readFile('public/keepsake/templates/v1/first-meeting.png'));
   const image = 'data:image/png;base64,' + Buffer.from(bytes).toString('base64');
   const place = { name: '上海', latitude: 31.2304, longitude: 121.4737, precision: 'representative', note: '测试代表点' };
   const personal = resolveObservation('2000-01-01', '00:30', place, { kind: 'offset', offsetMinutes: 480 }, { kind: 'birth', label: '我的出生时刻' });
   const rendered = observation => ({ utc: observation.utc, observer: { ...observation.observer }, placement: 'portrait', earthReady: true });
-  const capture = observation => draft.captureKeepsakeDraft({ image, observation, moonPlacement: 'portrait', renderedFrameKey: observation.utc + '/test-scene', renderedObservation: rendered(observation) });
+  const capture = (observation, optional = {}) => draft.captureKeepsakeDraft({ image, observation, moonPlacement: 'portrait',
+    renderedFrameKey: observation.utc + '/test-scene', renderedObservation: rendered(observation), ...optional });
   await test('Freezes an independent observation; rejects unsynchronised frames', () => {
     const value = capture(personal);
     personal.observer.name = '稍后改动的地点';
@@ -40,6 +42,20 @@ try {
     assert.throws(() => draft.pngDimensions('data:image/jpeg;base64,AA=='));
     assert.throws(() => draft.pngDimensions('data:image/png;base64,AAAA'));
   });
+  await test('The original and clean frame stay separate; older drafts and mismatched image sizes are handled', async () => {
+    const data = Buffer.from('Title\0Clean capture fixture');
+    const chunk = Buffer.alloc(data.length + 12);
+    chunk.writeUInt32BE(data.length); chunk.write('tEXt', 4); data.copy(chunk, 8);
+    chunk.writeUInt32BE(png.crc32(chunk.subarray(4, -4)), chunk.length - 4);
+    const cleanBytes = Buffer.concat([bytes.subarray(0, -12), chunk, bytes.subarray(-12)]);
+    const cleanImage = 'data:image/png;base64,' + cleanBytes.toString('base64');
+    const value = capture(personal, { cleanImage });
+    assert.equal(value.sceneImage, image);
+    assert.equal(draft.cardSceneImage(value), cleanImage);
+    assert.equal(draft.cardSceneImage(capture(personal)), image);
+    const smaller = await fs.readFile('public/keepsake/templates/v1/inko-label.png');
+    assert.throws(() => capture(personal, { cleanImage: 'data:image/png;base64,' + smaller.toString('base64') }), /尺寸/);
+  });
   await test('Birth fields are opt-in; modes, examples and historical assumptions remain explicit', () => {
     const card = capture(personal), options = draft.initialCardOptions(card);
     let context = draft.cardContext(card, options);
@@ -55,12 +71,72 @@ try {
     assert.equal(historyCard.templateId, 'same-moon');
     context = draft.cardContext(historyCard, draft.initialCardOptions(historyCard));
     assert.match(context.heading, /历史演示/);
-    assert.match(context.notes.join(' '), /默认当地 20:00/);
+    assert.match(context.notes.join(' '), /默认当地 20:00 演示/);
+    assert.doesNotMatch(context.details.join(' '), /20:00/);
+    assert.match(draft.cardContext(historyCard, { ...options, showClock: true }).details.join(' '), /20:00/);
     assert.match(context.notes.join(' '), /地方平太阳时/);
     assert.match(context.notes.join(' '), /条件性/);
     const example = resolveObservation('2026-10-24', '20:00', place, { kind: 'offset', offsetMinutes: 480 }, { kind: 'example', label: '此时' });
     assert.match(draft.cardContext(capture(example), options).notes.join(' '), /不代表真实出生/);
     assert.match(draft.cardContext({ ...card, moonPlacement: 'physical' }, options).notes.join(' '), /物理位置/);
+  });
+  await test('Historical cards resolve source dates and describe the clock evidence without printing hidden details', async () => {
+    const { historyCatalog } = await server.ssrLoadModule('/src/history/historyCatalog.ts');
+    const { resolveHistoryChoices } = await server.ssrLoadModule('/src/history/historyObservationPolicy.ts');
+    const visit = (id, selected, basis) => {
+      const record = historyCatalog.records.find(candidate => candidate.id === 'dsh:' + id);
+      const timeBasis = record.time.clockBasis?.kind === 'fixed-offset'
+        ? { kind: 'offset', offsetMinutes: record.time.clockBasis.offsetMinutes } : { kind: 'local-mean-solar' };
+      return historyObservation(record, { ...resolveHistoryChoices(record, selected), observer: record.place.observer ?? place, timeBasis: basis ?? timeBasis,
+        dateAcknowledged: true, placeConfirmed: true });
+    };
+    const cases = [
+      ['N50-033', '09:00', /按史载钟点演示/], ['H059', '17:30', /按史载钟点演示/],
+      ['H040', '22:30', /史载时段中点/], ['S15-12', '07:00', /史载相关情节/],
+      ['B04-02', '07:00', /史载相关时段中选点/], ['H033', '21:00', /史载时段中选点/],
+    ];
+    for (const [id, clock, note] of cases) {
+      const observation = visit(id), historySummary = await loadKeepsakeHistorySummary(observation);
+      const card = capture(observation, { historySummary }), options = draft.initialCardOptions(card);
+      const hidden = draft.cardContext(card, options);
+      assert.match(hidden.notes.join(' '), note, id);
+      assert.ok(![...hidden.details, ...hidden.notes].join(' ').includes(clock), id);
+      assert.ok(!hidden.details.includes(observation.observer.name), id);
+      const shown = draft.cardContext(card, { ...options, showClock: true, showPlace: true });
+      assert.ok(shown.details.some(value => value.startsWith(clock)), id);
+      assert.ok(shown.details.some(value => value.startsWith(observation.observer.name)), id);
+    }
+    const historical = visit('H031'), summary = await loadKeepsakeHistorySummary(historical);
+    const card = capture(historical, { historySummary: summary });
+    assert.deepEqual(draft.cardContext(card, draft.initialCardOptions(card)).details,
+      ['东晋永和九年三月初三日', '换算公历 353 年 4 月 23 日']);
+    const stale = capture(historical, { historySummary: { ...summary, civilDate: '0353-04-24' } });
+    assert.equal(stale.historySummary, undefined);
+    assert.equal(capture(historical, { historySummary: { ...summary, recordHash: 'stale' } }).historySummary, undefined);
+    assert.equal(await loadKeepsakeHistorySummary({ ...historical, civilDate: '0353-04-24' }), undefined);
+    assert.equal(await loadKeepsakeHistorySummary({ ...historical, source: { ...historical.source, recordHash: 'stale' } }), undefined);
+    assert.equal((await loadKeepsakeHistorySummary(visit('H021'))).originalDate, '端平三年五月初二日');
+    assert.equal((await loadKeepsakeHistorySummary(visit('B04-06'))).originalDate, '二月十九日');
+    assert.match(draft.cardContext(capture(visit('H031', { clock: '05:15' })), draft.initialCardOptions(card)).notes.join(' '), /自选钟点/);
+    const legacy = resolveObservation(historical.civilDate, historical.clock, historical.observer, historical.timeBasis, historical.source);
+    assert.match(draft.cardContext(capture(legacy), draft.initialCardOptions(card)).notes.join(' '), /沿用此前保存/);
+    for (const id of ['H021', 'B04-05', 'H055']) {
+      const viewing = visit(id), historySummary = await loadKeepsakeHistorySummary(viewing);
+      const midnightCard = capture(viewing, { historySummary });
+      const hidden = draft.cardContext(midnightCard, draft.initialCardOptions(midnightCard));
+      assert.match(hidden.notes.join(' '), /日界待核，按换算日期选点演示/);
+      assert.doesNotMatch([...hidden.details, ...hidden.notes].join(' '), /\d\d:\d\d|中点/);
+    }
+    for (const [id, minutes, clock] of [['H059', 480, '17:30'], ['N50-033', -240, '09:00']]) {
+      const viewing = visit(id, undefined, { kind: 'offset', offsetMinutes: minutes });
+      const altered = capture(viewing, { historySummary: await loadKeepsakeHistorySummary(viewing) });
+      const options = draft.initialCardOptions(altered);
+      const hidden = draft.cardContext(altered, options);
+      assert.match(hidden.notes.join(' '), /按史载钟点演示.*演示采用自选时制/);
+      assert.equal(hidden.notes.some(note => note.includes('原记时制待核')), id === 'H059');
+      assert.doesNotMatch([...hidden.details, ...hidden.notes].join(' '), /\d\d:\d\d/);
+      assert.match(draft.cardContext(altered, { ...options, showClock: true }).details.join(' '), new RegExp(clock));
+    }
   });
   await test('All three offline templates retain source metadata and accessible SVG motion policy', async () => {
     assert.equal(templates.KEEPSAKE_TEMPLATES.length, 3);

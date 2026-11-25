@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { journeyStore } from '../history/journeyStore';
 import { captureKeepsakeDraft, type KeepsakeDraft } from '../keepsake/draft';
-import { captureIsReady, subscribeCaptureStatus } from '../performance/captureStatus';
+import { captureIsReady, getSceneCapture, subscribeCaptureStatus } from '../performance/captureStatus';
 import './SceneScreenshot.css';
 
 const KeepsakeEditor = React.lazy(() => import('./keepsake/KeepsakeEditor'));
@@ -52,7 +52,7 @@ export function SceneScreenshot({ label = '截图', unified = false, blocked = f
   const capture = async () => {
     if (capturing.current || blocked || !captureIsReady()) return;
     const initial = journeyStore.getSnapshot();
-    const renderCapture = (window as any).captureLuBirth as (() => string) | undefined;
+    const renderCapture = getSceneCapture();
       capturing.current = true;
       setCapturePending(true);
       setCaptureError('');
@@ -75,20 +75,23 @@ export function SceneScreenshot({ label = '截图', unified = false, blocked = f
           if (!ready) throw new Error('画面还在调整尺寸，请重试截图。');
         }
         const state = journeyStore.getSnapshot();
-        if (!captureIsReady() || (window as any).captureLuBirth !== renderCapture
+        if (!renderCapture || !captureIsReady() || getSceneCapture() !== renderCapture
           || state.current !== initial.current || state.moonPlacement !== initial.moonPlacement) {
           throw new Error('画面正在切换，请在就绪后留念。');
         }
-        const captured = renderCapture?.();
-        if (!captured) throw new Error('画面尚未准备好，请稍后重试。');
+        const captured = renderCapture('original-and-clean');
+        const after = journeyStore.getSnapshot();
+        if (after.current !== state.current || after.moonPlacement !== state.moonPlacement)
+          throw new Error('画面正在切换，请在就绪后留念。');
+        if (!captured.original) throw new Error('画面尚未准备好，请稍后重试。');
         try {
-          setDraft(captureKeepsakeDraft({ image: captured, observation: state.current, moonPlacement: state.moonPlacement,
+          setDraft(captureKeepsakeDraft({ image: captured.original, cleanImage: captured.clean, observation: state.current, moonPlacement: state.moonPlacement,
             renderedFrameKey: (window as any).getLuBirthPerformance?.()?.backgroundFrameKey ?? null,
             renderedObservation: (window as any).getLuBirthSpatialState?.() ?? null }));
           setDraftError('');
         } catch (reason) { setDraft(null); setDraftError((reason as Error).message); }
         setEditing(false);
-        setImage(captured);
+        setImage(captured.original);
       } catch (reason) {
         if (mounted.current) setCaptureError(reason instanceof Error ? reason.message : '截图未能完成，请重试。');
       }

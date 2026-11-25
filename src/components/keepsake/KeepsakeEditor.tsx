@@ -1,6 +1,6 @@
 import React from 'react';
 import { composeBirthCard } from '../../keepsake/compose';
-import { initialCardOptions, type CardOptions, type KeepsakeDraft } from '../../keepsake/draft';
+import { cardSceneImage, initialCardOptions, type CardOptions, type KeepsakeDraft } from '../../keepsake/draft';
 import { handwritingAsset, KEEPSAKE_TEMPLATES, type TemplateId } from '../../keepsake/templates';
 import { createCardZip } from '../../keepsake/zip';
 import './keepsake.css';
@@ -82,7 +82,7 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
       <section className="keepsake-preview" aria-label="纪念卡预览" aria-busy={working}>
         {format === 'original' ? <img src={draft.sceneImage} alt="已冻结的地月截图" />
           : image ? <img src={image.url} alt={KEEPSAKE_TEMPLATES.find(template => template.id === options.templateId)!.text + ' · 地月纪念卡'} />
-          : <><img src={draft.sceneImage} alt="已冻结的地月截图" /><p role="status">{error ? '纪念卡合成失败，取景已保留。' : !prepared ? '这套手写模板暂不可用，可选择其他寄语或保存原图。' : '正在合成纪念卡…'}</p></>}
+          : <><img src={cardSceneImage(draft)} alt="已保留的纪念卡取景" /><p role="status">{error ? '纪念卡合成失败，取景已保留。' : !prepared ? '这套手写模板暂不可用，可选择其他寄语或保存原图。' : '正在合成纪念卡…'}</p></>}
       </section>
       <div className="keepsake-side"><section className="keepsake-controls" aria-label="纪念卡设置">
         {format === 'card' ? <><fieldset disabled={batchProgress > 0}><legend>选择寄语</legend>
@@ -100,7 +100,7 @@ export default function KeepsakeEditor({ draft, onBack, onClose, unified = false
               onChange={event => update('signature', event.target.value)} /><small>使用普通文字排版</small></label></div>
         </fieldset>
         <p className="keepsake-note">取景已经保留。切换场景不会改写这张卡片，图片在你的浏览器内合成。</p>
-        {draft.observation.source.kind === 'history' && <p className="keepsake-note">历史卡会保留日期与演示时刻说明。</p>}
+        {draft.observation.source.kind === 'history' && <p className="keepsake-note">历史卡优先显示史载日期。钟点和观测地点可分别显示。</p>}
         </>
           : <p className="keepsake-note">当前地月画面已经保留。直接保存原图，或选择「纪念卡」添加手写寄语。</p>}
       </section>
