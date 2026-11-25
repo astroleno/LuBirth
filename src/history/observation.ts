@@ -37,7 +37,8 @@ export function civilDate(iso: string) {
 export function validateObserver(observer: ObserverPlace) {
   if (!observer || !observer.name?.trim() || !Number.isFinite(observer.latitude) || Math.abs(observer.latitude) > 90
     || !Number.isFinite(observer.longitude) || Math.abs(observer.longitude) > 180
-    || (observer.timeZone !== undefined && !isNamedTimeZone(observer.timeZone)))
+    || (observer.timeZone !== undefined && !isNamedTimeZone(observer.timeZone))
+    || (observer.alternateTimeZone !== undefined && !isNamedTimeZone(observer.alternateTimeZone)))
     throw new Error('请明确选择观测地点，并填写有效经纬度。');
   return observer;
 }

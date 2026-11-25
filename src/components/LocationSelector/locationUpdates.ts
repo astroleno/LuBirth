@@ -1,6 +1,34 @@
 import type { LocationData } from './types';
 
 const hangzhouNotice = 'https://zfgb.hangzhou.gov.cn/10/105220253/t116220253054/518298.shtml';
+// This transcript preserves the Hebei government notice and points to the original publication.
+const xingtaiNotice = 'https://zh.wikisource.org/wiki/国务院批复同意河北省调整邢台市部分行政区划';
+
+const macaoTourism = 'https://www.macaotourism.gov.mo/zh-hans/';
+// Map pins (WGS84) from MGTO. Macau Peninsula parish boundaries: https://bo.dsaj.gov.mo/bo/i/91/16/declei26_cn.asp
+const macaoPoints = new Map<string, readonly [traditional: string, point: string, path: string]>([
+  ['花王堂区', ['花王堂區', '圣安多尼堂', 'sightseeing/churches/st-anthonys-church']],
+  ['望德堂区', ['望德堂區', '望德圣母堂', 'sightseeing/churches/st-lazarus-church']],
+  ['风顺堂区', ['風順堂區', '圣老楞佐堂', 'sightseeing/churches/st-lawrences-church']],
+  ['圣方济各堂区', ['聖方濟各堂區', '圣方济各圣堂', 'sightseeing/churches/chapel-of-st-francis-xavier']],
+  ['嘉模堂区', ['嘉模堂區', '嘉模圣母堂', 'sightseeing/churches/our-lady-of-carmel-church']],
+  ['大堂区', ['大堂區', '主教座堂', 'sightseeing/macao-world-heritage/cathedral']],
+  ['路氹填海区', ['路氹填海區', '澳门新濠影汇', 'events/whatson/13425']],
+  ['花地玛堂区', ['花地瑪堂區', '花地玛圣母堂', 'sightseeing/churches/our-lady-of-fatima-church']],
+  ['澳门', ['澳門', '议事亭前地', 'sightseeing/macao-world-heritage/senado-square']],
+]);
+
+// District memberships are confirmed by the provincial cultural relics bureau, Xingtai's
+// 信用信都区 site, and the city agriculture bureau's list of towns. Links below give the coordinates.
+// https://wenwu.hebei.gov.cn/system/2024/03/04/030278946.shtml
+// https://xy.xingtai.gov.cn/xsq/xyqxq/
+// https://nync.xingtai.gov.cn/uploadfiles/202306/20/202306200927490738.pdf
+const xingtaiPoints = new Map<string, readonly [point: string, source: string]>([
+  ['襄都区', ['邢台博物馆', 'https://zh.wikipedia.org/wiki/邢台博物馆']],
+  ['信都区', ['达活泉街道', 'https://zh.wikipedia.org/wiki/达活泉街道']],
+  ['任泽区', ['任城镇', 'https://zh.wikipedia.org/wiki/任城镇']],
+  ['南和区', ['和阳镇', 'https://zh.wikipedia.org/wiki/和阳镇']],
+]);
 
 // Use named points within today's districts. The coordinates are not district centroids.
 const hangzhouDistrictPoints = [
@@ -18,22 +46,60 @@ function administrativeTimeZone(province: string) {
   return 'Asia/Shanghai';
 }
 
-const oldHangzhouDistricts = new Map([['上城区', '上城区'], ['拱墅', '拱墅区'], ['余杭', '余杭区'],
-  ['下城区', '下城区'], ['江干', '江干区']]);
-const historicDistrict = (district: string) => `${district}（2021 年调整前）`;
-const splitDistricts = new Map([
-  [historicDistrict('江干区'), { former: '江干区', current: ['上城区', '钱塘区'] }],
-  [historicDistrict('余杭区'), { former: '余杭区', current: ['余杭区', '临平区'] }],
+type DistrictRevision = {
+  year: number;
+  notice: string;
+  source: string;
+  former: { csvName: string; name: string; current?: string[]; currentSharesName?: boolean }[];
+};
+
+const districtRevisions = new Map<string, DistrictRevision>([
+  ['杭州市', { year: 2021, notice: '杭政函〔2021〕25号', source: hangzhouNotice, former: [
+    { csvName: '上城区', name: '上城区', currentSharesName: true },
+    { csvName: '拱墅', name: '拱墅区', currentSharesName: true },
+    { csvName: '余杭', name: '余杭区', current: ['余杭区', '临平区'], currentSharesName: true },
+    { csvName: '下城区', name: '下城区' },
+    { csvName: '江干', name: '江干区', current: ['上城区', '钱塘区'] },
+  ] }],
+  ['邢台市', { year: 2020, notice: '2020 年邢台区划调整批复', source: xingtaiNotice, former: [
+    { csvName: '桥东区', name: '桥东区', current: ['襄都区'] },
+    { csvName: '桥西区', name: '桥西区', current: ['信都区'] },
+    { csvName: '邢台县', name: '邢台县', current: ['襄都区', '信都区'] },
+    { csvName: '任县', name: '任县', current: ['任泽区'] },
+    { csvName: '南和', name: '南和县', current: ['南和区'] },
+  ] }],
 ]);
+
+const historicDistrict = (district: string, year: number) => `${district}（${year} 年调整前）`;
+
+function previousDistrict(location: LocationData) {
+  const revision = districtRevisions.get(location.city);
+  const former = revision?.former.find(item => item.csvName === location.district
+    || historicDistrict(item.name, revision.year) === location.district);
+  return revision && former ? { revision, former } : undefined;
+}
 
 export function updateAdministrativeLocation(location: LocationData): LocationData {
   const withZone = { ...location, timeZone: administrativeTimeZone(location.province) };
-  const oldName = location.city === '杭州市' && oldHangzhouDistricts.get(location.district);
-  if (!oldName) return withZone;
-  const shortName = oldName.slice(0, -1);
-  return { ...withZone, district: historicDistrict(oldName), aliases: [`原${oldName}`, `旧${oldName}`, `原${shortName}`, `旧${shortName}`,
-    ...(oldName === '下城区' || oldName === '江干区' ? [oldName, shortName] : [])], status: 'historical',
-    note: '2021 年杭州区划调整前的地点表代表点。', source: hangzhouNotice };
+  if (location.province === '新疆维吾尔自治区') return { ...withZone, alternateTimeZone: 'Asia/Urumqi' };
+  const macao = location.city === '澳门' ? macaoPoints.get(location.district) : undefined;
+  if (macao) {
+    const [traditional, point, path] = macao;
+    return { ...withZone, aliases: [traditional, point], note: `采用${point}附近的代表点。`, source: macaoTourism + path };
+  }
+  const xingtai = location.city === '邢台市' ? xingtaiPoints.get(location.district) : undefined;
+  if (xingtai) {
+    const [point, source] = xingtai;
+    return { ...withZone, note: `现行区划，采用${point}附近的代表点。`, source };
+  }
+  const previous = previousDistrict(location);
+  if (!previous) return withZone;
+  const { former, revision } = previous;
+  const shortName = former.name.slice(0, -1);
+  const names = shortName.length >= 2 ? [former.name, shortName] : [former.name];
+  return { ...withZone, district: historicDistrict(former.name, revision.year),
+    aliases: [...names.flatMap(name => [`原${name}`, `旧${name}`]), ...(former.currentSharesName ? [] : names)],
+    status: 'historical', note: `${revision.year} 年${location.city}区划调整前的地点表代表点。`, source: revision.source };
 }
 
 export const addedLocations: LocationData[] = [
@@ -49,11 +115,15 @@ export const addedLocations: LocationData[] = [
     source: 'https://www.geonames.org/2643743/london.html' },
 ];
 
-export function currentDistrictCandidates(location: LocationData): LocationData[] {
-  const split = splitDistricts.get(location.district);
-  if (!split || location.city !== '杭州市') return [];
-  return addedLocations.filter(place => place.city === location.city && split.current.includes(place.district)).map(place => ({
-    ...place,
-    note: `据杭政函〔2021〕25号，包含原${split.former}部分区域。${place.note}`,
-  }));
+export function currentDistrictCandidates(location: LocationData, findDistrict: (district: string) => LocationData | undefined): LocationData[] {
+  const previous = previousDistrict(location);
+  const districts = previous?.former.current;
+  if (!previous || !districts) return [];
+  const { former, revision } = previous;
+  return districts.flatMap(district => {
+    const place = findDistrict(district);
+    if (!place) return [];
+    const detail = districts.length > 1 ? `包含原${former.name}部分区域` : `原${former.name}调整为${district}`;
+    return [{ ...place, note: `据${revision.notice}，${detail}。${place.note ?? ''}` }];
+  });
 }

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
 const vite = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] },
@@ -8,6 +10,7 @@ try {
   const { resolveObservation, readObservation, observationOffsetSeconds } = await vite.ssrLoadModule('/src/history/observation.ts');
   const { nextAstronomicalEvents, calendarClock } = await vite.ssrLoadModule('/src/astro/astronomicalCalendar.ts');
   const { createJourneyStore } = await vite.ssrLoadModule('/src/history/journeyStore.ts');
+  const { IanaTimeFields } = await vite.ssrLoadModule('/src/history/ObservationForm.tsx');
   const place = (name, latitude, longitude, timeZone) => ({ name, latitude, longitude, timeZone,
     precision: 'user-selected', note: '用于测试' });
   const source = { kind: 'birth', label: '测试出生时刻' };
@@ -15,6 +18,27 @@ try {
   const shanghai = place('上海', 31.2304, 121.4737, 'Asia/Shanghai');
   const kolkata = place('加尔各答', 22.5726, 88.3639, 'Asia/Kolkata');
   const resolve = (date, time, observer, basis) => resolveObservation(date, time, observer, basis, source);
+
+  const urumqi = { ...place('乌鲁木齐', 43.792818, 87.617733, 'Asia/Shanghai'), alternateTimeZone: 'Asia/Urumqi' };
+  for (const [zone, utc] of [[urumqi.timeZone, '2025-07-01T12:00:00.000Z'],
+    [urumqi.alternateTimeZone, '2025-07-01T14:00:00.000Z']]) {
+    const match = await resolveCivilTime('2025-07-01', '20:00', zone);
+    assert.equal(match.kind, 'unique');
+    assert.equal(resolve('2025-07-01', '20:00', urumqi, match.basis).utc, utc);
+    assert.equal(readObservation(resolve('2025-07-01', '20:00', urumqi, match.basis)).utc, utc);
+    const markup = renderToStaticMarkup(React.createElement(IanaTimeFields, { zone, xinjiangClocks: true,
+      check: { key: 'test', result: match, loading: false }, fold: '', onZoneChange() {}, onFoldChange() {} }));
+    assert.match(markup, /北京时间（现行 UTC\+8）/);
+    assert.match(markup, /新疆时间（现行 UTC\+6）/);
+    assert.ok(markup.includes(`value="${zone}" selected=""`));
+  }
+  const shanghaiLmt = await resolveCivilTime('1900-01-01', '20:00', shanghai.timeZone);
+  assert.equal(shanghaiLmt.kind, 'unique');
+  assert.equal(shanghaiLmt.basis.offsetSeconds, 29143);
+  assert.equal(resolve('1900-01-01', '20:00', shanghai, shanghaiLmt.basis).utc, '1900-01-01T11:54:17.000Z');
+  const earlierClockMarkup = renderToStaticMarkup(React.createElement(IanaTimeFields, { zone: shanghai.timeZone,
+    check: { key: 'test', result: shanghaiLmt, loading: false }, fold: '', onZoneChange() {}, onFoldChange() {} }));
+  assert.match(earlierClockMarkup, /上海地方平太阳时/);
 
   for (const [observer, date, time, utc] of [
     [newYork, '2025-07-01', '20:00', '2025-07-02T00:00:00.000Z'],

@@ -38,7 +38,8 @@ export function ObserverPicker({ draft, onChange, label = '观测地点', showCa
           }}
           onLocationChange={place => {
             const selected = { name: locationLabel(place), latitude: place.lat, longitude: place.lon, precision: 'user-selected' as const,
-              note: place.note ?? '用户选择的行政地点代表点。', source: place.source ?? '项目现有地点表', timeZone: place.timeZone };
+              note: place.note ?? '用户选择的行政地点代表点。', source: place.source ?? '项目现有地点表',
+              timeZone: place.timeZone, alternateTimeZone: place.alternateTimeZone };
             onChange({ ...createObserverDraft(selected), search: selectedLocationDraft(place) });
           }} />
       </Suspense> : <div className="journey-coordinate-fields">
@@ -100,28 +101,40 @@ const commonTimeZones = {
   'Europe/London': '伦敦', 'Europe/Paris': '巴黎', 'Europe/Berlin': '柏林', 'UTC': '协调世界时',
 };
 
-export function IanaTimeFields({ zone, onZoneChange, check, fold, onFoldChange }: {
+export function IanaTimeFields({ zone, onZoneChange, check, fold, onFoldChange, xinjiangClocks = false }: {
   zone: string; onZoneChange: (zone: string) => void; check: ReturnType<typeof useIanaTimeChoices>;
   fold: Fold | ''; onFoldChange: (fold: Fold | '') => void;
+  xinjiangClocks?: boolean;
 }) {
   const id = useId();
   const suggestions = React.useMemo(() => {
     const intl = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
     return [...new Set([...Object.keys(commonTimeZones), ...(intl.supportedValuesOf?.('timeZone') ?? [])])];
   }, []);
+  const xinjiangChoice = zone === 'Asia/Shanghai' || zone === 'Asia/Urumqi' ? zone : 'custom';
+  // IANA tzdb uses Shanghai's local mean time before the zone's first standard-time rule.
+  const shanghaiMeanTime = zone === 'Asia/Shanghai' && check.result?.kind === 'unique' && check.result.basis.offsetSeconds === 29_143;
   return <>
-    <div><label htmlFor={id+'-zone'}>当地时区</label>
+    {xinjiangClocks && <div><label htmlFor={id+'-xinjiang-time'}>新疆钟点记法</label>
+      <select id={id+'-xinjiang-time'} value={xinjiangChoice} onChange={event => onZoneChange(event.target.value === 'custom' ? '' : event.target.value)}>
+        <option value="Asia/Shanghai">北京时间（现行 UTC+8）</option>
+        <option value="Asia/Urumqi">新疆时间（现行 UTC+6）</option>
+        <option value="custom">填写其他 IANA 时区</option>
+      </select>
+    </div>}
+    {(!xinjiangClocks || xinjiangChoice === 'custom') && <div><label htmlFor={id+'-zone'}>当地时区</label>
       <input id={id+'-zone'} value={zone} list={id+'-zones'} placeholder="例如 America/New_York" autoCapitalize="none"
         autoComplete="off" spellCheck={false} aria-invalid={!!check.error || undefined}
         onChange={event => onZoneChange(event.target.value)} />
       <datalist id={id+'-zones'}>{suggestions.map(value => <option key={value} value={value}
         label={commonTimeZones[value as keyof typeof commonTimeZones]} />)}</datalist>
       {!zone && <p className="journey-hint">坐标需选择当地 IANA 时区，也可改填固定 UTC 偏移。</p>}
-    </div>
+    </div>}
     {check.loading && <p className="journey-hint" role="status">正在核对当地钟点…</p>}
     {check.error && <p className="journey-error" role="alert">{check.error}</p>}
     {check.result?.kind === 'gap' && <p className="journey-error" role="alert">时区切换跳过了这个当地钟点。请选择当日实际存在的时间。</p>}
     {check.result?.kind === 'unique' && <p className="journey-hint">当时的偏移为 {offsetSecondsLabel(check.result.basis.offsetSeconds)}。</p>}
+    {shanghaiMeanTime && <p className="journey-hint">此日期按 IANA 时区表的上海地方平太阳时换算。可按记录改用固定 UTC 偏移或所选地点的地方平太阳时。</p>}
     {check.result?.kind === 'overlap' && <div>
       <label htmlFor={id+'-fold'}>这个钟点出现了两次</label>
       <select id={id+'-fold'} value={fold} onChange={event => onFoldChange(event.target.value as Fold | '')}>
@@ -202,7 +215,8 @@ export default function ObservationForm({ initial, onSave, active = true, submit
     </Suspense>{clockField}</>}
     <label>出生地点</label><ObserverPicker label="出生地点" draft={place} onChange={value => {
       const next = resolveObserverDraft(value);
-      if (next && (next.latitude !== observer?.latitude || next.longitude !== observer?.longitude || next.timeZone !== observer?.timeZone)) {
+      const previous = observer ?? place.selection;
+      if (next && (next.latitude !== previous?.latitude || next.longitude !== previous?.longitude || next.timeZone !== previous?.timeZone)) {
         setZoneOverride(null); setFoldChoice(undefined);
       }
       setPlace(value); setSaved(false); setError('');
@@ -214,6 +228,7 @@ export default function ObservationForm({ initial, onSave, active = true, submit
       </select>
     </div>
     {basisKind === 'iana' && <IanaTimeFields zone={zone} onZoneChange={setZoneOverride} check={check} fold={fold}
+      xinjiangClocks={observer?.alternateTimeZone === 'Asia/Urumqi'}
       onFoldChange={value => setFoldChoice({ key: check.key, value })} />}
     {basisKind === 'offset' && <OffsetField value={offset} onChange={setOffset} />}
     {initial.source.kind === 'example' && <p className="journey-hint">上面是示例信息。填写并保存后，才会成为你的出生基准。</p>}

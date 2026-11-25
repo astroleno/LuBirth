@@ -27,7 +27,8 @@ const server = await createServer({
 
 try {
   const { parseCSVData, buildSearchIndex, buildLocationTree, getLocationCoords, getSelectedLocation, searchLocations } = await server.ssrLoadModule(processor);
-  const rows = parseCSVData(baseline ? readBaseline(csv) : await fs.readFile(csv, 'utf8'));
+  const csvText = baseline ? readBaseline(csv) : await fs.readFile(csv, 'utf8');
+  const rows = parseCSVData(csvText);
   const index = buildSearchIndex(rows);
   const search = query => searchLocations(query, index);
   const hangzhou = rows.filter(row => row.city === '杭州市' && row.status !== 'historical');
@@ -83,6 +84,42 @@ try {
     }
     assert.deepEqual(search('杭州市余杭区').map(place => place.district), ['余杭区']);
     assert.equal(search('杭州下城区')[0].status, 'historical');
+    for (const [district, traditional, lon, lat] of [
+      ['花王堂区', '花王堂區', 113.539529, 22.199000],
+      ['望德堂区', '望德堂區', 113.545364, 22.197344],
+      ['风顺堂区', '風順堂區', 113.536798, 22.190741],
+      ['大堂区', '大堂區', 113.541490, 22.193639],
+      ['圣方济各堂区', '聖方濟各堂區', 113.551441, 22.116907],
+      ['嘉模堂区', '嘉模堂區', 113.558823, 22.153550],
+      ['路氹填海区', '路氹填海區', 113.561374, 22.141032],
+      ['花地玛堂区', '花地瑪堂區', 113.544877, 22.212119],
+      ['澳门', '澳門', 113.539781, 22.193600],
+    ]) {
+      const raw = csvText.split('\n').find(line => line.startsWith(`澳门,${district},`)).split(',');
+      assert.deepEqual(raw.slice(2).map(Number), [lon, lat], `production CSV: ${district}`);
+      const [place] = search(district === '澳门' ? '澳門' : `澳門${traditional}`);
+      assert.equal(place.district, district);
+      assert.deepEqual([place.lon, place.lat], [lon, lat]);
+      assert.equal(place.timeZone, 'Asia/Macau');
+      assert.match(place.source, /^https:\/\/www\.macaotourism\.gov\.mo\//);
+    }
+    for (const [district, now] of [
+      ['桥东区', ['襄都区']], ['桥西区', ['信都区']], ['邢台县', ['襄都区', '信都区']],
+      ['任县', ['任泽区']], ['南和县', ['南和区']],
+    ]) {
+      const archived = `${district}（2020 年调整前）`;
+      for (const query of [`邢台${district}`, `邢台市 · 原${district}`, `河北省 · 邢台市 · ${archived}`]) {
+        const [former, ...current] = search(query);
+        assert.deepEqual([former, ...current].map(place => place.district), [archived, ...now], query);
+        assert.equal(former.status, 'historical');
+        assert.ok(current.every(place => !place.status && place.note.includes('2020 年邢台区划调整批复')));
+      }
+    }
+    assert.ok(search('桥西区').some(place => place.city === '石家庄市' && place.district === '桥西区' && !place.status));
+    assert.ok(search('桥东区').some(place => place.city === '张家口市' && place.district === '桥东区' && !place.status));
+    const xinjiang = search('乌鲁木齐')[0];
+    assert.equal(xinjiang.timeZone, 'Asia/Shanghai');
+    assert.equal(xinjiang.alternateTimeZone, 'Asia/Urumqi');
     for (const query of ['纽约', '纽约市', 'New York', 'New York City', '美国 纽约']) {
       const [place] = search(query);
       assert.equal(place.city, '纽约');
@@ -109,6 +146,12 @@ try {
     assert.equal(haidian.lat, 39.956074);
     assert.equal(haidian.lon, 116.310316);
     const tree = buildLocationTree(rows);
+    for (const district of ['襄都区', '信都区', '任泽区', '南和区']) {
+      const place = getSelectedLocation(tree, '河北省', '邢台市', district);
+      assert.deepEqual(search(`邢台${district}`), [place]);
+      assert.ok(place && place.note && place.source);
+    }
+    assert.equal(getSelectedLocation(tree, '河北省', '邢台市', '邢台县（2020 年调整前）'), null);
     assert.equal(getSelectedLocation(tree, '浙江省', '杭州市', '临平区').timeZone, 'Asia/Shanghai');
     assert.equal(getSelectedLocation(tree, '浙江省', '杭州市', '江干区（2021 年调整前）'), null);
     assert.deepEqual(getLocationCoords(tree, haidian.province, haidian.city, haidian.district),

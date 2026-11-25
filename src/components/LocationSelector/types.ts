@@ -5,6 +5,7 @@ export interface LocationData {
   lon: number;
   lat: number;
   timeZone?: string;
+  alternateTimeZone?: string;
   aliases?: readonly string[];
   status?: 'international' | 'historical';
   note?: string;

@@ -13,6 +13,7 @@ export type ObserverPlace = {
   note: string;
   source?: string;
   timeZone?: string;
+  alternateTimeZone?: string;
 };
 
 export type HistorySource = { url: string; title: string };

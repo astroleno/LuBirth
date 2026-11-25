@@ -159,6 +159,10 @@ export function buildSearchIndex(data: LocationData[]): SearchIndex {
     if (official) districtVariants.add(official);
     const provinceVariants = new Set([province, provinceShort]);
     const cityVariants = new Set([city, cityShort]);
+    if (city === '澳门') {
+      cityVariants.add('澳門');
+      provinceVariants.add('澳門特別行政區');
+    }
     const provincePinyin = pinyinMap.get(provinceShort);
     const cityPinyin = pinyinMap.get(cityShort);
     if (provincePinyin) provinceVariants.add(provincePinyin);
@@ -188,7 +192,8 @@ export function searchLocations(query: string, searchIndex: SearchIndex): Locati
   const add = (locations: readonly LocationData[], includeHistorical = false) => {
     for (const location of locations) {
       if (location.status === 'historical' && !includeHistorical) continue;
-      const candidates = location.status === 'historical' ? [location, ...currentDistrictCandidates(location)] : [location];
+      const candidates = location.status === 'historical' ? [location, ...currentDistrictCandidates(location, district =>
+        searchIndex.qualifiedNames.get(location.city + district)?.find(row => row.status !== 'historical'))] : [location];
       for (const candidate of candidates) {
         if (results.length === 20) return;
         const key = JSON.stringify([candidate.province, candidate.city, candidate.district]);
@@ -199,8 +204,12 @@ export function searchLocations(query: string, searchIndex: SearchIndex): Locati
     }
   };
 
-  add(searchIndex.qualifiedNames.get(queryText) ?? [], true);
-  if (results.length) return results;
+  const qualified = searchIndex.qualifiedNames.get(queryText) ?? [];
+  add(qualified, true);
+  // Bare former names can also be current districts in another city, e.g. 桥东 or 桥西.
+  const bareFormerName = terms.length === 1 && !/^[原旧]/.test(queryText)
+    && qualified.some(place => place.status === 'historical' && place.aliases?.includes(queryText));
+  if (results.length && !bareFormerName) return results;
 
   const [term] = terms;
   if (terms.length === 1) {
