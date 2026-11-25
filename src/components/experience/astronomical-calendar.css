@@ -1,0 +1,8 @@
+.astronomical-calendar { margin-block: 14px; border-top: 1px solid rgba(207, 225, 255, .16); font-size: 13px; color: #e3eaf5; }
+.astronomical-calendar summary { min-height: 44px; padding-block: 10px; line-height: 24px; cursor: pointer; width: fit-content; }
+.astronomical-calendar summary:focus-visible { outline: 2px solid #b5c8df; outline-offset: 2px; }
+.astronomical-calendar p { margin: 0 0 10px; font-size: 12px; color: #a6b6ca; }
+.astronomical-calendar dl { display: grid; gap: 10px; margin: 0; }
+.astronomical-calendar dt { font-size: 12px; color: #a6b6ca; }
+.astronomical-calendar dd { display: flex; gap: 4px 12px; flex-wrap: wrap; margin: 0; }
+.astronomical-calendar time { color: #c2ccd9; font-variant-numeric: tabular-nums; }

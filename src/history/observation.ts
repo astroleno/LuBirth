@@ -37,6 +37,13 @@ export function validateObserver(observer: ObserverPlace) {
   return observer;
 }
 
+export function observationOffsetSeconds(timeBasis: TimeBasis, longitude: number) {
+  if (timeBasis.kind === 'local-mean-solar') return Math.round(longitude * 240);
+  if (timeBasis.kind === 'offset' && Number.isInteger(timeBasis.offsetMinutes) && Math.abs(timeBasis.offsetMinutes) <= 840)
+    return timeBasis.offsetMinutes * 60;
+  throw new Error('请选择有效的时间解释。');
+}
+
 export function resolveObservation(date: string, clock: string, observer: ObserverPlace, timeBasis: TimeBasis,
   source: Observation['source'], assumptions: string[] = [], selection?: TimeSelection): Observation {
   validateObserver(observer);
@@ -45,11 +52,7 @@ export function resolveObservation(date: string, clock: string, observer: Observ
   if (!parts) throw new Error('请选择观测钟点；只知道日期不能推算准确时刻。');
   const hour = Number(parts[1]), minute = Number(parts[2]), second = Number(parts[3] || 0);
   if (hour > 23 || minute > 59 || second > 59) throw new Error('观测钟点超出有效范围。');
-  let offsetSeconds: number;
-  if (timeBasis.kind === 'local-mean-solar') offsetSeconds = Math.round(observer.longitude * 240);
-  else if (timeBasis.kind === 'offset' && Number.isInteger(timeBasis.offsetMinutes) && Math.abs(timeBasis.offsetMinutes) <= 840)
-    offsetSeconds = timeBasis.offsetMinutes * 60;
-  else throw new Error('请选择有效的时间解释。');
+  const offsetSeconds = observationOffsetSeconds(timeBasis, observer.longitude);
   instant.setUTCHours(hour, minute, second, 0);
   instant.setTime(instant.getTime() - offsetSeconds * 1000);
   if (instant.getUTCFullYear() < 1 || instant.getUTCFullYear() > 2999) throw new Error('换算后的 UTC 超出可显示年份范围。');

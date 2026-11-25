@@ -33,6 +33,7 @@ import { MoonPlacementControl } from '../../components/MoonPlacementControl';
 import { SceneControlsOutlet } from '../../components/experience/SceneControlsOutlet';
 import type { SceneUIHost } from '../../components/experience/SceneUI';
 import { SolarSystemObjects } from './SolarSystemObjects';
+import { AstronomicalCalendar } from '../../components/experience/AstronomicalCalendar';
 import './sky.css';
 
 const CAMERA = { position: [0, 0, 0] as [number, number, number], fov: 85, near: .1, far: 200 };
@@ -357,7 +358,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
             <div className="sky-actions"><button onClick={() => setPane('detail')}>返回完整原型</button><button onClick={closePane}>回到夜空</button>
               <button onClick={() => stepArtwork(-1)}>上一宿</button><button onClick={() => stepArtwork(1)}>下一宿</button></div>
           </>}
-          {pane === 'observation' && (observation ? <><ObservationSummary observation={observation} /><p className="sky-help">地月与观天共用这一份时间地点。更换星图视角不会改变时刻。</p><div className="sky-actions"><button onClick={onEditObservation}>我的出生信息</button></div></> : <form onSubmit={commitDate}>
+          {pane === 'observation' && <>{observation ? <><ObservationSummary observation={observation} /><p className="sky-help">地月与观天共用这一份时间地点。更换星图视角不会改变时刻。</p><div className="sky-actions"><button onClick={onEditObservation}>我的出生信息</button></div></> : <form onSubmit={commitDate}>
             <div className="sky-two-columns"><div><label htmlFor="sky-date">观察时间 · 公历 UTC</label>
               <input id="sky-date" type="datetime-local" value={utcDraft} min="0001-01-01T00:00" max="2999-12-31T23:59" aria-describedby="sky-time-help" aria-invalid={!!error} required onChange={e => setUtcDraft(e.target.value)} /></div>
               <div><label htmlFor="sky-place">观察地点</label><select id="sky-place" value={settings.place} onChange={e => update('place', e.target.value)}>{Object.entries(PLACES).map(([key, place]) => <option key={key} value={key}>{place.name}</option>)}</select></div></div>
@@ -365,7 +366,7 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
             {error && <p role="alert" className="sky-error">{error}</p>}
             <div className="sky-actions"><button type="button" onClick={() => changeDay(-1)}>前一天</button><button type="button" onClick={() => changeDay(1)}>后一天</button><button type="submit">应用时间</button></div>
             <label className="sky-check"><input id="sky-motion" type="checkbox" checked={settings.motion} onChange={e => update('motion', e.target.checked)} />按日期计算恒星自行</label>
-          </form>)}
+          </form>}{!chrome && <AstronomicalCalendar utc={frame.celestial.utc} observation={observation} />}</>}
           {pane === 'appearance' && <>
             <MoonPlacementControl value={moonPlacement} onChange={changeMoonPlacement}
               belowHorizon={frame.observer.moon.altitudeDeg < 0} onLocate={() => showView(directionToSkyView(frame.observer.moon.direction, view.current.fov))} />

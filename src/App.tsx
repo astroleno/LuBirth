@@ -14,6 +14,7 @@ import { SpatialValidationProbe } from './performance/SpatialValidationProbe';
 import { SceneScreenshot } from './components/SceneScreenshot';
 import { ExperiencePanel } from './components/experience/ExperiencePanel';
 import { CulturePicker } from './components/experience/CulturePicker';
+import { AstronomicalCalendar } from './components/experience/AstronomicalCalendar';
 import type { EarthUIActions, ExperiencePanelKind, SceneSection, SceneUIHost } from './components/experience/SceneUI';
 import { assetUrl } from './utils/assetUrl';
 import './history/journey.css';
@@ -257,7 +258,8 @@ export default function App() {
             onClose={closePanel} onObserve={enterHistory} onCulture={closePanel} />
         </React.Suspense></section>}
         {panel === 'sky' && <><CulturePicker value={state.culture} onChange={journeyStore.setCulture} />
-          {view === 'earth' && <button className="journey-primary" onClick={() => { enterSky(); openPanel('sky'); }}>从此地观天 ↗</button>}</>}
+          {view === 'earth' && <button className="journey-primary" onClick={() => { enterSky(); openPanel('sky'); }}>从此地观天 ↗</button>}
+          <AstronomicalCalendar utc={state.current.utc} observation={state.current} /></>}
         <div className="experience-shared-settings" hidden={panel !== 'appearance'}>
           <div className="experience-inline-actions"><button onClick={() => setImmersed(true)}>沉浸观看</button>
             <button onClick={() => void fullscreen()}>{appFullscreen ? '退出全屏' : '全屏观看'}</button></div>

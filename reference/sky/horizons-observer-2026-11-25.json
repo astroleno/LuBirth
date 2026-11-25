@@ -1,0 +1,68 @@
+{
+  "source": "https://ssd.jpl.nasa.gov/horizons/",
+  "ephemeris": "DE441",
+  "retrieved": "2026-11-25",
+  "convention": "NASA/JPL Horizons DE441; geometric observer at sea level; airless apparent azimuth and altitude; UT (nominal UTC input convention for ancient dates), proleptic Gregorian",
+  "request": {
+    "EPHEM_TYPE": "OBSERVER",
+    "CENTER": "coord@399",
+    "COORD_TYPE": "GEODETIC",
+    "TIME_TYPE": "UT",
+    "CAL_TYPE": "GREGORIAN",
+    "TLIST_TYPE": "JD",
+    "APPARENT": "AIRLESS",
+    "QUANTITIES": "4,10,20",
+    "RANGE_UNITS": "KM"
+  },
+  "columns": [
+    "utc",
+    "azimuthDeg",
+    "altitudeDeg",
+    "illuminationPercent",
+    "distanceKm"
+  ],
+  "sites": [
+    {"site": "Shanghai", "latitude": 31.2304, "longitude": 121.4737, "body": "sun", "observations": [
+      ["2026-03-20T00:00:00Z", 106.617689, 24.824455, 100.0, 148959013.8],
+      ["2026-06-21T12:00:00Z", 306.661628, -11.426302, 100.0, 152023039.71],
+      ["2026-11-24T12:00:00Z", 268.220111, -39.741566, 100.0, 147703162.28],
+      ["2026-12-21T20:50:00Z", 103.506487, -24.650783, 100.0, 147166771.77]
+    ]},
+    {"site": "Shanghai", "latitude": 31.2304, "longitude": 121.4737, "body": "moon", "observations": [
+      ["2026-03-20T00:00:00Z", 93.813388, 19.346033, 1.30052, 368092.85579],
+      ["2026-06-21T12:00:00Z", 234.898926, 42.859882, 45.61989, 381731.56283],
+      ["2026-11-24T12:00:00Z", 83.948539, 43.188717, 99.83238, 356659.78095],
+      ["2026-12-21T20:50:00Z", 300.797707, -2.869555, 92.32401, 362910.59474]
+    ]},
+    {"site": "Sydney", "latitude": -33.8688, "longitude": 151.2093, "body": "sun", "observations": [
+      ["2026-03-20T11:00:00Z", 241.365567, -35.438078, 100.0, 148984356.24],
+      ["2026-06-21T02:00:00Z", 359.152117, 32.686708, 100.0, 152014571.06],
+      ["2026-11-25T10:00:00Z", 232.588118, -13.985528, 100.0, 147675018.19],
+      ["2026-12-21T19:00:00Z", 116.662311, 2.625208, 100.0, 147164641.46]
+    ]},
+    {"site": "Sydney", "latitude": -33.8688, "longitude": 151.2093, "body": "moon", "observations": [
+      ["2026-03-20T11:00:00Z", 262.391675, -30.241002, 2.56268, 372276.30531],
+      ["2026-06-21T02:00:00Z", 81.940329, 6.281732, 41.91777, 382891.31973],
+      ["2026-11-25T10:00:00Z", 54.914483, 1.042382, 98.69691, 359345.44937],
+      ["2026-12-21T19:00:00Z", 280.396104, -32.032913, 91.89738, 366324.40168]
+    ]},
+    {"site": "Huangzhou", "latitude": 30.447435, "longitude": 114.878934, "body": "sun", "observations": [
+      ["1083-11-30T12:20:29Z", 265.060284, -38.092838, 100.0, 147172964.56]
+    ]},
+    {"site": "Huangzhou", "latitude": 30.447435, "longitude": 114.878934, "body": "moon", "observations": [
+      ["1083-11-30T12:20:29Z", 117.597718, 58.678516, 93.62689, 399071.7926]
+    ]},
+    {"site": "Meishan", "latitude": 30.048318, "longitude": 103.831788, "body": "sun", "observations": [
+      ["1037-01-14T13:04:40Z", 262.974197, -33.367367, 100.0, 147328312.45]
+    ]},
+    {"site": "Meishan", "latitude": 30.048318, "longitude": 103.831788, "body": "moon", "observations": [
+      ["1037-01-14T13:04:40Z", 68.991133, -18.83435, 79.55633, 366762.02111]
+    ]},
+    {"site": "Taipei", "latitude": 25.033, "longitude": 121.5654, "body": "sun", "observations": [
+      ["0050-01-01T12:30:19Z", 260.555463, -41.825309, 100.0, 147383965.4]
+    ]},
+    {"site": "Taipei", "latitude": 25.033, "longitude": 121.5654, "body": "moon", "observations": [
+      ["0050-01-01T12:30:19Z", 67.169194, -29.490959, 65.26067, 400366.62839]
+    ]}
+  ]
+}
