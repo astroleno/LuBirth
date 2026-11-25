@@ -12,17 +12,71 @@ export function historyViewingNeeds(record: HistoryRecord) {
   return { place: !record.place.observer, clock: record.kind === 'birth' };
 }
 
-const normalizeSearch = (value: string) => value.normalize('NFKC').toLocaleLowerCase();
-const searchTerms = (value: string) => normalizeSearch(value).split(/\s+/).filter(Boolean);
-const metadataText = (record: HistoryRecord) => normalizeSearch([
-  record.name, record.place.original, record.place.observer?.name, record.date.original,
-  record.date.iso, record.id, record.originalId, record.period, record.region === 'china' ? '中国' : '世界 海外 境外',
-].join(' '));
+// Character variants for supported catalog searches. Keep historical name
+// spellings such as 修 and 脩 distinct; the cited source title contains 脩.
+const searchVariants = new Map([
+  ['蘇', '苏'], ['軾', '轼'], ['歐', '欧'], ['陽', '阳'], ['記', '记'],
+  ['遊', '游'], ['蘭', '兰'], ['紹', '绍'], ['興', '兴'], ['書', '书'], ['東', '东'],
+  ['啟', '启'], ['啓', '启'], ['魯', '鲁'], ['錢', '钱'], ['學', '学'], ['飛', '飞'],
+  ['孫', '孙'], ['齊', '齐'], ['譚', '谭'], ['會', '会'], ['廣', '广'],
+  ['國', '国'], ['縣', '县'], ['鄉', '乡'], ['門', '门'], ['圖', '图'],
+  ['館', '馆'], ['臺', '台'], ['龍', '龙'], ['長', '长'], ['寧', '宁'],
+]);
+const variantPattern = new RegExp(`[${[...searchVariants.keys()].join('')}]`, 'g');
+const normalizeSearch = (value: string) => value.normalize('NFKC').toLocaleLowerCase()
+  .replace(variantPattern, character => searchVariants.get(character)!);
+
+// Match complete standalone date terms, allowing spaces around separators.
+// Partial dates and identifiers still use the existing text matching.
+const gregorianDateTerm = /(?:^|\s)(\d{1,4})(?:\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日|\s*([-\/])\s*(\d{1,2})\s*\4\s*(\d{1,2}))(?=\s|$)/g;
+
+function searchTerms(value: string) {
+  const dates: { literal: string; iso: string }[] = [];
+  const text = normalizeSearch(value).replace(gregorianDateTerm, (literal, year, chineseMonth, chineseDay, _separator, numericMonth, numericDay) => {
+    const month = chineseMonth ?? numericMonth;
+    const day = chineseDay ?? numericDay;
+    dates.push({ literal: literal.trimStart(), iso: `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` });
+    return ' ';
+  });
+  return { text: text.split(/\s+/).filter(Boolean), dates };
+}
+
+// 苏轼年谱简编 identifies his 字子瞻 and 號東坡 in the introduction
+// and 東坡居士 in the 1082 entry. https://fns.pdsu.edu.cn/info/1062/1655.htm
+const searchAliases = new Map([['dsh:H002', ['苏东坡', '东坡居士', '苏子瞻']]]);
+
+type SearchEntry = {
+  metadata: string;
+  sources: { text: string; source: HistoryRecord['sources'][number] }[];
+};
+
+// The archive provides shared record objects; replacement records get new entries.
+const searchEntries = new WeakMap<HistoryRecord, SearchEntry>();
+
+function searchEntry(record: HistoryRecord) {
+  const cached = searchEntries.get(record);
+  if (cached) return cached;
+  const entry = {
+    metadata: normalizeSearch([
+      record.name, record.place.original, record.place.observer?.name, record.date.original,
+      record.date.iso, record.id, record.originalId, record.period, record.region === 'china' ? '中国' : '世界 海外 境外',
+    ].join(' ')),
+    sources: record.sources.map(source => ({ source, text: normalizeSearch(source.title) })),
+  };
+  searchEntries.set(record, entry);
+  return entry;
+}
 
 export function matchedHistorySource(record: HistoryRecord, query: string) {
-  const metadata = metadataText(record);
-  const sourceTerms = searchTerms(query).filter(term => !metadata.includes(term));
-  return record.sources.find(source => sourceTerms.some(term => normalizeSearch(source.title).includes(term)));
+  const terms = searchTerms(query);
+  if (!terms.text.length && !terms.dates.length) return undefined;
+  const { metadata, sources } = searchEntry(record);
+  const aliases = searchAliases.get(record.id);
+  const sourceTerms = terms.text.filter(term => !metadata.includes(term) && !aliases?.includes(term));
+  for (const { literal, iso } of terms.dates) {
+    if (record.date.iso !== iso && !metadata.includes(literal)) sourceTerms.push(literal);
+  }
+  return sources.find(({ text }) => sourceTerms.some(term => text.includes(term)))?.source;
 }
 
 export function monthDayDistance(a: string, b: string) {
@@ -40,9 +94,12 @@ export function selectHistory(records: HistoryRecord[], options: {
   const filter = options.filter || 'all';
   const birthDate = options.birth?.civilDate;
   const matches = records.filter(record => {
-    if (terms.length) {
-      const text = [metadataText(record), ...record.sources.map(source => normalizeSearch(source.title))];
-      if (!terms.every(term => text.some(value => value.includes(term)))) return false;
+    if (terms.text.length || terms.dates.length) {
+      const { metadata, sources } = searchEntry(record);
+      const matchesLiteral = (term: string) => metadata.includes(term) || sources.some(({ text }) => text.includes(term));
+      const aliases = searchAliases.get(record.id);
+      if (!terms.text.every(term => aliases?.includes(term) || matchesLiteral(term))) return false;
+      if (!terms.dates.every(({ literal, iso }) => record.date.iso === iso || matchesLiteral(literal))) return false;
     }
     if (options.period === EARLY_PERIODS) {
       if (!earlyPeriods.has(record.period) || record.region !== 'china') return false;
