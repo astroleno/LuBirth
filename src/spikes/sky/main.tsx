@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { resolutionCeiling } from '../../performance/adaptiveResolution';
 import { useMobileLayout } from '../../performance/renderProfile';
-import { createSkyFrame, cultureCenter, illustrationDirection, parseUtcInput } from './skyModel';
+import { createSkyFrame, cultureCenter, illustrationDirection, parseUtcInput, starDirection } from './skyModel';
 import type { SkyCulture, SkyFrame, SkyLocation } from './skyModel';
 import { CHINESE_ARTWORK, SKY_SYSTEMS } from './skyCultures';
 import type { SkySystem } from './skyCultures';
@@ -31,6 +31,8 @@ import { directionToSkyView, observationKey } from '../../history/viewBridge';
 import type { ViewTransfer } from '../../history/viewBridge';
 import { MOON_HORIZON_NOTES, MoonPlacementControl } from '../../components/MoonPlacementControl';
 import { LUNAR_ECLIPSE_LABELS } from '../../astro/lunarShadow';
+import { iauConstellation } from '../../astro/iauConstellations';
+import { reconstructedSongMansion, SONG_MANSION_STARS, SONG_MANSION_YEARS, songMansionBoundaries, supportsSongMansionDate } from '../../astro/songMansions';
 import { SceneControlsOutlet } from '../../components/experience/SceneControlsOutlet';
 import type { SceneUIHost } from '../../components/experience/SceneUI';
 import { SolarSystemObjects } from './SolarSystemObjects';
@@ -39,9 +41,16 @@ import './sky.css';
 
 const CAMERA = { position: [0, 0, 0] as [number, number, number], fov: 85, near: .1, far: 200 };
 const GL_OPTIONS = { alpha: true, antialias: true, powerPreference: 'low-power' as const };
+const IAU_SOURCE = 'https://www.iau.org/IAU/Astronomy-FAQs/Constellations.aspx';
+const ROMAN_SOURCE = 'https://cdsarc.cds.unistra.fr/viz-bin/ReadMe/VI/42?format=html';
+const SONG_BOUNDARY_SOURCE = 'https://www.oit.ac.jp/labs/is/system/shinkai/Papers/20251119_GishouHouyou.pdf';
+const CHENZHUO_BOUNDARY_SOURCE = 'https://zgks.cbpt.cnki.net/portal/journal/portal/client/paper/f67378cb369ce700253150abea848d5e';
+const YUAN_BOUNDARY_SOURCE = 'https://github.com/Guanjin0562/stellarium/blob/chinese-skyculture-enhancement/starcatalog/English%20titles/Tianwen_Huichao_%2814th_century%29.json';
 const BASE = { utc: '2026-10-21T13:00', place: 'shanghai', magnitude: 6.5, ...DEFAULT_STAR_APPEARANCE,
-  system: 'song' as SkySystem, group: 'all', culture: 'all', lines: true, motion: true, ground: true, art: true, galaxy: .85, measuring: false, moonSize: 1 };
+  system: 'song' as SkySystem, group: 'all', culture: 'all', lines: true, motion: true, ground: true, art: true, galaxy: .85, measuring: false, moonSize: 1,
+  iauBoundaries: false };
 type Settings = typeof BASE;
+type IauLayer = typeof import('./IauBoundaryLayer').default;
 const YUHUANG_SETTINGS = { system: 'mansions' as SkySystem, group: 'dragon', culture: 'all', utc: '2026-07-21T14:00', place: 'shanghai', art: true };
 const initialPreview = new URLSearchParams(window.location.search).get('view') === 'yuhuang';
 const INITIAL = initialPreview ? { ...BASE, ...YUHUANG_SETTINGS } : BASE;
@@ -50,11 +59,11 @@ const referencePhotos = Object.fromEntries(Object.entries(photoFiles).map(([path
 const artworkSequence = [...CHINESE_ARTWORK.values()];
 const figureContours = new Map(silhouettes.entries.map(entry=>[entry.cultureId,entry.hull]));
 type Pane = 'catalog' | 'artworks' | 'observation' | 'appearance' | 'detail' | 'reference' | 'sources' | 'diagnostics' | null;
-const PLACES: Record<string, SkyLocation & { name: string }> = {
-  shanghai: { name: '上海', latitude: 31.2304, longitude: 121.4737 },
-  hangzhou: { name: '杭州', latitude: 30.2741, longitude: 120.1551 },
+const PLACES: Record<string, SkyLocation & { name: string; timeZone?: string }> = {
+  shanghai: { name: '上海', latitude: 31.2304, longitude: 121.4737, timeZone: 'Asia/Shanghai' },
+  hangzhou: { name: '杭州', latitude: 30.2741, longitude: 120.1551, timeZone: 'Asia/Shanghai' },
   north: { name: '北纬 70° · 东经 0°', latitude: 70, longitude: 0 },
-  south: { name: '悉尼', latitude: -33.8688, longitude: 151.2093 },
+  south: { name: '悉尼', latitude: -33.8688, longitude: 151.2093, timeZone: 'Australia/Sydney' },
 };
 const CARDINALS: SkyLabel[] = [
   { id: 'north', name: '北 · N', position: [0, 0, -1], cardinal: true },
@@ -78,10 +87,11 @@ function MetricsPanel({ dpr }: { dpr: number }) {
     <pre className="sky-raw-metrics" data-testid="sky-performance-json">{JSON.stringify(metrics)}</pre>
   </>;
 }
-const Scene = memo(function Scene({ frame, settings, items, daylight, dpr, view, orientation, labels, overlay, onView, moonPlacement }: {
+const Scene = memo(function Scene({ frame, settings, items, daylight, dpr, view, orientation, labels, overlay, onView, moonPlacement, IauLayer }: {
   frame: SkyFrame; settings: Settings; items: SkyCulture[]; daylight: number; dpr: number; view: React.MutableRefObject<SkyView>;
   orientation: SkyView; labels: SkyLabel[]; overlay: React.RefObject<HTMLDivElement>; onView: (view: SkyView) => void;
   moonPlacement: MoonPlacement;
+  IauLayer?: IauLayer;
 }) {
   return <Canvas frameloop={settings.measuring ? 'always' : 'demand'} dpr={dpr} camera={CAMERA} gl={GL_OPTIONS}
     fallback={<div className="sky-fallback">请使用支持 WebGL 的浏览器观看交互星空。</div>}>
@@ -89,6 +99,7 @@ const Scene = memo(function Scene({ frame, settings, items, daylight, dpr, view,
     {settings.art && <SkyArtwork items={items} frame={frame} view={view} ground={settings.ground} daylight={daylight} selected={settings.culture} />}
     <SkyObjects frame={frame} magnitude={settings.magnitude} culture={settings.culture} items={items}
       lines={settings.lines} daylight={daylight} dpr={dpr} ground={settings.ground} chinese={settings.system !== 'modern'} appearance={settings} view={view} />
+    {IauLayer && <IauLayer frame={frame.observer.eqjToSky} ground={settings.ground} daylight={daylight} />}
     <HorizonGuide />
     <SolarSystemObjects frame={frame} placement={moonPlacement} ground={settings.ground} portraitSize={settings.moonSize ?? 1} />
     <SkyRuntime view={view} revision={orientation} labels={labels} overlay={overlay} measuring={settings.measuring} ground={settings.ground} onView={onView} />
@@ -127,6 +138,34 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
   const sharedUtc = observation?.utc;
   const items = useMemo(() => system.items.filter(item => !chinese || settings.group === 'all' || cultureGroup(item) === settings.group), [system, chinese, settings.group]);
   const frame = useMemo(() => createSkyFrame(catalog, sharedUtc ? new Date(sharedUtc) : parseUtcInput(settings.utc), location, settings.motion, celestial), [settings.utc, sharedUtc, location, settings.motion, celestial]);
+  const showIauBoundaries = !chinese && settings.iauBoundaries;
+  const [iauLayer, setIauLayer] = useState<IauLayer>();
+  const [iauFailed, setIauFailed] = useState(false);
+  useEffect(() => {
+    if (!showIauBoundaries || iauLayer) return;
+    let active = true;
+    setIauFailed(false);
+    import('./IauBoundaryLayer').then(module => {
+      if (active) setIauLayer(() => module.default);
+    }, () => { if (active) setIauFailed(true); });
+    return () => { active = false; };
+  }, [showIauBoundaries, iauLayer]);
+  const moonConstellation = useMemo(() => {
+    if (chinese || pane !== 'catalog') return null;
+    const region = iauConstellation(frame.observer.moon.directionEqj);
+    const item = SKY_SYSTEMS.modern.items.find(item => item.id === `CON modern ${region.symbol}`);
+    return `${item?.name ?? region.name}（${region.symbol}）`;
+  }, [chinese, pane, frame.observer]);
+  const inSongBoundaryYears = supportsSongMansionDate(frame.date);
+  const songBoundaries = useMemo(() => {
+    if (version !== 'song' || !inSongBoundaryYears || pane !== 'catalog') return null;
+    return songMansionBoundaries((hip, years) => {
+      const index = frame.hipIndex.get(hip);
+      return index === undefined ? undefined : starDirection(catalog.stars[index], years, true);
+    });
+  }, [version, inSongBoundaryYears, pane, frame.hipIndex]);
+  const moonMansion = useMemo(() => songBoundaries
+    && reconstructedSongMansion(frame.observer.moon.directionEqj, frame.date, songBoundaries), [songBoundaries, frame]);
   const lastTransfer = useRef<ViewTransfer>();
   useEffect(() => {
     if (!entryTransfer || lastTransfer.current === entryTransfer || !observation || entryTransfer.observationKey !== observationKey(observation)) return;
@@ -266,8 +305,9 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
       get artCache() { return artCacheSnapshot(); }, settings: { ...settings, utc: sharedUtc || settings.utc }, observer: location, sunAltitude: frame.sunAlt, visibleStars,
       observationUtc: frame.date.toISOString(),
       orientation, dpr, catalog: manifest, cultureCount: system.items.length, chineseArtCount: SKY_SYSTEMS.song.items.filter(item => item.image).length,
-      limitations: ['3 HIP component proxies; additional 115125 only in Chenzhuo culture', 'M7/M31/M44 not rendered', 'mansion boundaries unverified',
-        'no refraction/annual aberration/parallax', 'IAU boundaries not rendered', 'historical binary-star motion differs between catalogs',
+      limitations: ['3 HIP component proxies; additional 115125 only in Chenzhuo culture', 'M7/M31/M44 not rendered',
+        'Song lunar mansion reconstruction limited to 1078–1085; none in Chenzhuo and Yuan',
+        'standard sea-level refraction for solar and lunar disks; star directions do not model annual aberration or parallax', 'historical binary-star motion differs between catalogs',
         'Chinese artwork: photographic labels, independent museum identification pending', 'Milky Way: fixed J2000 low-frequency density, not photometry'],
     };
   }, [settings, location, frame, visibleStars, orientation, dpr, system, sharedUtc]);
@@ -291,7 +331,8 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
   const artworkOpen = (!chrome || chrome.section === 'sky') && pane === 'detail' && !!selectedArtwork;
   return <main className="sky-spike" data-portrait={artworkOpen || undefined}>
     <SkyBoundary><div className="sky-canvas"><Scene frame={frame} settings={settings} items={items} daylight={daylight} dpr={dpr}
-      view={view} orientation={orientation} labels={labels} overlay={overlay} onView={setOrientation} moonPlacement={moonPlacement} /></div></SkyBoundary>
+      view={view} orientation={orientation} labels={labels} overlay={overlay} onView={setOrientation} moonPlacement={moonPlacement}
+      IauLayer={showIauBoundaries ? iauLayer : undefined} /></div></SkyBoundary>
     <div ref={overlay} className="sky-labels">{labels.map(label => label.cardinal
       ? <span key={label.id} data-label-id={label.id} data-cardinal="true" hidden aria-hidden="true">{label.name}</span>
       : <button key={label.id} data-label-id={label.id} data-selected={label.id === settings.culture || undefined} hidden
@@ -312,9 +353,20 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
         <div className="sky-pane-content">
           {pane === 'catalog' && <>
             {chrome && version === 'song' && <button className="sky-feature-link" onClick={openArtworkCatalog}>玉皇庙图绘 · 浏览二十八宿 ↗</button>}
+            {!chinese && <>
+              <label className="sky-check"><input id="iau-boundaries" type="checkbox" checked={showIauBoundaries}
+                onChange={event => update('iauBoundaries', event.target.checked)} />显示 IAU 星座边界</label>
+              {showIauBoundaries && iauFailed && <p className="sky-help" role="status">星座边界加载失败。可刷新页面重试。</p>}
+              {showIauBoundaries && !iauFailed && !iauLayer && <p className="sky-help" role="status">正在加载星座边界…</p>}
+              <p className="sky-help">当地月心位于 {moonConstellation}。</p>
+            </>}
             {chinese && <div className="sky-field-row"><label htmlFor="sky-group">天区</label><select id="sky-group" value={settings.group} onChange={e => setSettings(s => ({ ...s, group: e.target.value, culture: 'all' }))}>
               {CHINESE_GROUPS.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
               {version === 'song' && <label className="sky-check"><input id="sky-mansions" type="checkbox" checked={settings.system === 'mansions'} onChange={e => setSettings(s => ({ ...s, system: e.target.checked ? 'mansions' : 'song', group: 'all', culture: 'all' }))} />仅二十八宿</label>}</div>}
+            {version === 'song' && <p className="sky-help">{moonMansion ? `按苏颂星图重建，当地月心约在${moonMansion.name}宿。${moonMansion.marginDeg < .5 ? '月心接近宿界，归属有不确定性。' : ''}`
+              : `落宿估算适用于元丰观测期 ${SONG_MANSION_YEARS[0]}–${SONG_MANSION_YEARS[1]} 年。`}</p>}
+            {version === 'chenzhuo' && <p className="sky-help">陈卓星表的距星同定与宿界仍待逐宿核对，这一版展示星官。</p>}
+            {version === 'yuan' && <p className="sky-help">《天文汇钞》记有入宿度和去极度。这一版展示星官，宿界仍待逐宿核对。</p>}
             <label className="sky-sr-only" htmlFor="sky-search">查找星座或星官</label><input id="sky-search" type="search" placeholder={chinese ? '查找星官，例如：心宿、紫微垣' : '查找星座，例如：猎户座、Orion'} value={search} onChange={e => setSearch(e.target.value)} />
             <label className="sky-sr-only" htmlFor="sky-culture">选择星座或星官</label><select id="sky-culture" value={settings.culture} onChange={e => choose(e.target.value)}>
               <option value="all">浏览全部 · {options.length} 条绘图记录</option>{options.map(item => <option key={item.id} value={item.id}>{item.name}{CHINESE_ARTWORK.has(item.id) ? ' · ' + CHINESE_ARTWORK.get(item.id)!.title : ''}</option>)}</select>
@@ -370,11 +422,11 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
             <div className="sky-two-columns"><div><label htmlFor="sky-date">观察时间 · 公历 UTC</label>
               <input id="sky-date" type="datetime-local" value={utcDraft} min="0001-01-01T00:00" max="2999-12-31T23:59" aria-describedby="sky-time-help" aria-invalid={!!error} required onChange={e => setUtcDraft(e.target.value)} /></div>
               <div><label htmlFor="sky-place">观察地点</label><select id="sky-place" value={settings.place} onChange={e => update('place', e.target.value)}>{Object.entries(PLACES).map(([key, place]) => <option key={key} value={key}>{place.name}</option>)}</select></div></div>
-            <p className="sky-help" id="sky-time-help">北京时间 = UTC + 8 小时。古籍原历与地方时须另行核算；这里的时刻仅用于观测演示。</p>
+            <p className="sky-help" id="sky-time-help">填写 UTC。天文日历{location.timeZone ? '按所选地点显示日期与天象时刻' : '以 UTC 显示日期与天象时刻'}。</p>
             {error && <p role="alert" className="sky-error">{error}</p>}
             <div className="sky-actions"><button type="button" onClick={() => changeDay(-1)}>前一天</button><button type="button" onClick={() => changeDay(1)}>后一天</button><button type="submit">应用时间</button></div>
             <label className="sky-check"><input id="sky-motion" type="checkbox" checked={settings.motion} onChange={e => update('motion', e.target.checked)} />按日期计算恒星自行</label>
-          </form>}{!chrome && <AstronomicalCalendar utc={frame.celestial.utc} observation={observation} />}</>}
+          </form>}{!chrome && <AstronomicalCalendar utc={frame.celestial.utc} observation={observation} timeZone={location.timeZone} />}</>}
           {pane === 'appearance' && <>
             <MoonPlacementControl value={moonPlacement} onChange={changeMoonPlacement}
               visibility={moonVisibility} eclipse={eclipse} onLocate={() => showView(directionToSkyView(frame.apparentMoon.direction, view.current.fov))} />
@@ -396,6 +448,18 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
             {selected && <p className="sky-eyebrow">{selected.name} · {selected.id}</p>}
             <dl><dt>恒星位置、星等、冷暖</dt><dd><SourceLink href={SOURCE_LINKS.stars}>HYG 4.4 · 冻结版本</SourceLink><p>已核对来源与坐标转换。{catalog.stars.length.toLocaleString()} 颗恒星；星等与色指数来自星表，柔光是视觉呈现。古代双星运动仍存在星表间差异。</p></dd>
               <dt>{chinese ? '中国星官与连线' : '现代星座与连线'}</dt><dd><SourceLink href={versionInfo.source}>{versionInfo.name}</SourceLink><p>{system.help}</p><p>{versionInfo.author}</p></dd>
+              <dt>{chinese ? '距星与宿界' : 'IAU 星座区域'}</dt><dd>{version === 'modern' ? <>
+                <SourceLink href={IAU_SOURCE}>IAU 星座定义</SourceLink> · <SourceLink href={ROMAN_SOURCE}>Roman 1987 坐标表</SourceLink>
+                <p>边界按 B1875 赤经与赤纬绘制。月心归属用所选地点的无折射方向查询。</p>
+              </> : version === 'song' ? <>
+                <SourceLink href={SONG_BOUNDARY_SOURCE}>真贝寿明《新仪象法要》星图研究 · 表 A.1</SourceLink>
+                <p>采用皇祐距星和论文的 1080 年重建参照，按相邻距星赤经分宿。当地月心估算仅用于元丰观测期 {SONG_MANSION_YEARS[0]}–{SONG_MANSION_YEARS[1]} 年。</p>
+                <details><summary>查看 28 颗距星</summary><ul>{SONG_MANSION_STARS.map(([name, hip]) => <li key={hip}>{name}宿 · HIP {hip}</li>)}</ul></details>
+              </> : version === 'chenzhuo' ? <>
+                <SourceLink href={CHENZHUO_BOUNDARY_SOURCE}>《续后汉书》陈卓星表研究</SourceLink><p>研究记录二十八宿及三家星官的原始坐标。现有图层保留星官连线，逐宿距星与历元仍待核对。</p>
+              </> : <>
+                <SourceLink href={YUAN_BOUNDARY_SOURCE}>《天文汇钞》坐标整理</SourceLink><p>元末星表保存入宿度和去极度。现有图层保留星官连线，逐宿距星与赤道历元仍待核对。</p>
+              </>}</dd>
               <dt>星空图绘</dt><dd>{chinese ? <><SourceLink href={SOURCE_LINKS.yuhuang}>玉皇庙二十八星宿 · 28 尊实物摄影</SourceLink><p>{artworkSequence.length} 尊依据 Patrick20242023 的实物照片转绘；各有夜空高光细线稿与完整淡彩原型。摄影与衍生图绘均为 CC BY-SA 4.0。保留可见姿态，遮挡部分与纹样作绘画补全。名称沿用摄影者标注，独立馆藏考证待补。</p><p>图绘在天空中的位置为当代构图，辅助 HIP 星仅用于配准，不加入星官连线。<SourceLink href={SOURCE_LINKS.animals}>动物名称的文本参考</SourceLink></p></>
                 : <><SourceLink href="https://artlibre.org/licence/lal/en/">Stellarium 原图 · Free Art License</SourceLink><p>85 个图绘条目。船尾座、巨蛇座、船帆座未配置独立图绘，不以假图补齐。</p></>}</dd>
               <dt>银河背景</dt><dd><SourceLink href={SOURCE_LINKS.nasa}>NASA / Goddard SVS · Deep Star Maps 2020</SourceLink><p>J2000 赤道坐标星图，经亮点抑制与低通处理后呈现银河星密度；不是无星摄影或光度测量。使用同一观测旋转，底图形态固定于 J2000。</p></dd></dl>

@@ -77,6 +77,7 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
       const moon = scene.getObjectByName('moonMesh') as THREE.Mesh | undefined;
       const material = moon?.material instanceof THREE.ShaderMaterial ? moon.material : undefined;
       const stars = scene.getObjectByName('skyStars') as THREE.Points | undefined;
+      const iauBoundaries = scene.getObjectByName('iauConstellationBoundaries') as THREE.LineSegments | undefined;
       const attribute = stars?.geometry.getAttribute('position');
       moon?.geometry.computeBoundingSphere();
       return { key: frame.key, utc: frame.celestial.utc, placement, moonCount: scene.getObjectsByProperty('name','moonMesh').length,
@@ -93,6 +94,7 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1 
         moonFraction: observer.phaseFraction, moonAltitude: observer.moon.altitudeDeg,
         moonAngularRadius: observer.moon.angularRadiusDeg, moonDirection: observer.moon.direction,
         apparentMoon, apparentSun, ground, eclipseKind: earthShadow?.kind ?? null,
+        iauBoundaryVertices: iauBoundaries?.geometry.getAttribute('position').count ?? 0,
         eclipseEnabled: material?.uniforms.eclipseEnabled?.value ?? 0,
         eclipseAxis: material?.uniforms.eclipseAxis?.value.toArray(),
         eclipseOffset: material?.uniforms.eclipseOffset?.value.toArray(),

@@ -25,9 +25,9 @@ export const SKY_SYSTEMS = {
     items: historicalData.cultures.find(item => item.id === 'yuan')!.items as SkyCulture[],
     help: '十四世纪《天文汇钞》相关星官重建。显示资料收录的星官，不扩写成完整历史星官总数；M7 / M31 / M44 不绘制，未推断宿界。' },
   modern: { name: '现代 88 星座', count: '88', items: modernData as SkyCulture[],
-    help: 'Stellarium 26.3 现代星座连线与中文名。当前显示星座图形，尚未绘制 IAU 星座区域边界。' },
+    help: 'Stellarium 26.3 提供星座连线与中文名。可在星空面板单独开启 IAU 区域边界。' },
   mansions: { name: '中国二十八宿', count: '28', items: mansions,
-    help: '显示宋代体系的二十八宿主星官连线。并非 28 个等分扇区；距星、宿界及月亮落宿仍待核实。' },
+    help: '显示宋代体系的二十八宿主星官连线。北宋元丰观测期的落宿估算采用另经核对的皇祐距星。' },
   song: { name: '宋代完整星官', count: '339 条绘图记录', items: song,
     help: '1052 年体系的现代重建；339 是绘图记录数，不是历史星官总数。两处 HIP 锚点使用成分星代理，M7 / M44 尚未绘制。' },
 } as const;
