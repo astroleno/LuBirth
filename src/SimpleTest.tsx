@@ -889,7 +889,7 @@ function SceneContent({
         terminatorRadius={composition.terminatorRadius ?? 0.02}
         phaseCoupleStrength={composition.phaseCoupleStrength ?? 0}
         displacementMid={composition.displacementMid ?? 0.5}
-        nightLift={composition.nightLift ?? 0.002}
+        nightLift={composition.nightLift ?? DEFAULT_SIMPLE_COMPOSITION.nightLift}
         // 传入纹理参数
         moonMap={moonMap ?? undefined}
         moonNormalMap={moonNormalMap ?? undefined}

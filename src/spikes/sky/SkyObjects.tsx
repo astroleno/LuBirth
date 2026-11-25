@@ -123,7 +123,7 @@ export function SkyObjects({ frame, magnitude, culture, items, lines, daylight, 
 }
 
 
-export function HorizonGuide() {
+export function HorizonGuide({ twilight }: { twilight: number }) {
   const material = useMemo(() => new THREE.LineBasicMaterial({ color: '#71899b', transparent: true, opacity: .42,
     depthTest: false, depthWrite: false }), []);
   const geometry = useMemo(() => {
@@ -136,5 +136,6 @@ export function HorizonGuide() {
   }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
+  material.opacity = THREE.MathUtils.lerp(.42, .18, twilight);
   return <lineLoop geometry={geometry} material={material} frustumCulled={false} dispose={null} />;
 }

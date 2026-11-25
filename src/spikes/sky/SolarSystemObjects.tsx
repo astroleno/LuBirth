@@ -32,7 +32,8 @@ export function SolarSystemObjects({ frame, placement, ground, portraitSize = 1,
     return () => { active = false; texture.dispose(); };
   }, [invalidate]);
   const { observer, celestial, apparentMoon, apparentSun } = frame;
-  const skyAtmosphere = useMemo(() => ({ sunDirection: observer.sun.direction, light, ground }), [observer, light, ground]);
+  const skyAtmosphere = useMemo(() => ({ sunDirection: observer.sun.direction, apparentSunDirection: apparentSun.direction,
+    light, ground }), [observer.sun.direction, apparentSun.direction, light, ground]);
   const portrait = placement === 'portrait';
   const moonFrame = portrait ? observer.eqjToMoonPortrait : observer.eqjToSky;
   const earthShadow = useMemo(() => projectLunarShadow(frame.earthShadow, moonFrame), [frame.earthShadow, moonFrame]);

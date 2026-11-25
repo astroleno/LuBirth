@@ -362,6 +362,7 @@ export function Moon({
           skyScattering: { value: 0 },
           skyAmounts: { value: new THREE.Vector3() },
           skySunDirection: { value: new THREE.Vector3() },
+          skyApparentSunDirection: { value: new THREE.Vector3() },
           skyGround: { value: 0 },
           eclipseEnabled: { value: earthShadow ? 1 : 0 },
           eclipseAxis: { value: new THREE.Vector3(...(earthShadow?.axis ?? [0, 0, 1])) },
@@ -487,7 +488,7 @@ export function Moon({
           uniform float clipGround;
           uniform float skyScattering;
           uniform float skyGround;
-          uniform vec3 skyAmounts, skySunDirection;
+          uniform vec3 skyAmounts, skySunDirection, skyApparentSunDirection;
           uniform float eclipseEnabled;
           uniform vec3 eclipseAxis;
           uniform vec3 eclipseOffset;
@@ -569,6 +570,7 @@ export function Moon({
             float a = clamp(phaseAngleRad, 0.0, 3.14159265);
             float surge = 1.0 + surgeStrength * exp(-pow(a / max(1e-4, surgeSigmaRad), 2.0));
             float fullness = 0.5 + 0.5 * cos(phaseAngleRad);
+            float earthshinePhase = pow(clamp(1.0 - fullness, 0.0, 1.0), 1.35);
             float coupleL = mix(1.0, fullness, clamp(phaseCoupleStrength, 0.0, 1.0));
             vec3 finalColor = moonColor * lightColor * sunIntensity * moonIntensityRatio
               * diffuse * terminator * surge * coupleL;
@@ -581,21 +583,28 @@ export function Moon({
               vec3 refractedLight = vec3(.11, .026, .010)
                 * mix(.45, 1., smoothstep(0., cones.x, fromAxis));
               finalColor *= mix(refractedLight, vec3(1.), directSun);
+              finalColor += moonColor * vec3(.82, .88, 1.) * nightLift
+                * (.2 + .8 * earthshinePhase) * (1. - terminator);
             }
-            // Faint Earthshine keeps a new Moon readable without changing its sunlit fraction.
-            // It is strongest near new Moon, when Earth appears fullest from the lunar surface.
-            float earthshinePhase = 0.2 + 0.8 * pow(clamp(1.0 - fullness, 0.0, 1.0), 1.35);
-            vec3 earthshineTint = vec3(0.82, 0.88, 1.0);
-            finalColor += moonColor * earthshineTint * nightLift * earthshinePhase * (1.0 - terminator);
             finalColor = mix(finalColor, finalColor * tintColor, clamp(tintStrength, 0.0, 1.0));
 
             gl_FragColor = vec4(finalColor, 1.0);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>
+
+            // ACES clips the darkest linear values. Keep the faint, textured Earthshine
+            // perceptible in display space while leaving direct light and eclipse color alone.
+            if (eclipseEnabled < .5 && nightLift > 0.) {
+              float terrain = sqrt(max(albedo, 0.));
+              float limb = .45 + .55 * smoothstep(0., .8, emission);
+              float darkFace = 1. - smoothstep(-edge, 0., signedNdl);
+              float earthshine = min(.20, 20. * nightLift * earthshinePhase * terrain * limb * darkFace);
+              gl_FragColor.rgb += earthshine * vec3(.72, .84, 1.);
+            }
             // Scattered light is in front of an opaque disk that still blocks background objects.
             if (skyScattering > 0.) {
               float unlit = 1. - smoothstep(.02, .18, diffuse * terminator);
-              vec3 air = skyAtmosphereColor(vSkyRay, skySunDirection, skyAmounts, skyGround);
+              vec3 air = skyAtmosphereColor(vSkyRay, skySunDirection, skyApparentSunDirection, skyAmounts, skyGround);
               gl_FragColor.rgb = mix(gl_FragColor.rgb, air, skyScattering * unlit);
             }
           }
@@ -632,9 +641,10 @@ export function Moon({
     const { uniforms } = moonMaterial;
     uniforms.skyScattering.value = skyAtmosphere?.light.moonScattering ?? 0;
     if (!skyAtmosphere) return;
-    const { light, sunDirection, ground } = skyAtmosphere;
+    const { light, sunDirection, apparentSunDirection, ground } = skyAtmosphere;
     uniforms.skyAmounts.value.set(light.twilight, light.daylight, light.sunset);
     uniforms.skySunDirection.value.set(...sunDirection);
+    uniforms.skyApparentSunDirection.value.set(...apparentSunDirection);
     uniforms.skyGround.value = ground ? 1 : 0;
   }, [moonMaterial, skyAtmosphere]);
 

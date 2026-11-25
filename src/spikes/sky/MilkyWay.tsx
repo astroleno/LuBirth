@@ -25,21 +25,23 @@ export function MilkyWay({ frame, ground, daylight, strength, atmosphere }: {
   const geometry = useMemo(() => new THREE.SphereGeometry(110, 64, 32), []);
   const material = useMemo(() => new THREE.ShaderMaterial({ side: THREE.DoubleSide, depthTest: false, depthWrite: false,
     uniforms: { map: { value: null }, rotation: { value: new THREE.Matrix3() }, ground: { value: 1 }, brightness: { value: 0 },
-      sunDirection: { value: new THREE.Vector3() }, skyAmounts: { value: new THREE.Vector3() } },
+      sunDirection: { value: new THREE.Vector3() }, apparentSunDirection: { value: new THREE.Vector3() },
+      skyAmounts: { value: new THREE.Vector3() } },
     vertexShader: `uniform mat3 rotation; varying vec2 skyUV; varying vec3 skyRay;
       void main(){ skyUV=uv; vec3 world=rotation*position.xzy; skyRay=world/110.; gl_Position=projectionMatrix*modelViewMatrix*vec4(world,1.); }`,
     fragmentShader: `uniform sampler2D map;
       uniform float ground, brightness;
-      uniform vec3 sunDirection, skyAmounts;
+      uniform vec3 sunDirection, apparentSunDirection, skyAmounts;
       varying vec2 skyUV;
       varying vec3 skyRay;
 
       ${SKY_ATMOSPHERE_GLSL}
 
       void main(){
-        if(ground>.5 && skyRay.y<0.) discard;
-        vec3 color=skyAtmosphereColor(skyRay,sunDirection,skyAmounts,ground);
-        if(brightness>0.) {
+        bool belowGround=ground>.5 && skyRay.y<0.;
+        if(belowGround && (skyAmounts.x<=0. || skyRay.y<-SKY_HAZE_WIDTH)) discard;
+        vec3 color=skyAtmosphereColor(skyRay,sunDirection,apparentSunDirection,skyAmounts,ground);
+        if(brightness>0. && !belowGround) {
           float fade=ground>.5 ? smoothstep(0.,.10,skyRay.y) : 1.;
           color+=texture2D(map,skyUV).rgb*vec3(.12,.17,.25)*brightness*fade;
         }
@@ -55,6 +57,7 @@ export function MilkyWay({ frame, ground, daylight, strength, atmosphere }: {
     material.uniforms.ground.value = ground ? 1 : 0;
     material.uniforms.brightness.value = galaxy ? strength * daylight : 0;
     material.uniforms.sunDirection.value.set(...frame.observer.sun.direction);
+    material.uniforms.apparentSunDirection.value.set(...frame.apparentSun.direction);
     material.uniforms.skyAmounts.value.set(atmosphere?.twilight ?? 0, atmosphere?.daylight ?? 0, atmosphere?.sunset ?? 0);
     invalidate();
   }, [material, frame, galaxy, ground, strength, daylight, atmosphere, invalidate]);

@@ -101,7 +101,7 @@ const Scene = memo(function Scene({ frame, settings, items, light, dpr, view, or
     <SkyObjects frame={frame} magnitude={settings.magnitude} culture={settings.culture} items={items}
       lines={settings.lines} daylight={light.starlight} dpr={dpr} ground={settings.ground} chinese={settings.system !== 'modern'} appearance={settings} view={view} />
     {IauLayer && <IauLayer frame={frame.observer.eqjToSky} ground={settings.ground} daylight={light.starlight} />}
-    <HorizonGuide />
+    <HorizonGuide twilight={light.twilight} />
     <SolarSystemObjects frame={frame} placement={moonPlacement} ground={settings.ground}
       portraitSize={settings.moonSize ?? 1} light={light} />
     <SkyRuntime view={view} revision={orientation} labels={labels} overlay={overlay} measuring={settings.measuring} ground={settings.ground} onView={onView} />
