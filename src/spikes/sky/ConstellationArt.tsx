@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { illustrationDirection } from './skyModel';
 import type { SkyFrame, SkyIllustration } from './skyModel';
-import { acquireArtTexture } from './artTextureCache';
+import { createArtworkTextureRequest, type ArtworkTexture } from './artTextureCache';
 
 // URL imports emit assets at build time. The visibility filter controls image requests.
 const urls = import.meta.glob([
@@ -12,22 +12,28 @@ const urls = import.meta.glob([
 ], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const artworkUrl = (file: string) => urls['./data/' + file];
 
-export function ConstellationArt({ image, frame, ground, daylight, opacity = .24, lineArt = false }: {
-  image: SkyIllustration; frame: SkyFrame; ground: boolean; daylight: number; opacity?: number; lineArt?: boolean;
+export function ConstellationArt({ image, frame, ground, daylight, preferMobile, opacity = .24, lineArt = false }: {
+  image: SkyIllustration; frame: SkyFrame; ground: boolean; daylight: number; preferMobile: boolean; opacity?: number; lineArt?: boolean;
 }) {
   const { invalidate, gl, camera } = useThree();
   const url = artworkUrl(image.file);
-  const [loaded, setLoaded] = useState<{ url: string; texture: THREE.Texture } | null>(null);
-  const [prepared, setPrepared] = useState<THREE.Texture | null>(null);
+  const mobileUrl = image.mobileDelivery && artworkUrl(image.mobileDelivery.file);
+  const [loaded, setLoaded] = useState<ArtworkTexture | null>(null);
+  const [prepared, setPrepared] = useState<ArtworkTexture | null>(null);
+  const request = useRef<ReturnType<typeof createArtworkTextureRequest>>();
   const revealStart = useRef(0);
   const compilations = useRef(new Set<Promise<unknown>>());
   useEffect(() => {
     if (!url) return;
-    return acquireArtTexture(url, image.size, texture => {
-      revealStart.current = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : performance.now();
-      setLoaded(texture ? { url, texture } : null); invalidate();
+    const full = { url, size: image.size, maxEdge: image.mobileDelivery || innerWidth >= 600 ? 896 : 640 };
+    const mobile = image.mobileDelivery && mobileUrl ? { url: mobileUrl, size: image.mobileDelivery.size, maxEdge: 640 } : undefined;
+    const acquisition = createArtworkTextureRequest(full, mobile, artwork => {
+      setLoaded(artwork); invalidate();
     });
-  }, [url, image, invalidate]);
+    request.current = acquisition;
+    return () => { request.current = undefined; acquisition.dispose(); };
+  }, [url, mobileUrl, image, invalidate]);
+  useEffect(() => { request.current?.update(preferMobile); }, [url, mobileUrl, image, invalidate, preferMobile]);
   const geometry = useMemo(() => {
     const positions: number[] = [], uvs: number[] = [], divisions = 20;
     for (let y = 0; y < divisions; y++) for (let x = 0; x < divisions; x++) {
@@ -56,25 +62,26 @@ export function ConstellationArt({ image, frame, ground, daylight, opacity = .24
     else material.dispose();
   }, [material]);
   useEffect(() => {
-    if (!geometry || loaded?.url !== url) return;
+    if (!geometry || !loaded || loaded === prepared || (loaded.url !== url && loaded.url !== mobileUrl)) return;
     let cancelled = false;
     const staging = new THREE.Scene();
     staging.add(new THREE.Mesh(geometry, material));
+    const showArtwork = () => {
+      if (cancelled) return;
+      if (!prepared) revealStart.current = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : performance.now();
+      setPrepared(loaded); invalidate();
+    };
     // Compile during loading, so first appearance does not synchronously link a new program.
     const compilation = gl.compileAsync(staging, camera);
     compilations.current.add(compilation);
     compilation.then(() => {
-      if (!cancelled) {
-        gl.initTexture(loaded.texture);
-        revealStart.current = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : performance.now();
-        setPrepared(loaded.texture); invalidate();
-      }
-      staging.clear();
-    }).catch(() => { if (!cancelled) { setPrepared(loaded.texture); invalidate(); } staging.clear(); })
-      .finally(() => compilations.current.delete(compilation));
+      if (!cancelled) gl.initTexture(loaded.texture);
+      showArtwork();
+    }).catch(showArtwork).finally(() => { staging.clear(); compilations.current.delete(compilation); });
     return () => { cancelled = true; staging.clear(); };
-  }, [loaded, geometry, material, url, camera, gl, invalidate]);
-  material.uniforms.artwork.value = loaded?.texture;
+  }, [loaded, prepared, geometry, material, url, mobileUrl, camera, gl, invalidate]);
+  useEffect(() => { if (prepared?.url === url) request.current?.dropMobile(); }, [prepared, url]);
+  material.uniforms.artwork.value = prepared?.texture;
   material.uniforms.ground.value = ground ? 1 : 0;
   material.uniforms.daylight.value = daylight;
   material.uniforms.lineArt.value = lineArt ? 1 : 0;
@@ -83,6 +90,6 @@ export function ConstellationArt({ image, frame, ground, daylight, opacity = .24
     material.uniforms.opacity.value = opacity * progress;
     if (prepared && progress < 1) invalidate();
   });
-  if (!url || !geometry || loaded?.url !== url || prepared !== loaded.texture) return null;
+  if (!geometry || !prepared || (prepared.url !== url && prepared.url !== mobileUrl)) return null;
   return <mesh name="skyConstellationArt" userData={{ file: image.file }} geometry={geometry} material={material} frustumCulled={false} renderOrder={-10} dispose={null} />;
 }

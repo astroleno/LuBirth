@@ -1,5 +1,5 @@
 {
-  "schema": 6,
+  "schema": 7,
   "status": "28 photo-referenced Yuhuang Temple adaptations, each with a full-color prototype and a finer transparent sky line drawing. Photographic attribution remains distinct from independent museum identification.",
   "references": {
     "animal-association": {
@@ -156,6 +156,16 @@
           "bytes": 1295614,
           "sha256": "543f14a4483347fd72567267ad62b6dcfbe10d12cef205afa82ba38aa376d0ff",
           "sourceSha256": "59f3cebbccc9647318c3f2e6c723b7f64de8bc16818765bc77c306e3b0693a8b"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/jiao-yuhuang-line-v2-640.webp",
+          "bytes": 414440,
+          "sha256": "494d34d5518a982ffc8f04646b0920cbf1614b590f433d5757747fb5a3ccd5c9",
+          "sourceSha256": "59f3cebbccc9647318c3f2e6c723b7f64de8bc16818765bc77c306e3b0693a8b",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 9.995381075706824,
@@ -330,6 +340,16 @@
           "bytes": 1412252,
           "sha256": "88db4664d9fb1ef8a6c41771bc5c68d8ab743ec810c9b2f759a6cca39f7ba6c3",
           "sourceSha256": "2c9d114c3fbd573a484b3e7dbe9871c1d97da7cca6fcdd2d81a4846ab64ff6f2"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/kang-yuhuang-line-v2-640.webp",
+          "bytes": 397116,
+          "sha256": "e66c61bcb1f4d18917331c29e2cc9b3fedf6ccd37bd7579f5a635dd39d93e3a7",
+          "sourceSha256": "2c9d114c3fbd573a484b3e7dbe9871c1d97da7cca6fcdd2d81a4846ab64ff6f2",
+          "size": [
+            481,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 11.67605140324666,
@@ -504,6 +524,16 @@
           "bytes": 907176,
           "sha256": "5c02ac5399c7a14812b7fabd6ad853c3e1522b84ecf9a77fdc20b060629ce422",
           "sourceSha256": "09d5aca2ae6461f8dd0bad09b2b25cfabc751eaafecafd554d5eb80399eb9c32"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/di-yuhuang-line-v2-640.webp",
+          "bytes": 341336,
+          "sha256": "e40e3057d2cfbfad89fe9aa1434c7a54cac533965287ca807a3737446cda8d6b",
+          "sourceSha256": "09d5aca2ae6461f8dd0bad09b2b25cfabc751eaafecafd554d5eb80399eb9c32",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 14.231200108961355,
@@ -685,6 +715,16 @@
           "bytes": 1109810,
           "sha256": "10f2a56d26f579605b4aba5bf78528fabfac8cb93d06c128656f1dfb24d3d138",
           "sourceSha256": "d925e771eb1daf6597ff43cbfa87f3e0ee15a2de435a858990c0cdb0556d59ec"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/fang-yuhuang-line-v2-640.webp",
+          "bytes": 383294,
+          "sha256": "5166c28b1507e2cc7e90bd31aa5a79f7ac0819c43ae1ab5b243910d5318ae0e5",
+          "sourceSha256": "d925e771eb1daf6597ff43cbfa87f3e0ee15a2de435a858990c0cdb0556d59ec",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 10.79310258290598,
@@ -852,6 +892,16 @@
           "bytes": 991382,
           "sha256": "055b2ef1f5be3151c5498867b6ea11f70ea7d418cd2b266670efee1db91e533a",
           "sourceSha256": "56ffe792d570b68b1c729bbd83b54c2adb63217bd5d81fbddf1ec3f4e731fa4c"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/heart-yuhuang-line-v2-640.webp",
+          "bytes": 333202,
+          "sha256": "cc6516c0900aa37865a47194c0da721a4d9c72cf8c6cf08febe060c072786e3e",
+          "sourceSha256": "56ffe792d570b68b1c729bbd83b54c2adb63217bd5d81fbddf1ec3f4e731fa4c",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 6.434320870272909,
@@ -1068,6 +1118,16 @@
           "bytes": 1146002,
           "sha256": "88b330b27678e0d1f6aef91794e49c26361e5c1ad7502a213821a27d6ed7bfb6",
           "sourceSha256": "9810c02d47f0b6d6c5d2e4edd2aab24d1b3c50382eb9830a88c49b039350a865"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/tail-yuhuang-line-v2-640.webp",
+          "bytes": 361460,
+          "sha256": "511ad0f5cbdc99ca3f71eac10b090f042bd0cca57fd307399545a57ccc1d88ca",
+          "sourceSha256": "9810c02d47f0b6d6c5d2e4edd2aab24d1b3c50382eb9830a88c49b039350a865",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 15.89219668800173,
@@ -1242,6 +1302,16 @@
           "bytes": 1036514,
           "sha256": "df14258a82d02597a4a80a2c09dbe014238b2726be4843898bcd10398b89a57b",
           "sourceSha256": "3e1faab78a8cfdf99d1c8afaff73a3362b3f96c82de836777c6e4cb81ce4af77"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/ji-yuhuang-line-v2-640.webp",
+          "bytes": 362404,
+          "sha256": "e18a3b4aad5164d252b5d62197532dff882dfbf7ef691acf5863419c73ed2763",
+          "sourceSha256": "3e1faab78a8cfdf99d1c8afaff73a3362b3f96c82de836777c6e4cb81ce4af77",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 7.832769328526221,
@@ -1430,6 +1500,16 @@
           "bytes": 783438,
           "sha256": "aa19dfcdc61d10bd09ec859d2c19ccf88f86fc89eaed2551bc80547f032f70bb",
           "sourceSha256": "806389d221bd8b088e87cd1473478a9e33650411f5a4b7a16b5a399005bb1197"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/dou-yuhuang-line-v2-640.webp",
+          "bytes": 306454,
+          "sha256": "3dbdf884fc001cc408284a54d1286139d84d585c8f048aa8c88308e98cc3f3ad",
+          "sourceSha256": "806389d221bd8b088e87cd1473478a9e33650411f5a4b7a16b5a399005bb1197",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 13.687799920278408,
@@ -1618,6 +1698,16 @@
           "bytes": 895864,
           "sha256": "c4274796e738aa284d69f03b68afb540c94ed3b03bb4ea335d797d55bd20cb2a",
           "sourceSha256": "c5ffa92f7e65cba725db2df6f29beba64fd0c160025454d65e30bbddf8521f1c"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/niu-yuhuang-line-v2-640.webp",
+          "bytes": 330722,
+          "sha256": "58031dd205b625b48c4a392f6b7254a228ede4d1f5762f5557f867b83065b3bd",
+          "sourceSha256": "c5ffa92f7e65cba725db2df6f29beba64fd0c160025454d65e30bbddf8521f1c",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 6.233700652241628,
@@ -1792,6 +1882,16 @@
           "bytes": 1137162,
           "sha256": "eb9e2748ec956c9e682c17ff4718fdf2952f2ad3fdd7b5a3cf6221b90c3c0a5f",
           "sourceSha256": "9fa750c0c668b99182f157a935d83d6370ff25e7d4a2478d7740c72709cc4cc5"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/nu-yuhuang-line-v2-640.webp",
+          "bytes": 393166,
+          "sha256": "faf5e4ad4c11b8a791f2827b58732ddf7957df284b6c2abee297cf2a101b2dfc",
+          "sourceSha256": "9fa750c0c668b99182f157a935d83d6370ff25e7d4a2478d7740c72709cc4cc5",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 4.971721197256941,
@@ -1952,6 +2052,16 @@
           "bytes": 1142892,
           "sha256": "4f99eb6dc95750aec818206c034794656b008e4124317126363c85f2a518f347",
           "sourceSha256": "45422090dcee2635e7217e0f7cd642da86b8ed664cb7b3b70e0a909d3dfc22c5"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/xu-yuhuang-line-v2-640.webp",
+          "bytes": 373828,
+          "sha256": "459322b9c2362b00491eedf3185c122d75e95e14ac8d534f535b0dafa7482638",
+          "sourceSha256": "45422090dcee2635e7217e0f7cd642da86b8ed664cb7b3b70e0a909d3dfc22c5",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 9.874490662017655,
@@ -2126,6 +2236,16 @@
           "bytes": 1119656,
           "sha256": "7655d3c1d9665e79e292160fa11c3610fc2670b8c30af6f6746d1c02b8b066dd",
           "sourceSha256": "70af8f4e069ad7be49b7271cfe89cf58bfdbd67f3c34ea1e6d2a6bfab8afb66c"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/wei_moon-yuhuang-line-v2-640.webp",
+          "bytes": 401904,
+          "sha256": "83278c1d0a14e6601e1c9c819bd1e01825e1725ffa5d304ab5c96c9645c32ddd",
+          "sourceSha256": "70af8f4e069ad7be49b7271cfe89cf58bfdbd67f3c34ea1e6d2a6bfab8afb66c",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 12.420861810583707,
@@ -2307,6 +2427,16 @@
           "bytes": 1352162,
           "sha256": "ed3525b0d2075dc8615694db1d65807db132b94a27846af7067c7382aa8f7345",
           "sourceSha256": "c446f69ad756fa69a1b933d877403c8534970243ffadb11638ac9e494606e5c1"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/shi-yuhuang-line-v2-640.webp",
+          "bytes": 458008,
+          "sha256": "853255ab255f67eebb712616eee4bb3fb5277c820d06f3a99ee495ba8ef167c3",
+          "sourceSha256": "c446f69ad756fa69a1b933d877403c8534970243ffadb11638ac9e494606e5c1",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 12.545365612331251,
@@ -2467,6 +2597,16 @@
           "bytes": 1150662,
           "sha256": "859fea032f7884df9c701c57e9f4162e2b161d9da049268e65b8d20d3f8deec8",
           "sourceSha256": "c92fcdae9977e57de763c3911799bd01e596ea804e87ed1dc17b5ea70fff60dd"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/bi_water-yuhuang-line-v2-640.webp",
+          "bytes": 385574,
+          "sha256": "0e67b506c289fd34fec73c2152e3133d2aea997967fb74e90374c09e1388069e",
+          "sourceSha256": "c92fcdae9977e57de763c3911799bd01e596ea804e87ed1dc17b5ea70fff60dd",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 13.087008610786784,
@@ -2725,6 +2865,16 @@
           "bytes": 730380,
           "sha256": "09b858e5b4f6d1435f7cc486f13cbddeba84b432c3523ba48f432f1da88e5a34",
           "sourceSha256": "70165dcc80c5c822275595d8d391be22aa1c077746a3e5a2e04745e57494955f"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/kui-yuhuang-line-v2-640.webp",
+          "bytes": 301728,
+          "sha256": "1abf0b176a161af39406ab602526175924f2cd40d04c36066c3d327f6907b566",
+          "sourceSha256": "70165dcc80c5c822275595d8d391be22aa1c077746a3e5a2e04745e57494955f",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 18.185749466330584,
@@ -2892,6 +3042,16 @@
           "bytes": 1016656,
           "sha256": "8b71e685231e3cf9730ffc800aa6c175ac818cf6e43e83ab42c1736d4553d160",
           "sourceSha256": "921023836b1cf98bfebf94b81cf1882a10848fecedbaa2da54e05b0b14bdb69a"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/lou-yuhuang-line-v2-640.webp",
+          "bytes": 369554,
+          "sha256": "8ee37be8bdf0c36a8df118628cfd6ea151c0f1cdf20131ef1e7d8dd02ca83a86",
+          "sourceSha256": "921023836b1cf98bfebf94b81cf1882a10848fecedbaa2da54e05b0b14bdb69a",
+          "size": [
+            481,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 5.100221517305966,
@@ -3059,6 +3219,16 @@
           "bytes": 1151954,
           "sha256": "f18eda347e442a27846992baf859c077097a3b799e87441b467f11d37d1afd83",
           "sourceSha256": "ba5e4063a1464617bfb6c614add75bd82c4e6f069e18ee62604e05fa0b6ec49f"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/wei_earth-yuhuang-line-v2-640.webp",
+          "bytes": 408082,
+          "sha256": "5a04263031c1a9208cab64f81e09dc8c0a8ceb7f2c135e697ff70a0fea0d5a09",
+          "sourceSha256": "ba5e4063a1464617bfb6c614add75bd82c4e6f069e18ee62604e05fa0b6ec49f",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 4.878826598203724,
@@ -3254,6 +3424,16 @@
           "bytes": 764266,
           "sha256": "d620d6b89d7027141716028811303e385b7edcec142b025fe8d02ac7dd21e208",
           "sourceSha256": "b403b0dc866ea063c24e43bd921d40ef875557af5f7b912581e30cf53cf6bf03"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/mao-yuhuang-line-v2-640.webp",
+          "bytes": 299080,
+          "sha256": "f38dc468fedb80c42fe08e853035198a2c40f206763064180e511c15db320438",
+          "sourceSha256": "b403b0dc866ea063c24e43bd921d40ef875557af5f7b912581e30cf53cf6bf03",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 6.320031892946246,
@@ -3463,6 +3643,16 @@
           "bytes": 744636,
           "sha256": "b57e35b7390f9a4448f59d2acf06d2669e12840ee3d7460dea9451a3e47e47a5",
           "sourceSha256": "9efa4e73b0d962b0f689c0bc982e14c337d8e7f11e5e767f441ababec3bebdd0"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/bi_moon-yuhuang-line-v2-640.webp",
+          "bytes": 298214,
+          "sha256": "135c482b15ea922c130ae1a2a80aa4dbe378383f5a5232a63be5c20d721042ca",
+          "sourceSha256": "9efa4e73b0d962b0f689c0bc982e14c337d8e7f11e5e767f441ababec3bebdd0",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 12.542122254785568,
@@ -3630,6 +3820,16 @@
           "bytes": 1445982,
           "sha256": "39345d7469106693aeba4c325d5f210774cf7197f9ff1bb077b3d7e1b95803d4",
           "sourceSha256": "4c5b23ddfddd6c5fa270b9200d5690e9dcc7e291f0e38104936f70c5a9f00951"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/zi-yuhuang-line-v2-640.webp",
+          "bytes": 484888,
+          "sha256": "8a5dca9c86f0a6a99298153b2b192e049cdc09a210961b476afcb840a836002a",
+          "sourceSha256": "4c5b23ddfddd6c5fa270b9200d5690e9dcc7e291f0e38104936f70c5a9f00951",
+          "size": [
+            481,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 4.252461866862394,
@@ -3825,6 +4025,16 @@
           "bytes": 889692,
           "sha256": "06557f1cb58a2df34920e4aee48c888f6ad15bda5eeb6e071b7dcdfc34ca1abb",
           "sourceSha256": "d1f965888f0adec7078a96fcc974b0141d48f96b524a3735bf149d99194cf1c6"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/shen-yuhuang-line-v2-640.webp",
+          "bytes": 313900,
+          "sha256": "35dc41dc14ad9184b6ddc8a64c551065611b3c7ca915962f14b78252c1515cfa",
+          "sourceSha256": "d1f965888f0adec7078a96fcc974b0141d48f96b524a3735bf149d99194cf1c6",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 18.885791799302503,
@@ -4034,6 +4244,16 @@
           "bytes": 648258,
           "sha256": "f2addb1bbd1f10aead8ab7d471e904623926cb3650a46c20b15968047cc5bedb",
           "sourceSha256": "14acde3d8491941a8b16d46adce713d29dd3ecbc46928992807a7f2ebe8b6560"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/jing-yuhuang-line-v2-640.webp",
+          "bytes": 291314,
+          "sha256": "7850504d653426e228ad54f04247603c23b422801a2569ec4c0251e427b9c306",
+          "sourceSha256": "14acde3d8491941a8b16d46adce713d29dd3ecbc46928992807a7f2ebe8b6560",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 18.775167886185162,
@@ -4208,6 +4428,16 @@
           "bytes": 1044378,
           "sha256": "84711a93ab9f102958e8a3849e524a84ac6b978bf5fca50648b837beb7f4bac9",
           "sourceSha256": "b29b6924b2f6a5e05c9ffeeb8f0a2f0f086978d385368dec31bffd990e15744c"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/gui-yuhuang-line-v2-640.webp",
+          "bytes": 355024,
+          "sha256": "9a1ebf97120bd16a6c361fc2788a6d2397deac04b533f88a336f096ceb79ddd1",
+          "sourceSha256": "b29b6924b2f6a5e05c9ffeeb8f0a2f0f086978d385368dec31bffd990e15744c",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 5.781156199536762,
@@ -4410,6 +4640,16 @@
           "bytes": 986554,
           "sha256": "635e4a2a93ac1225155636b1e665b089d80756a48fffc16806ddeec314e7caf0",
           "sourceSha256": "6b2938b47e44375151bc12dc304f1b3adfbc30916d0c871d32ad6238d19c7e14"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/liu-yuhuang-line-v2-640.webp",
+          "bytes": 378026,
+          "sha256": "9c3e6331dd988a277fe5bf522f9248511af509087fcf8f444c41e81413dabe66",
+          "sourceSha256": "6b2938b47e44375151bc12dc304f1b3adfbc30916d0c871d32ad6238d19c7e14",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 12.441458818642166,
@@ -4605,6 +4845,16 @@
           "bytes": 684248,
           "sha256": "ca85baa1c66d010876eb2a5a40da647484ea2edd49e40f5b0253919af14bc124",
           "sourceSha256": "c2bcce7349e27ce1d3c9a8fec8b3a44b2ffcd483d1aed38393b9d878cfc07a72"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/xing-yuhuang-line-v2-640.webp",
+          "bytes": 262914,
+          "sha256": "057a73d02f40c3258aeaf8c1a79e4746e4a8d0271343f79229d73be7df0ca433",
+          "sourceSha256": "c2bcce7349e27ce1d3c9a8fec8b3a44b2ffcd483d1aed38393b9d878cfc07a72",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 12.387665863369302,
@@ -4793,6 +5043,16 @@
           "bytes": 1040676,
           "sha256": "1ad6576485bd2256786379eca9a5fb1eee7cba6facfd8550dcab4f5fec259c46",
           "sourceSha256": "4424cbb6d1a50d46c6024e97e7cbb8e234fab1f453db0089acc4e3f233976cd3"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/zhang-yuhuang-line-v2-640.webp",
+          "bytes": 343840,
+          "sha256": "0c38933e8275e88dadfbf17544ad0cf2dd690070c2be328db2d56e0e3b5eff39",
+          "sourceSha256": "4424cbb6d1a50d46c6024e97e7cbb8e234fab1f453db0089acc4e3f233976cd3",
+          "size": [
+            481,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 14.766346234389491,
@@ -5093,6 +5353,16 @@
           "bytes": 1489774,
           "sha256": "ab8337b620b4846e4745079007475c3b2a830109aa325697522ae7734f1926d3",
           "sourceSha256": "c316e73e3a7bd5be87889f4db9c59c1101536136984c3a888c5e3cb9a8e7af63"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/yi-yuhuang-line-v2-640.webp",
+          "bytes": 472250,
+          "sha256": "6f33e76cf8e92e9cea896a1d96bd09032055fcab156c00279fc0b4f381ab1c03",
+          "sourceSha256": "c316e73e3a7bd5be87889f4db9c59c1101536136984c3a888c5e3cb9a8e7af63",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 21.472139118732652,
@@ -5288,6 +5558,16 @@
           "bytes": 1106584,
           "sha256": "230255613b0cc115bb7e9df76a412ec1b8d0e1f11340395ce0f6208251dc7daf",
           "sourceSha256": "adf8aa7850185eff9d72cfa7ba4ded6562f3871c3aaefb6ded27321a5d8e19be"
+        },
+        "mobileDelivery": {
+          "file": "chinese-art/zhen-yuhuang-line-v2-640.webp",
+          "bytes": 395128,
+          "sha256": "8604ec4ce8929de0e01dafaae6999244e55a70d261da6d3dce69e533e6382b31",
+          "sourceSha256": "adf8aa7850185eff9d72cfa7ba4ded6562f3871c3aaefb6ded27321a5d8e19be",
+          "size": [
+            480,
+            640
+          ]
         }
       },
       "authoredAngularWidth": 9.323702256356482,

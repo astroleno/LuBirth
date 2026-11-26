@@ -7,6 +7,7 @@ import { CULTURE_INFO } from '../../history/cultureVersions';
 
 const skyImages = new Map(originalArtwork.entries.map(entry => [entry.cultureId, {
   ...entry.skyImage, file: entry.skyVariant.delivery.file,
+  mobileDelivery: { file: entry.skyVariant.mobileDelivery.file, size: entry.skyVariant.mobileDelivery.size },
 }]));
 export const CHINESE_ARTWORK = new Map(originalArtwork.entries.map(entry => [entry.cultureId, entry]));
 const song = (songData.culture as SkyCulture[]).map(item => {

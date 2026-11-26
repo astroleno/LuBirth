@@ -7,7 +7,8 @@ import { lunarShadow } from '../../astro/lunarShadow';
 // Field units and source versions are recorded alongside the derived catalog.
 export type StarRow = [number, number | null, number, number, number, number | null,
   number | null, number | null, number | null, number | null, number | null, number | null];
-export type SkyIllustration = { file: string; size: number[]; anchors: { pos: number[]; hip: number; planeScale?: number }[] };
+type SkyIllustrationSource = { file: string; size: number[] };
+export type SkyIllustration = SkyIllustrationSource & { mobileDelivery?: SkyIllustrationSource; anchors: { pos: number[]; hip: number; planeScale?: number }[] };
 export type SkyCulture = { id: string; name: string; english: string; lines: (number | string)[][]; image?: SkyIllustration };
 export type SkyCatalog = { stars: StarRow[]; culture: SkyCulture[]; maxMagnitude: number;
   hipAliases: { hip: number; hyg: number; hd: number; status: string }[] };

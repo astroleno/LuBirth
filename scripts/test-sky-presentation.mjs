@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { Matrix4, PerspectiveCamera } from 'three';
+import { Matrix4, PerspectiveCamera, Texture, TextureLoader } from 'three';
 import { createServer } from 'vite';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -74,6 +74,7 @@ try {
     portrait: await readFile(root + '/src/spikes/sky/data/' + entry.image.file),
     line: await readFile(root + '/src/spikes/sky/data/' + entry.skyImage.file),
     delivery: await readFile(root + '/src/spikes/sky/data/' + entry.skyVariant.delivery.file),
+    mobileDelivery: await readFile(root + '/src/spikes/sky/data/' + entry.skyVariant.mobileDelivery.file),
     photo: await readFile(root + '/reference/sky/yuhuang-temple/photos/' + entry.photograph.localFile) })));
   test('All 28 paired assets have distinct source photographs, intact hashes and consistent aspect-preserving registrations', () => {
     assert.equal(artwork.entries.length, 28);
@@ -81,7 +82,7 @@ try {
     assert.equal(new Set(artwork.entries.map(entry => entry.cultureId)).size, 28);
     assert.equal(new Set(artwork.entries.map(entry => entry.photograph.localFile)).size, 28);
     const songImages = new Map(SKY_SYSTEMS.song.items.map(item => [item.id, item.image]));
-    for (const { entry, portrait, line, delivery, photo } of assetFacts) {
+    for (const { entry, portrait, line, delivery, mobileDelivery, photo } of assetFacts) {
       assert.equal(createHash('sha256').update(portrait).digest('hex'), entry.sha256);
       assert.equal(createHash('sha256').update(line).digest('hex'), entry.skyVariant.sha256);
       assert.equal(portrait[25], 6, 'portrait must preserve RGBA transparency');
@@ -92,7 +93,15 @@ try {
       assert.equal(delivery.length, encoded.bytes);
       assert.ok(delivery.length < line.length, 'WebP must reduce the line-art payload');
       assert.deepEqual(losslessWebPSize(delivery), entry.skyImage.size);
-      assert.deepEqual(songImages.get(entry.cultureId), { ...entry.skyImage, file: encoded.file });
+      const mobile = entry.skyVariant.mobileDelivery;
+      assert.equal(mobile.sourceSha256, entry.skyVariant.sha256);
+      assert.equal(createHash('sha256').update(mobileDelivery).digest('hex'), mobile.sha256);
+      assert.equal(mobileDelivery.length, mobile.bytes);
+      assert.ok(mobileDelivery.length < delivery.length, 'Mobile WebP must reduce the full payload');
+      assert.deepEqual(losslessWebPSize(mobileDelivery), mobile.size);
+      assert.deepEqual(mobile.size, entry.skyImage.size.map(edge => Math.round(edge * 640 / Math.max(...entry.skyImage.size))));
+      assert.deepEqual(songImages.get(entry.cultureId), { ...entry.skyImage, file: encoded.file,
+        mobileDelivery: { file: mobile.file, size: mobile.size } });
       assert.ok(Math.abs(portrait.readUInt32BE(16) / portrait.readUInt32BE(20) - line.readUInt32BE(16) / line.readUInt32BE(20)) < .005);
       entry.image.anchors.forEach((anchor, i) => {
         const paired = entry.skyImage.anchors[i]; assert.equal(anchor.hip, paired.hip);
@@ -174,6 +183,62 @@ try {
       assert.equal(result[0].id, chosen.item.id); assert.ok(result.length <= 8);
     }
   });
+  const { createArtworkTextureRequest, disposeArtCache, artCacheSnapshot } = await vite.ssrLoadModule('/src/spikes/sky/artTextureCache.ts');
+  const requests = [], displayed = [];
+  const full = { url: 'full.webp', size: [896, 600], maxEdge: 896 };
+  const mobile = { url: 'compact.webp', size: [640, 429], maxEdge: 640 };
+  const requestArtwork = () => createArtworkTextureRequest(full, mobile, ({ url }) => displayed.push(url));
+  const load = TextureLoader.prototype.load;
+  TextureLoader.prototype.load = function (url, onLoad, _, fail) {
+    const texture = new Texture();
+    requests.push({ url, fail, async resolve(source) {
+      texture.image = { width: source.size[0], height: source.size[1] };
+      await onLoad(texture);
+    } });
+    return texture;
+  };
+  try {
+    const first = requestArtwork();
+    first.update(true);
+    await requests[0].resolve(mobile);
+    first.update(false);
+    first.update(true);
+    assert.deepEqual(requests.map(({ url }) => url), [mobile.url, full.url]);
+    assert.deepEqual(displayed, [mobile.url]);
+    await requests[1].resolve(full);
+    test('Mobile promotion retains compact artwork until full resolution is ready and reuses full later', () => {
+      assert.deepEqual(displayed, [mobile.url, full.url]);
+      assert.equal(artCacheSnapshot().active, 2);
+      first.dropMobile();
+      assert.equal(artCacheSnapshot().active, 1);
+      first.dispose();
+      const again = requestArtwork();
+      again.update(true);
+      assert.equal(requests.length, 2);
+      assert.equal(displayed.at(-1), full.url);
+      again.dispose();
+    });
+    disposeArtCache(); requests.length = 0; displayed.length = 0;
+    test('Compact failure falls back once and full failure retries only after visibility ends', () => {
+      const first = requestArtwork();
+      first.update(true);
+      requests[0].fail();
+      requests[1].fail();
+      first.update(false); first.update(true); first.update(false);
+      assert.deepEqual(requests.map(({ url }) => url), [mobile.url, full.url]);
+      assert.deepEqual(displayed, []);
+      first.dispose();
+      assert.equal(artCacheSnapshot().entries, 0);
+      const again = requestArtwork();
+      again.update(false);
+      again.update(true);
+      assert.deepEqual(requests.map(({ url }) => url), [mobile.url, full.url, full.url]);
+      again.dispose();
+    });
+  } finally {
+    TextureLoader.prototype.load = load;
+    disposeArtCache();
+  }
   const png = await readFile(new URL('../src/spikes/sky/data/milky-way-density.png', import.meta.url));
   const background = JSON.parse(await readFile(new URL('../src/spikes/sky/data/milky-way-density.json', import.meta.url)));
   test('Background provenance points to NASA bright-star-excluded equatorial layer and matches output hash', () => {

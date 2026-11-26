@@ -21,7 +21,7 @@ try {
   const specifications = generation.specifications;
   if (specifications.length !== 28 || new Set(specifications.map(s => s.name)).size !== 28) throw new Error('Expected all 28 distinct prototypes.');
   if (placements.entries.length !== 28 || new Set(placements.entries.map(p => p.number)).size !== 28) throw new Error('Expected all 28 individual placements.');
-  manifest.schema = 6;
+  manifest.schema = 7;
   manifest.status = '28 photo-referenced Yuhuang Temple adaptations, each with a full-color prototype and a finer transparent sky line drawing. Photographic attribution remains distinct from independent museum identification.';
   manifest.rights = 'Adapted from photographs by Patrick20242023, CC BY-SA 4.0. Contemporary AI-assisted drawings by LuBirth, distributed as adaptations under CC BY-SA 4.0. No museum endorsement claimed.';
   manifest.references['yuhuang-photographs'] = { url: 'https://commons.wikimedia.org/wiki/Category:Statues_of_the_Twenty-Eight_Mansions_in_Jade_Emperor_Temple,_Fucheng',
@@ -56,15 +56,23 @@ try {
         registration: 'Individually authored rotation, scale and position using two asterism members paired to figure landmarks. Similarity preserves aspect and handedness; a third HIP stabilizes the projection. Full placement and helper role are recorded; no historical anatomical claim.',
         remaining: 'Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified.' } };
   }));
-  // cwebp is only needed when preparing assets. Lossless mode preserves every alpha value.
+  // Resize the RGBA source before lossless encoding, preserving the filtered alpha channel.
   const deliveries = [];
+  const encodeDelivery = async (entry, file, options = []) => {
+    const { stdout: bytes } = await runEncoder('cwebp', [
+      '-quiet', ...options, '-z', '6', '-exact', '-metadata', 'all', data + entry.skyImage.file, '-o', '-',
+    ], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024 });
+    deliveries.push({ file, bytes });
+    return { file, bytes: bytes.length, sha256: sha256(bytes), sourceSha256: entry.skyVariant.sha256 };
+  };
   for (const entry of entries) {
     const file = entry.skyImage.file.replace(/\.png$/, '.webp');
-    const { stdout: bytes } = await runEncoder('cwebp', [
-      '-quiet', '-z', '6', '-exact', '-metadata', 'all', data + entry.skyImage.file, '-o', '-',
-    ], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024 });
-    entry.skyVariant.delivery = { file, bytes: bytes.length, sha256: sha256(bytes), sourceSha256: entry.skyVariant.sha256 };
-    deliveries.push({ file, bytes });
+    const size = entry.skyImage.size.map(edge => Math.round(640 * edge / Math.max(...entry.skyImage.size)));
+    entry.skyVariant.delivery = await encodeDelivery(entry, file);
+    entry.skyVariant.mobileDelivery = {
+      ...await encodeDelivery(entry, file.replace(/\.webp$/, '-640.webp'), ['-resize', ...size.map(String)]),
+      size,
+    };
   }
   for (const { file, bytes } of deliveries) await writeFile(data + file, bytes);
   manifest.entries = entries;
