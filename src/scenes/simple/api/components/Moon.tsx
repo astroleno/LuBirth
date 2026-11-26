@@ -604,8 +604,9 @@ export function Moon({
             // Scattered light is in front of an opaque disk that still blocks background objects.
             if (skyScattering > 0.) {
               float unlit = 1. - smoothstep(.02, .18, diffuse * terminator);
+              float scattering = mix(.60 * skyAmounts.y, skyScattering, unlit);
               vec3 air = skyAtmosphereColor(vSkyRay, skySunDirection, skyApparentSunDirection, skyAmounts, skyGround);
-              gl_FragColor.rgb = mix(gl_FragColor.rgb, air, skyScattering * unlit);
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, air, scattering);
             }
           }
         `

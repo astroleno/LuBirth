@@ -22,6 +22,7 @@ import { AstronomicalCalendar } from './components/experience/AstronomicalCalend
 import type { EarthUIActions, ExperiencePanelKind, SceneSection, SceneUIHost } from './components/experience/SceneUI';
 import { assetUrl } from './utils/assetUrl';
 import { formatCivilDate } from './utils/formatCivilDate';
+import { skyLight } from './spikes/sky/skyLight';
 import './history/journey.css';
 import './components/experience/experience.css';
 
@@ -202,6 +203,7 @@ export default function App() {
   // 使用 SimpleTest 组件作为主场景
   return (
     <div ref={appRoot} className="journey-app experience-app" data-experience-root data-view={view} data-composing={earthPending || undefined}
+      style={view === 'sky' ? { '--sky-daylight': skyLight(observer.sun.altitudeDeg).daylight } as React.CSSProperties : undefined}
       data-opening={opening || undefined} data-panel={panel || undefined} data-immersed={immersed || undefined} data-history={state.current.source.kind === 'history' || undefined}>
       {import.meta.env.DEV && new URLSearchParams(location.search).get('spatialtest') === '1' && <SpatialValidationProbe />}
       {/* The handwriting belongs to landing directly on Earth. */}

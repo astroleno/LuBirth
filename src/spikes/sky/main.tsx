@@ -12,7 +12,7 @@ import { SkyObjects, HorizonGuide } from './SkyObjects';
 import { SkyArtwork } from './SkyArtwork';
 import { artworkUrl } from './ConstellationArt';
 import { MilkyWay } from './MilkyWay';
-import { skyLight } from './skyLight';
+import { skyGroundCss, skyLight } from './skyLight';
 import type { SkyLight } from './skyLight';
 import { artCacheSnapshot, disposeArtCache } from './artTextureCache';
 import { NORTH_VIEW, SkyRuntime } from './SkyRuntime';
@@ -328,7 +328,8 @@ export default function SkySpike({ observation, cultureVersion, onCultureChange,
     : pane === 'reference' ? (selectedArtwork?.title || '图绘') + ' · 实物对照' : pane === 'diagnostics' ? '运行记录'
       : selectedArtwork ? selectedArtwork.title + ' · ' + selectedArtwork.name : selected?.name || '星空';
   const artworkOpen = (!chrome || chrome.section === 'sky') && pane === 'detail' && !!selectedArtwork;
-  return <main className="sky-spike" data-portrait={artworkOpen || undefined}>
+  return <main className="sky-spike" data-portrait={artworkOpen || undefined}
+    style={settings.ground ? { backgroundColor: skyGroundCss(light.daylight) } : undefined}>
     <SkyBoundary><div className="sky-canvas"><Scene frame={frame} settings={settings} items={items} light={light} dpr={dpr}
       view={view} orientation={orientation} labels={labels} overlay={overlay} onView={setOrientation} moonPlacement={moonPlacement}
       IauLayer={showIauBoundaries ? iauLayer : undefined} /></div></SkyBoundary>

@@ -21,12 +21,21 @@ export function skyLight(sunAltitudeDeg: number) {
 export type SkyLight = ReturnType<typeof skyLight>;
 export type SkyAtmosphere = { sunDirection: Vec3; apparentSunDirection: Vec3; light: SkyLight; ground: boolean };
 
+const NIGHT_GROUND: Vec3 = [2, 6, 12];
+const DAY_GROUND: Vec3 = [55, 76, 97];
+
+// Match the haze where the sky shader gives way to the transparent canvas.
+export function skyGroundCss(daylight: number) {
+  const rgb = NIGHT_GROUND.map((channel, index) => channel + (DAY_GROUND[index] - channel) * daylight);
+  return `rgb(${rgb.join(' ')})`;
+}
+
 // Display-space colors shared by the background and the scattering in front of the Moon.
 export const SKY_ATMOSPHERE_GLSL = `
   const float SKY_HAZE_WIDTH = .052336; // sin(3 degrees)
 
   vec3 skyAtmosphereColor(vec3 direction, vec3 sunDirection, vec3 apparentSunDirection, vec3 amounts, float ground) {
-    vec3 groundColor = vec3(2., 6., 12.) / 255.;
+    vec3 groundColor = mix(vec3(${NIGHT_GROUND.join(', ')}), vec3(${DAY_GROUND.join(', ')}), amounts.y) / 255.;
     bool belowGround = ground > .5 && direction.y < 0.;
     vec3 night = vec3(.002, .005, .011);
     if (amounts.x <= 0.) return belowGround ? groundColor : night;
