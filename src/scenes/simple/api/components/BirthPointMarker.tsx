@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SimpleComposition } from '../../../../types/SimpleComposition';
@@ -11,7 +11,7 @@ import {
 interface BirthPointMarkerProps {
   composition: SimpleComposition;
   earthSize: number;
-  emphasized?: boolean;
+  style: GlassMarkerOverlay['style'];
   fullLabel?: boolean;
   reducedMotion?: boolean;
 }
@@ -59,14 +59,11 @@ function createLabelTexture(label: string, fullLabel: boolean) {
   };
 }
 
-/**
- * Keeps an exact globe anchor for the post-scene glass pass. The marker is not
- * mounted until the user enters the aligned close view.
- */
+/** Keeps the globe anchor shared by the live view and original captures. */
 export function BirthPointMarker({
   composition,
   earthSize,
-  emphasized = false,
+  style,
   fullLabel = false,
   reducedMotion = false,
 }: BirthPointMarkerProps) {
@@ -77,13 +74,16 @@ export function BirthPointMarker({
   const { gl, size } = useThree();
   const anchorRef = useRef<THREE.Group>(null!);
   const animationElapsed = useRef(Number.POSITIVE_INFINITY);
-  const label = useMemo(() => createLabelTexture(markerLabel, fullLabel), [markerLabel, fullLabel]);
+  const label = useMemo(() => style === 'pin' ? createLabelTexture(markerLabel, fullLabel) : null,
+    [style, markerLabel, fullLabel]);
   const maxLabelWidth = fullLabel ? Math.min(320, Math.max(1, size.width - 32)) : 164;
-  const labelWidthPx = Math.min(label.widthPx, maxLabelWidth);
+  const labelWidthPx = Math.min(label?.widthPx ?? 0, maxLabelWidth);
+  const animate = style === 'pin' && !reducedMotion;
   const overlay = useRef<GlassMarkerOverlay>({
     canvas: gl.domElement,
     anchor: null,
-    labelTexture: label.texture,
+    style,
+    labelTexture: label?.texture ?? null,
     labelWidthPx,
     sizePx: 92,
     reveal: 0,
@@ -108,34 +108,26 @@ export function BirthPointMarker({
     () => localNormal.clone().multiplyScalar(earthSize * BIRTH_POINT_ANCHOR_RADIUS_SCALE),
     [earthSize, localNormal],
   );
-  const shouldShow = !!composition.showBirthPointMarker && emphasized;
-
   overlay.current.canvas = gl.domElement;
-  overlay.current.labelTexture = label.texture;
+  overlay.current.style = style;
+  overlay.current.labelTexture = label?.texture ?? null;
   overlay.current.labelWidthPx = labelWidthPx;
   overlay.current.sizePx = (size.width <= 767 ? 82 : 92)
     * THREE.MathUtils.clamp(markerSize / 0.06, 0.75, 1.4);
 
-  useEffect(() => registerGlassMarkerOverlay(overlay.current), []);
-  useEffect(() => () => label.texture.dispose(), [label.texture]);
-  useEffect(() => {
-    animationElapsed.current = shouldShow && !reducedMotion ? 0 : Number.POSITIVE_INFINITY;
-    overlay.current.reveal = shouldShow && reducedMotion ? 1 : 0;
+  useLayoutEffect(() => registerGlassMarkerOverlay(overlay.current), []);
+  useEffect(() => () => label?.texture.dispose(), [label]);
+  useLayoutEffect(() => {
+    animationElapsed.current = 0;
+    overlay.current.reveal = animate ? 0 : 1;
     overlay.current.active = false;
-  }, [latitudeDeg, longitudeDeg, reducedMotion, shouldShow]);
+  }, [latitudeDeg, longitudeDeg, animate]);
 
   useFrame((_, delta) => {
     const descriptor = overlay.current;
     descriptor.anchor = anchorRef.current ?? null;
-    descriptor.active = shouldShow && !!anchorRef.current;
-    if (!descriptor.active) {
-      descriptor.reveal = 0;
-      return;
-    }
-    if (reducedMotion) {
-      descriptor.reveal = 1;
-      return;
-    }
+    descriptor.active = !!anchorRef.current;
+    if (!descriptor.active || !animate) return;
 
     animationElapsed.current += delta;
     const progress = THREE.MathUtils.clamp((animationElapsed.current - 0.28) / 0.52, 0, 1);
@@ -143,6 +135,5 @@ export function BirthPointMarker({
       + 1.70158 * Math.pow(progress - 1, 2);
   });
 
-  if (!shouldShow) return null;
   return <group ref={anchorRef} name="birthPointMarker" position={birthPointPosition} />;
 }

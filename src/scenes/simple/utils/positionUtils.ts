@@ -3,7 +3,11 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 
 // 相机控制工具 - 移除分层渲染逻辑
-export function useCameraControl(composition: any, frame?: { width: number; height: number }) {
+export function useCameraControl(
+  composition: any,
+  frame?: { width: number; height: number },
+  lensShift?: { x: number; y: number },
+) {
   const { camera, size, gl } = useThree();
   
   React.useLayoutEffect(() => {
@@ -77,11 +81,11 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
         const fullW = frame?.width ?? size.width;
         const fullH = frame?.height ?? size.height;
         camera.aspect = fullW / fullH;
-        if (Math.abs(offsetY) > 1e-6 || fullW !== size.width || fullH !== size.height) {
-          // 将 [-5,+5] 映射为像素偏移，正向上。PerspectiveCamera.setViewOffset 的 y 向下为正，因此取反。
-          const yPx = Math.round((offsetY * 0.1) * fullH);
-          const yParam = -yPx;
-          camera.setViewOffset(fullW, fullH, 0, yParam, size.width, size.height);
+        // The legacy control increases up, while setViewOffset increases down.
+        const x = lensShift?.x ?? 0;
+        const y = lensShift?.y ?? -Math.round(offsetY * 0.1 * fullH);
+        if (x || y || fullW !== size.width || fullH !== size.height) {
+          camera.setViewOffset(fullW, fullH, x, y, size.width, size.height);
         } else if ((camera as THREE.PerspectiveCamera).view !== null) {
           camera.clearViewOffset();
         }
@@ -120,7 +124,7 @@ export function useCameraControl(composition: any, frame?: { width: number; heig
     } catch (error) {
       console.error('[SimpleCamera] Error:', error);
     }
-  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.cameraViewPitchDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY, composition?.cameraFar]);
+  }, [camera, gl, size?.width, size?.height, frame?.width, frame?.height, lensShift?.x, lensShift?.y, composition?.cameraDistance, composition?.cameraAzimuthDeg, composition?.cameraElevationDeg, composition?.cameraViewPitchDeg, composition?.lookAtDistanceRatio, composition?.viewOffsetY, composition?.cameraFar]);
 }
 
 // 地球位置计算

@@ -325,6 +325,8 @@ function SceneContent({
   latDeg,
   lonDeg,
   isAlignedAndZoomed,
+  examplePortrait,
+  unified,
   fullMarkerLabel,
   demParams,
   debugMode,
@@ -348,6 +350,8 @@ function SceneContent({
   latDeg: number;
   lonDeg: number;
   isAlignedAndZoomed: boolean;
+  examplePortrait: boolean;
+  unified: boolean;
   fullMarkerLabel: boolean;
   demParams: {
     demNormalStrength: number;
@@ -391,13 +395,27 @@ function SceneContent({
     height: profile.mobile && !uiHidden && !landscapePanel
       ? Math.max(1, size.height - (panelExpanded ? Math.min(size.height * 0.5, 440) : 64) - 24) : size.height,
   };
-  const presentedComposition = profile.mobile && !isAlignedAndZoomed
-    ? { ...composition, earthSize: composition.earthSize * Math.min(1, frame.width / frame.height) }
-    : composition;
-  const moonRadiusPixels = composition.moonRadius * (isAlignedAndZoomed ? 1.35 : 1)
-    * frame.height / (2 * composition.moonDistance * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2));
-  const moonTop = Math.max((1 - (composition.moonScreenY ?? 0.75)) * frame.height,
-    profile.mobile && !uiHidden && !landscapePanel ? 76 + moonRadiusPixels : 0);
+  const halfFovSlope = Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2);
+  const aspect = size.width / Math.max(1, size.height);
+  const horizonRadius = THREE.MathUtils.clamp(0.49 * aspect, 0.54, 0.88);
+  const earthAngularRadius = Math.atan(2 * horizonRadius * halfFovSlope);
+  const earthSize = examplePortrait
+    ? Math.sin(earthAngularRadius) / halfFovSlope
+    : composition.earthSize * (profile.mobile && !isAlignedAndZoomed ? Math.min(1, frame.width / frame.height) : 1);
+  // Look just above the sphere's tangent ray to put the horizon 61% down.
+  // A small horizontal lens shift moves the apex left of the Moon.
+  const viewPitchDeg = examplePortrait
+    ? THREE.MathUtils.radToDeg(earthAngularRadius + Math.atan(2 * (0.61 - 0.5) * halfFovSlope))
+    : composition.cameraViewPitchDeg;
+  const lensShift = examplePortrait ? { x: (0.5 - 0.38) * size.width, y: 0 } : undefined;
+  const moonRadius = examplePortrait
+    ? Math.min(0.118, 0.22 * aspect) * composition.moonDistance * halfFovSlope
+    : composition.moonRadius * (isAlignedAndZoomed ? 1.35 : 1);
+  const moonRadiusPixels = moonRadius * frame.height / (2 * composition.moonDistance * halfFovSlope);
+  const moonTop = examplePortrait ? 0.30 * size.height
+    : Math.max((1 - (composition.moonScreenY ?? 0.75)) * frame.height,
+      profile.mobile && !uiHidden && !landscapePanel ? 76 + moonRadiusPixels : 0);
+  const moonScreenX = examplePortrait ? 0.67 : (composition.moonScreenX ?? 0.5) * frame.width / size.width;
   
   // 云层UV偏移状态 - 不再需要，因为云层阴影改为基于世界坐标
   // const [cloudUvOffset, setCloudUvOffset] = useState(new THREE.Vector2(0, 0));
@@ -423,7 +441,7 @@ function SceneContent({
   const moonLightColor = useMemo(() => new THREE.Color(0xffffff), []);
   const lightIntensity = useLightIntensity(composition);
   const ambientIntensity = useAmbientIntensity(composition);
-  const earthInfo = useEarthPosition(presentedComposition, composition.cameraDistance);
+  const earthInfo = useEarthPosition({ ...composition, earthSize }, composition.cameraDistance);
   const physicalFar = moonPlacement === 'physical'
     ? celestial.moonDistanceKm / EARTH_RADIUS_KM * earthInfo.size + composition.cameraDistance + earthInfo.size * 2 : 400;
   React.useEffect(() => {
@@ -509,7 +527,7 @@ function SceneContent({
   }, [scene, camera, celestial, observerState, spatialFrame, moonPlacement, earthInfo.size]);
   
   // 相机控制
-  useCameraControl({ ...composition, cameraFar: physicalFar }, frame);
+  useCameraControl({ ...composition, cameraViewPitchDeg: viewPitchDeg, cameraFar: physicalFar }, frame, lensShift);
   const parallaxOffset = useParallaxCamera(
     isAlignedAndZoomed && !reducedMotion,
     parallaxTarget,
@@ -744,13 +762,13 @@ function SceneContent({
           directionalShadowSharpness={demParams.directionalShadowSharpness}
           directionalShadowContrast={demParams.directionalShadowContrast}
         >
-          <BirthPointMarker
+          {isAlignedAndZoomed && composition.showBirthPointMarker && <BirthPointMarker
             composition={composition}
             earthSize={earthInfo.size}
-            emphasized={isAlignedAndZoomed}
+            style={unified ? 'light' : 'pin'}
             fullLabel={fullMarkerLabel}
             reducedMotion={reducedMotion}
-          />
+          />}
         </Earth>
         
         
@@ -851,7 +869,7 @@ function SceneContent({
         earthRadius={earthInfo.size}
         earthPosition={earthInfo.position}
         position={moonInfo.position}
-        radius={composition.moonRadius * (isAlignedAndZoomed ? 1.35 : 1)}
+        radius={moonRadius}
         lightDirection={lightDirection}
         useTextures={composition.useTextures}
         lightColor={moonLightColor}
@@ -871,7 +889,7 @@ function SceneContent({
         renderLayer={0}
         // 🌙 启用屏幕锚定系统
         enableScreenAnchor={true}
-        screenX={(composition.moonScreenX ?? 0.5) * frame.width / size.width}
+        screenX={moonScreenX}
         screenY={1 - moonTop / size.height}
         anchorDistance={composition.moonDistance}
         currentDate={dateISO}
@@ -1830,6 +1848,9 @@ export default function SimpleTest({ observation, observationControls, initialSt
           latDeg={latDeg}
           lonDeg={lonDeg}
           isAlignedAndZoomed={isAlignedAndZoomed}
+          examplePortrait={!!chrome && observation?.source.kind === 'example'
+            && !isAlignedAndZoomed && moonPlacement === 'portrait'}
+          unified={!!chrome}
           fullMarkerLabel={observation?.source.kind === 'history'}
           demParams={demParams}
           debugMode={debugMode}

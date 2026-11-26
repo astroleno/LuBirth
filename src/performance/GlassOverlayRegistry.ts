@@ -4,7 +4,8 @@ import type * as THREE from 'three';
 export interface GlassMarkerOverlay {
   canvas: HTMLCanvasElement;
   anchor: THREE.Object3D | null;
-  labelTexture: THREE.Texture;
+  style: 'pin' | 'light';
+  labelTexture: THREE.Texture | null;
   labelWidthPx: number;
   sizePx: number;
   reveal: number;

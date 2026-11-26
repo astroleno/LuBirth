@@ -266,6 +266,19 @@ void main() {
   gl_FragColor = vec4(label.rgb, alpha);
 }`;
 
+const surfaceLightSize = 20;
+const surfaceLightFragmentShader = `
+precision highp float;
+uniform float opacity;
+varying vec2 vUv;
+void main() {
+  float radius = length((vUv - 0.5) * ${surfaceLightSize}.0);
+  float core = 1.0 - smoothstep(1.35, 2.25, radius);
+  float halo = 0.32 * (1.0 - smoothstep(1.2, 9.5, radius));
+  vec3 color = mix(vec3(1.0, 0.65, 0.33), vec3(1.0, 0.90, 0.73), core);
+  gl_FragColor = vec4(color, mix(halo, 0.94, core) * opacity);
+}`;
+
 type GlassRect = {
   rect: THREE.Vector4;
   radius: number;
@@ -304,7 +317,7 @@ function smoothstep(min: number, max: number, value: number) {
   return t * t * (3 - 2 * t);
 }
 
-/** A single framebuffer copy powers both DOM glass and the aligned birth marker. */
+/** Composites scene markers and refracts the scene beneath DOM glass. */
 export class LiquidGlassRenderer {
   private texture: THREE.FramebufferTexture | null = null;
   private fallbackTexture = new THREE.DataTexture(new Uint8Array([8, 13, 20, 255]), 1, 1);
@@ -367,12 +380,27 @@ export class LiquidGlassRenderer {
       rect: { value: new THREE.Vector4() },
     },
   });
+  private lightMaterial = new THREE.RawShaderMaterial({
+    vertexShader: labelVertexShader,
+    fragmentShader: surfaceLightFragmentShader,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    uniforms: {
+      opacity: { value: 0 },
+      viewport: { value: new THREE.Vector2() },
+      rect: { value: new THREE.Vector4() },
+    },
+  });
   private uiScene = new THREE.Scene();
   private markerScene = new THREE.Scene();
+  private lightScene = new THREE.Scene();
   private camera = new THREE.Camera();
   private uiMesh = new THREE.Mesh(this.geometry, this.uiMaterial);
   private markerMesh = new THREE.Mesh(this.geometry, this.markerMaterial);
   private labelMesh = new THREE.Mesh(this.geometry, this.labelMaterial);
+  private lightMesh = new THREE.Mesh(this.geometry, this.lightMaterial);
   private origin = new THREE.Vector2();
   private rects: GlassRect[] = [];
   private dirty = true;
@@ -421,10 +449,12 @@ export class LiquidGlassRenderer {
     this.uiMesh.frustumCulled = false;
     this.markerMesh.frustumCulled = false;
     this.labelMesh.frustumCulled = false;
+    this.lightMesh.frustumCulled = false;
     this.markerMesh.renderOrder = 0;
     this.labelMesh.renderOrder = 1;
     this.uiScene.add(this.uiMesh);
     this.markerScene.add(this.markerMesh, this.labelMesh);
+    this.lightScene.add(this.lightMesh);
     this.observer = new ResizeObserver(this.markDirty);
     this.observer.observe(this.root);
     this.mutations = new MutationObserver(this.markDirty);
@@ -533,23 +563,43 @@ export class LiquidGlassRenderer {
     this.stats.textureBytes = 0;
   }
 
-  private positionMarker(renderCamera: THREE.Camera, overlay: GlassMarkerOverlay): PositionedMarker | null {
-    const anchor = overlay.anchor;
-    if (!anchor) return null;
+  private projectMarker(renderCamera: THREE.Camera, anchor: THREE.Object3D) {
     anchor.getWorldPosition(this.worldPosition);
-    this.worldNormal.copy(this.worldPosition).normalize();
-    this.cameraDirection.copy(renderCamera.position).sub(this.worldPosition).normalize();
-    // The aligned composition intentionally places the selected location at
-    // the globe rim. Keep the callout legible through that shallow angle, then
-    // remove it once the point is decisively on the far hemisphere.
-    const surfaceVisibility = smoothstep(-0.62, -0.42, this.worldNormal.dot(this.cameraDirection));
-    this.projected.copy(this.worldPosition).project(renderCamera);
+    // The anchor's parent is the rotating Earth surface group, whose
+    // world-space origin is the center of the globe.
+    if (anchor.parent) anchor.parent.getWorldPosition(this.worldNormal);
+    else this.worldNormal.set(0, 0, 0);
+    this.worldNormal.subVectors(this.worldPosition, this.worldNormal).normalize();
+    renderCamera.getWorldPosition(this.cameraDirection).sub(this.worldPosition).normalize();
     this.stats.markerFacing = this.worldNormal.dot(this.cameraDirection);
+    this.projected.copy(this.worldPosition).project(renderCamera);
     this.stats.markerNdc = this.projected.toArray() as [number, number, number];
-    if (this.projected.z < -1 || this.projected.z > 1
-      || this.projected.x < -1 || this.projected.x > 1
-      || this.projected.y < -1 || this.projected.y > 1
-      || surfaceVisibility <= 0.001) return null;
+    return Math.abs(this.projected.x) <= 1 && Math.abs(this.projected.y) <= 1 && Math.abs(this.projected.z) <= 1;
+  }
+
+  private renderLight(gl: THREE.WebGLRenderer, renderCamera: THREE.Camera, anchor: THREE.Object3D) {
+    if (!this.projectMarker(renderCamera, anchor) || this.stats.markerFacing <= 0) return;
+    const opacity = smoothstep(0, 0.12, this.stats.markerFacing);
+    if (opacity <= 0.001) return;
+
+    const x = (this.projected.x * 0.5 + 0.5) * this.width - surfaceLightSize * 0.5;
+    const y = (this.projected.y * 0.5 + 0.5) * this.height - surfaceLightSize * 0.5;
+    this.lightMaterial.uniforms.viewport.value.set(this.width, this.height);
+    this.lightMaterial.uniforms.rect.value.set(x, y, surfaceLightSize, surfaceLightSize);
+    this.lightMaterial.uniforms.opacity.value = opacity;
+    this.stats.markerBounds = {
+      left: x, top: this.height - y - surfaceLightSize, right: x + surfaceLightSize, bottom: this.height - y,
+    };
+    gl.render(this.lightScene, this.camera);
+    this.stats.markerDraws++;
+  }
+
+  private positionMarker(renderCamera: THREE.Camera, overlay: GlassMarkerOverlay): PositionedMarker | null {
+    if (!overlay.anchor || !this.projectMarker(renderCamera, overlay.anchor)) return null;
+    // The legacy callout remains legible when the geographic point is near
+    // the edge of the globe, including a short distance past the limb.
+    const surfaceVisibility = smoothstep(-0.62, -0.42, this.stats.markerFacing);
+    if (surfaceVisibility <= 0.001) return null;
 
     const projectedAnchorX = (this.projected.x * 0.5 + 0.5) * this.width;
     const projectedAnchorY = (this.projected.y * 0.5 + 0.5) * this.height;
@@ -624,11 +674,13 @@ export class LiquidGlassRenderer {
     if (this.dirty || !this.width || !this.height) this.measure();
     this.controls.update(performance.now());
     const markers = getGlassMarkerOverlays(this.canvas);
+    const lightAnchor = markers.find(marker => marker.style === 'light')?.anchor;
+    const pins = markers.filter(marker => marker.style === 'pin');
 
     // Use the actual lunar model's silhouette, rather than a fixed offset or
     // its lit pixels, so all phases, cropped layouts and reveal frames clear it.
     this.stats.moonBounds = null;
-    if (markers.length && options.moon instanceof THREE.Mesh && options.moon.visible && renderCamera instanceof THREE.PerspectiveCamera) {
+    if (pins.length && options.moon instanceof THREE.Mesh && options.moon.visible && renderCamera instanceof THREE.PerspectiveCamera) {
       const geometry = options.moon.geometry as THREE.BufferGeometry;
       if (!geometry.boundingSphere) geometry.computeBoundingSphere();
       if (geometry.boundingSphere) {
@@ -643,19 +695,16 @@ export class LiquidGlassRenderer {
     this.stats.activeMarkers = markerDiagnostics.active;
     const accessibilityFallback = this.reducedTransparency.matches || this.contrast.matches;
     const drawUi = options.includeUi !== false && options.uiGlass && !accessibilityFallback && this.rects.length > 0;
-    const positioned = markers.map(marker => this.positionMarker(renderCamera, marker))
+    const positioned = pins.map(marker => this.positionMarker(renderCamera, marker))
       .filter((marker): marker is PositionedMarker => marker !== null);
-    if (!drawUi && !positioned.length) {
-      this.releaseBackdrop();
-      return;
-    }
-    if (drawUi || !accessibilityFallback) {
+    if (drawUi || (positioned.length && !accessibilityFallback)) {
       const buffer = { width: this.canvas.width, height: this.canvas.height };
       const region = !drawUi && positioned.length === 1
         ? markerBackdropRegion(positioned[0].rect, positioned[0].markerScale, { width: this.width, height: this.height }, buffer)
         : { x: 0, y: 0, ...buffer };
       this.copyBackdrop(gl, region);
     } else this.releaseBackdrop();
+    if (!drawUi && !positioned.length && !lightAnchor) return;
 
     const autoClear = gl.autoClear;
     gl.autoClear = false;
@@ -663,6 +712,7 @@ export class LiquidGlassRenderer {
       for (const marker of positioned) {
         this.renderMarker(gl, marker, options.highQualityMarker, accessibilityFallback);
       }
+      if (lightAnchor) this.renderLight(gl, renderCamera, lightAnchor);
       if (drawUi) {
         this.uiMaterial.uniforms.viewport.value.set(this.width, this.height);
         this.uiMaterial.uniforms.pixelRatio.value = this.canvas.width / Math.max(this.width, 1);
@@ -719,5 +769,6 @@ export class LiquidGlassRenderer {
     this.uiMaterial.dispose();
     this.markerMaterial.dispose();
     this.labelMaterial.dispose();
+    this.lightMaterial.dispose();
   }
 }
