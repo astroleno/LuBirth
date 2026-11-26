@@ -1,26 +1,32 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { Matrix4, type Camera } from 'three';
 import { artBounds, visibleArtwork } from './skyPresentation';
 import { ConstellationArt } from './ConstellationArt';
 import type { SkyCulture, SkyFrame } from './skyModel';
-import type { SkyView } from './SkyRuntime';
 
-export function SkyArtwork({ items, frame, view, ground, daylight, selected, opacityScale = 1 }: {
-  items: SkyCulture[]; frame: SkyFrame; view: React.MutableRefObject<SkyView>; ground: boolean; daylight: number; selected: string;
+export function SkyArtwork({ items, frame, ground, daylight, selected, projectionCamera, opacityScale = 1 }: {
+  items: SkyCulture[]; frame: SkyFrame; ground: boolean; daylight: number; selected: string;
+  projectionCamera?: Camera;
   opacityScale?: number;
 }) {
-  const { size } = useThree();
+  const width = useThree(state => state.size.width);
   const bounds = useMemo(() => items.map(item => artBounds(item, frame)).filter((item): item is NonNullable<typeof item> => !!item), [items, frame]);
   const [visible, setVisible] = useState<SkyCulture[]>([]);
-  const previous = useRef('');
-  const previousBounds = useRef(bounds);
-  useFrame(() => {
-    const next = visibleArtwork(bounds, view.current, size.width / size.height, ground, selected, size.width < 600 ? 5 : 8);
-    const key = next.map(item => item.id).join('|');
-    if (key !== previous.current || previousBounds.current !== bounds) {
-      previous.current = key; previousBounds.current = bounds; setVisible(next);
-    }
-  });
+  const updateVisible = useMemo(() => {
+    const inverseRotation = new Matrix4(), projection = new Matrix4(), previousProjection = new Matrix4();
+    return ({ camera }: { camera: Camera }) => {
+      const source = projectionCamera ?? camera;
+      // The Earth background is rendered from the origin with the main camera's rotation and view offset.
+      inverseRotation.makeRotationFromQuaternion(source.quaternion).transpose();
+      projection.multiplyMatrices(source.projectionMatrix, inverseRotation);
+      if (projection.equals(previousProjection)) return;
+      previousProjection.copy(projection);
+      const next = visibleArtwork(bounds, projection, ground, selected, width < 600 ? 5 : 8);
+      setVisible(previous => previous.length === next.length && previous.every((item, index) => item === next[index]) ? previous : next);
+    };
+  }, [bounds, ground, projectionCamera, selected, width]);
+  useFrame(updateVisible);
   return <>{visible.map(item => {
     const lineArt = item.id.includes('chinese_song_dynasty');
     const focused = item.id === selected;

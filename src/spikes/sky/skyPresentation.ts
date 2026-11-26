@@ -1,5 +1,7 @@
+import type { Matrix4 } from 'three';
 import { illustrationDirection, starDirection } from './skyModel';
 import type { SkyCatalog, SkyCulture, SkyFrame, SkyIllustration } from './skyModel';
+import type { Vec3 } from '../../astro/referenceFrames';
 
 export const CHINESE_GROUPS = [
   ['all', '全部天区'], ['purple', '紫微垣'], ['supreme', '太微垣'], ['market', '天市垣'],
@@ -46,24 +48,45 @@ export function artBounds(item: SkyCulture, frame: SkyFrame) {
   if (!item.image) return null;
   const image = item.image, center = illustrationDirection(image, frame, image.size[0] / 2, image.size[1] / 2);
   if (!center) return null;
-  const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => illustrationDirection(image, frame, x * image.size[0], y * image.size[1]));
-  const radius = Math.max(...corners.filter((p): p is [number, number, number] => !!p).map(p => Math.acos(Math.max(-1, Math.min(1, dot(center, p))))));
-  return { item, center, radius };
+  const corners = [[0, 0], [1, 0], [1, 1], [0, 1]]
+    .map(([x, y]) => illustrationDirection(image, frame, x * image.size[0], y * image.size[1]))
+    .filter((point): point is Vec3 => point !== null);
+  return corners.length === 4 ? { item, center, corners } : null;
 }
-export function visibleArtwork(bounds: NonNullable<ReturnType<typeof artBounds>>[], view: { azimuth: number; altitude: number; fov: number }, aspect: number, ground: boolean, selected: string, limit: number) {
-  const az = view.azimuth * Math.PI / 180, alt = view.altitude * Math.PI / 180;
-  const forward = [Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt)];
-  const right = [Math.cos(az), 0, Math.sin(az)];
-  const up = [-Math.sin(az) * Math.sin(alt), Math.cos(alt), Math.cos(az) * Math.sin(alt)];
-  const halfV = view.fov * Math.PI / 360, halfH = Math.atan(Math.tan(halfV) * aspect);
-  const planes = [[right, halfH], [up, halfV]].flatMap(([axis, half]) => [-1, 1].map(sign =>
-    forward.map((f, i) => f * Math.sin(half as number) + sign * (axis as number[])[i] * Math.cos(half as number))));
-  const halfDiagonal = Math.atan(Math.tan(view.fov * Math.PI / 360) * Math.hypot(1, aspect));
-  return bounds.map(b => ({ ...b, angle: Math.acos(Math.max(-1, Math.min(1, dot(b.center, forward)))) }))
-    .filter(b => b.angle < halfDiagonal + Math.min(b.radius, 1.3) + .05
-      && planes.every(plane => dot(b.center, plane) > -Math.sin(Math.min(1.5, b.radius + .04)))
-      && (!ground || Math.asin(b.center[1]) + b.radius > 0))
-    .sort((a, b) => Number(b.item.id === selected) - Number(a.item.id === selected) || a.angle - b.angle)
+
+/** Clip the projected image as a whole so the same patch intersects the view and the horizon. */
+function intersectsArtwork(corners: Vec3[], planes: number[][]) {
+  let polygon: number[][] = corners;
+  for (const plane of planes) {
+    const distances = polygon.map(point => dot(point, plane));
+    if (distances.every(distance => distance <= 0)) return false;
+    if (distances.every(distance => distance > 0)) continue;
+    const clipped: number[][] = [];
+    let previous = polygon.length - 1;
+    for (let index = 0; index < polygon.length; index++) {
+      if ((distances[previous] > 0) !== (distances[index] > 0)) {
+        const weight = distances[previous] / (distances[previous] - distances[index]);
+        clipped.push(polygon[previous].map((value, axis) => value + weight * (polygon[index][axis] - value)));
+      }
+      if (distances[index] > 0) clipped.push(polygon[index]);
+      previous = index;
+    }
+    if (clipped.length < 3) return false;
+    polygon = clipped;
+  }
+  return true;
+}
+
+export function visibleArtwork(bounds: NonNullable<ReturnType<typeof artBounds>>[], projection: Matrix4, ground: boolean, selected: string, limit: number) {
+  const { elements } = projection;
+  // Clip-space side planes are w ± x and w ± y. Perspective w also ranks forward alignment.
+  const forward = [elements[3], elements[7], elements[11]];
+  const planes = [0, 1].flatMap(row => [-1, 1].map(sign =>
+    forward.map((component, column) => component + sign * elements[column * 4 + row])));
+  if (ground) planes.push([0, 1, 0]);
+  return bounds.filter(bound => intersectsArtwork(bound.corners, planes))
+    .map(({ item, center }) => ({ item, alignment: dot(center, forward) }))
+    .sort((a, b) => Number(b.item.id === selected) - Number(a.item.id === selected) || b.alignment - a.alignment)
     .slice(0, limit).map(b => b.item);
 }
 

@@ -97,7 +97,8 @@ const Scene = memo(function Scene({ frame, settings, items, light, dpr, view, or
   return <Canvas frameloop={settings.measuring ? 'always' : 'demand'} dpr={dpr} camera={CAMERA} gl={GL_OPTIONS}
     fallback={<div className="sky-fallback">请使用支持 WebGL 的浏览器观看交互星空。</div>}>
     <MilkyWay frame={frame} ground={settings.ground} daylight={light.starlight} strength={settings.galaxy} atmosphere={light} />
-    {settings.art && <SkyArtwork items={items} frame={frame} view={view} ground={settings.ground} daylight={light.starlight} selected={settings.culture} />}
+    {settings.art && light.starlight > 0 && <SkyArtwork items={items} frame={frame} ground={settings.ground}
+      daylight={light.starlight} selected={settings.culture} />}
     <SkyObjects frame={frame} magnitude={settings.magnitude} culture={settings.culture} items={items}
       lines={settings.lines} daylight={light.starlight} dpr={dpr} ground={settings.ground} chinese={settings.system !== 'modern'} appearance={settings} view={view} />
     {IauLayer && <IauLayer frame={frame.observer.eqjToSky} ground={settings.ground} daylight={light.starlight} />}

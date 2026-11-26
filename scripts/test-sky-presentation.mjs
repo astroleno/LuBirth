@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { Matrix4, PerspectiveCamera } from 'three';
 import { createServer } from 'vite';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -10,6 +11,10 @@ const artwork = JSON.parse(await readFile(new URL('../src/spikes/sky/data/chines
 const vite = await createServer({ configFile: false, root, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false }, appType: 'custom' });
 const results = [];
 function test(name, run) { run(); results.push(name); console.log('PASS', name); }
+function viewProjection(camera) {
+  camera.updateMatrixWorld(true);
+  return new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+}
 try {
   const model = await vite.ssrLoadModule('/src/spikes/sky/skyModel.ts');
   const presentation = await vite.ssrLoadModule('/src/spikes/sky/skyPresentation.ts');
@@ -96,19 +101,48 @@ try {
   });
   test('Portrait frustum rejects sideways objects and keeps selection within hard visibility budget', () => {
     const direction = (az, alt) => [Math.sin(az * Math.PI / 180) * Math.cos(alt * Math.PI / 180), Math.sin(alt * Math.PI / 180), -Math.cos(az * Math.PI / 180) * Math.cos(alt * Math.PI / 180)];
-    const entries = Array.from({ length: 12 }, (_, i) => ({ item: { id: String(i) }, center: direction(i * 3, 20), radius: .01 }));
-    entries.push({ item: { id: 'outside' }, center: direction(40, 20), radius: .01 });
-    entries.push({ item: { id: 'below' }, center: direction(0, -30), radius: .01 });
-    const visible = presentation.visibleArtwork(entries, { azimuth: 0, altitude: 20, fov: 70 }, .46, true, '4', 5).map(item => item.id);
+    const rectangle = (id, az, alt) => ({ item: { id }, center: direction(az, alt),
+      corners: [[-.25, -.25], [.25, -.25], [.25, .25], [-.25, .25]].map(([x, y]) => direction(az + x, alt + y)) });
+    const entries = Array.from({ length: 12 }, (_, i) => rectangle(String(i), i * 3, 20));
+    entries.push(rectangle('outside', 40, 20), rectangle('below', 0, -30));
+    const camera = new PerspectiveCamera(70, .46);
+    camera.lookAt(...direction(0, 20));
+    const visible = presentation.visibleArtwork(entries, viewProjection(camera), true, '4', 5).map(item => item.id);
     assert.equal(visible.length, 5); assert.equal(visible[0], '4'); assert.ok(!visible.includes('outside')); assert.ok(!visible.includes('below'));
+  });
+  test('Artwork must overlap the visible screen and the horizon in the same region', () => {
+    const direction = (x, y) => [x, y, -1].map(value => value / Math.hypot(x, y, 1));
+    const entries = [
+      { item: { id: 'corner' }, center: direction(1, 1), corners: [[.9, .9], [1.2, .9], [1.2, 1.2], [.9, 1.2]].map(point => direction(...point)) },
+      { item: { id: 'surrounds' }, center: direction(0, 0), corners: [[-3, -3], [3, -3], [3, 3], [-3, 3]].map(point => direction(...point)) },
+      { item: { id: 'occluded' }, center: direction(1.1, -.1), corners: [[.7, -.35], [1, -.35], [1.5, .15], [1.2, .15]].map(point => direction(...point)) },
+    ];
+    const projection = viewProjection(new PerspectiveCamera(90, 1));
+    const visible = ground => presentation.visibleArtwork(entries, projection, ground, 'all', 8).map(item => item.id);
+    assert.deepEqual(new Set(visible(true)), new Set(['corner', 'surrounds']));
+    assert.ok(visible(false).includes('occluded'));
+  });
+  test('Offset and roll use the same visible edges as the rendered camera', () => {
+    const direction = (x, y) => [x, y, -1].map(value => value / Math.hypot(x, y, 1));
+    const rectangle = (id, x, y) => ({ item: { id }, center: direction(x, y),
+      corners: [[-.1, -.1], [.1, -.1], [.1, .1], [-.1, .1]].map(([dx, dy]) => direction(x + dx, y + dy)) });
+    const entries = [rectangle('center', -.5, 0), rectangle('right', 1.5, 0), rectangle('top', 0, 1.5)];
+    const camera = new PerspectiveCamera(90, 1);
+    const visible = () => presentation.visibleArtwork(entries, viewProjection(camera), false, 'all', 8).map(item => item.id);
+    assert.deepEqual(visible(), ['center']);
+    camera.setViewOffset(200, 200, 100, 0, 200, 200);
+    assert.deepEqual(visible(), ['right']);
+    camera.rotateZ(Math.PI / 2);
+    assert.deepEqual(visible(), ['center', 'top']);
   });
   test('25 / 70 / 110 degree views retain selected visible artwork, with at most eight residents', () => {
     const frame = model.createSkyFrame(catalog, new Date('2026-10-21T13:00Z'), { latitude: 31.23, longitude: 121.47 });
     const bounds = SKY_SYSTEMS.modern.items.map(item => presentation.artBounds(item, frame)).filter(Boolean);
     for (const fov of [25, 70, 110]) for (const aspect of [.46, 1, 2]) {
-      const chosen = bounds[10], [x, y, z] = chosen.center;
-      const view = { azimuth: Math.atan2(x, -z) * 180 / Math.PI, altitude: Math.asin(y) * 180 / Math.PI, fov };
-      const result = presentation.visibleArtwork(bounds, view, aspect, false, chosen.item.id, 8);
+      const chosen = bounds[10];
+      const camera = new PerspectiveCamera(fov, aspect);
+      camera.lookAt(...chosen.center);
+      const result = presentation.visibleArtwork(bounds, viewProjection(camera), false, chosen.item.id, 8);
       assert.equal(result[0].id, chosen.item.id); assert.ok(result.length <= 8);
     }
   });
