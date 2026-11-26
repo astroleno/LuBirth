@@ -15,6 +15,25 @@ function viewProjection(camera) {
   camera.updateMatrixWorld(true);
   return new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
 }
+function losslessWebPSize(file) {
+  assert.equal(file.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(file.toString('ascii', 8, 12), 'WEBP');
+  assert.equal(file.readUInt32LE(4) + 8, file.length);
+  for (let offset = 12; offset + 8 <= file.length;) {
+    const length = file.readUInt32LE(offset + 4);
+    const payload = offset + 8;
+    assert.ok(payload + length <= file.length, 'WebP chunk exceeds the container');
+    if (file.toString('ascii', offset, offset + 4) === 'VP8L') {
+      assert.ok(length >= 5);
+      assert.equal(file[payload], 0x2f);
+      const flags = file.readUInt32LE(payload + 1);
+      assert.equal((flags >>> 28) & 1, 1, 'line art must have transparency');
+      return [(flags & 0x3fff) + 1, ((flags >>> 14) & 0x3fff) + 1];
+    }
+    offset = payload + length + (length % 2);
+  }
+  assert.fail('Missing lossless WebP image data');
+}
 try {
   const model = await vite.ssrLoadModule('/src/spikes/sky/skyModel.ts');
   const presentation = await vite.ssrLoadModule('/src/spikes/sky/skyPresentation.ts');
@@ -54,17 +73,26 @@ try {
   const assetFacts = await Promise.all(artwork.entries.map(async entry => ({ entry,
     portrait: await readFile(root + '/src/spikes/sky/data/' + entry.image.file),
     line: await readFile(root + '/src/spikes/sky/data/' + entry.skyImage.file),
+    delivery: await readFile(root + '/src/spikes/sky/data/' + entry.skyVariant.delivery.file),
     photo: await readFile(root + '/reference/sky/yuhuang-temple/photos/' + entry.photograph.localFile) })));
   test('All 28 paired assets have distinct source photographs, intact hashes and consistent aspect-preserving registrations', () => {
     assert.equal(artwork.entries.length, 28);
     assert.deepEqual(artwork.entries.map(entry => entry.number), Array.from({ length: 28 }, (_, i) => i + 1));
     assert.equal(new Set(artwork.entries.map(entry => entry.cultureId)).size, 28);
     assert.equal(new Set(artwork.entries.map(entry => entry.photograph.localFile)).size, 28);
-    for (const { entry, portrait, line, photo } of assetFacts) {
+    const songImages = new Map(SKY_SYSTEMS.song.items.map(item => [item.id, item.image]));
+    for (const { entry, portrait, line, delivery, photo } of assetFacts) {
       assert.equal(createHash('sha256').update(portrait).digest('hex'), entry.sha256);
       assert.equal(createHash('sha256').update(line).digest('hex'), entry.skyVariant.sha256);
       assert.equal(portrait[25], 6, 'portrait must preserve RGBA transparency');
       assert.equal(line[25], 6, 'line art must preserve RGBA transparency');
+      const encoded = entry.skyVariant.delivery;
+      assert.equal(encoded.sourceSha256, entry.skyVariant.sha256);
+      assert.equal(createHash('sha256').update(delivery).digest('hex'), encoded.sha256);
+      assert.equal(delivery.length, encoded.bytes);
+      assert.ok(delivery.length < line.length, 'WebP must reduce the line-art payload');
+      assert.deepEqual(losslessWebPSize(delivery), entry.skyImage.size);
+      assert.deepEqual(songImages.get(entry.cultureId), { ...entry.skyImage, file: encoded.file });
       assert.ok(Math.abs(portrait.readUInt32BE(16) / portrait.readUInt32BE(20) - line.readUInt32BE(16) / line.readUInt32BE(20)) < .005);
       entry.image.anchors.forEach((anchor, i) => {
         const paired = entry.skyImage.anchors[i]; assert.equal(anchor.hip, paired.hip);

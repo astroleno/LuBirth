@@ -1,5 +1,5 @@
 {
-  "schema": 5,
+  "schema": 6,
   "status": "28 photo-referenced Yuhuang Temple adaptations, each with a full-color prototype and a finer transparent sky line drawing. Photographic attribution remains distinct from independent museum identification.",
   "references": {
     "animal-association": {
@@ -150,7 +150,13 @@
         "sha256": "59f3cebbccc9647318c3f2e6c723b7f64de8bc16818765bc77c306e3b0693a8b",
         "bytes": 2228247,
         "derivedFrom": "jiao-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/jiao-yuhuang-line-v2.webp",
+          "bytes": 1295614,
+          "sha256": "543f14a4483347fd72567267ad62b6dcfbe10d12cef205afa82ba38aa376d0ff",
+          "sourceSha256": "59f3cebbccc9647318c3f2e6c723b7f64de8bc16818765bc77c306e3b0693a8b"
+        }
       },
       "authoredAngularWidth": 9.995381075706824,
       "sha256": "a32a79a45bdbd9921e4f987d640fe871fbda911cfe93381a15878d6ac6088aad",
@@ -318,7 +324,13 @@
         "sha256": "2c9d114c3fbd573a484b3e7dbe9871c1d97da7cca6fcdd2d81a4846ab64ff6f2",
         "bytes": 2312724,
         "derivedFrom": "kang-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/kang-yuhuang-line-v2.webp",
+          "bytes": 1412252,
+          "sha256": "88db4664d9fb1ef8a6c41771bc5c68d8ab743ec810c9b2f759a6cca39f7ba6c3",
+          "sourceSha256": "2c9d114c3fbd573a484b3e7dbe9871c1d97da7cca6fcdd2d81a4846ab64ff6f2"
+        }
       },
       "authoredAngularWidth": 11.67605140324666,
       "sha256": "2733c37bca47e98424c703ce43a49a9fb1a592af4b2ed8bbd90b0c7884345af6",
@@ -486,7 +498,13 @@
         "sha256": "09d5aca2ae6461f8dd0bad09b2b25cfabc751eaafecafd554d5eb80399eb9c32",
         "bytes": 1553778,
         "derivedFrom": "di-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/di-yuhuang-line-v2.webp",
+          "bytes": 907176,
+          "sha256": "5c02ac5399c7a14812b7fabd6ad853c3e1522b84ecf9a77fdc20b060629ce422",
+          "sourceSha256": "09d5aca2ae6461f8dd0bad09b2b25cfabc751eaafecafd554d5eb80399eb9c32"
+        }
       },
       "authoredAngularWidth": 14.231200108961355,
       "sha256": "2e655affb1521a99ecf1f20bbf3c33d89d4044e580249c95a859a5efa7079ab0",
@@ -661,7 +679,13 @@
         "sha256": "d925e771eb1daf6597ff43cbfa87f3e0ee15a2de435a858990c0cdb0556d59ec",
         "bytes": 1940334,
         "derivedFrom": "fang-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/fang-yuhuang-line-v2.webp",
+          "bytes": 1109810,
+          "sha256": "10f2a56d26f579605b4aba5bf78528fabfac8cb93d06c128656f1dfb24d3d138",
+          "sourceSha256": "d925e771eb1daf6597ff43cbfa87f3e0ee15a2de435a858990c0cdb0556d59ec"
+        }
       },
       "authoredAngularWidth": 10.79310258290598,
       "sha256": "010d35ceffd9fb73a18b9fb8729c491dd81a04f342ff0f4b7c647216a1cc606b",
@@ -822,7 +846,13 @@
         "sha256": "56ffe792d570b68b1c729bbd83b54c2adb63217bd5d81fbddf1ec3f4e731fa4c",
         "bytes": 1648988,
         "derivedFrom": "heart-yuhuang-v2.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/heart-yuhuang-line-v2.webp",
+          "bytes": 991382,
+          "sha256": "055b2ef1f5be3151c5498867b6ea11f70ea7d418cd2b266670efee1db91e533a",
+          "sourceSha256": "56ffe792d570b68b1c729bbd83b54c2adb63217bd5d81fbddf1ec3f4e731fa4c"
+        }
       },
       "authoredAngularWidth": 6.434320870272909,
       "sha256": "343eb258d33aaf8ad4250a9c91ba0ee4e9f8425a69ed7ec4ad73d9a57473a0e8",
@@ -1032,7 +1062,13 @@
         "sha256": "9810c02d47f0b6d6c5d2e4edd2aab24d1b3c50382eb9830a88c49b039350a865",
         "bytes": 1905756,
         "derivedFrom": "tail-yuhuang-v2.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/tail-yuhuang-line-v2.webp",
+          "bytes": 1146002,
+          "sha256": "88b330b27678e0d1f6aef91794e49c26361e5c1ad7502a213821a27d6ed7bfb6",
+          "sourceSha256": "9810c02d47f0b6d6c5d2e4edd2aab24d1b3c50382eb9830a88c49b039350a865"
+        }
       },
       "authoredAngularWidth": 15.89219668800173,
       "sha256": "014d33586194905231ba71afcb67d5cf91760824aa99bd51e3cf60d88284e1a9",
@@ -1200,7 +1236,13 @@
         "sha256": "3e1faab78a8cfdf99d1c8afaff73a3362b3f96c82de836777c6e4cb81ce4af77",
         "bytes": 1704314,
         "derivedFrom": "ji-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/ji-yuhuang-line-v2.webp",
+          "bytes": 1036514,
+          "sha256": "df14258a82d02597a4a80a2c09dbe014238b2726be4843898bcd10398b89a57b",
+          "sourceSha256": "3e1faab78a8cfdf99d1c8afaff73a3362b3f96c82de836777c6e4cb81ce4af77"
+        }
       },
       "authoredAngularWidth": 7.832769328526221,
       "sha256": "f106aab246609557200be140161a61d1609bf94b41793cdd76bd8dfa3090d4db",
@@ -1382,7 +1424,13 @@
         "sha256": "806389d221bd8b088e87cd1473478a9e33650411f5a4b7a16b5a399005bb1197",
         "bytes": 1404914,
         "derivedFrom": "dou-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/dou-yuhuang-line-v2.webp",
+          "bytes": 783438,
+          "sha256": "aa19dfcdc61d10bd09ec859d2c19ccf88f86fc89eaed2551bc80547f032f70bb",
+          "sourceSha256": "806389d221bd8b088e87cd1473478a9e33650411f5a4b7a16b5a399005bb1197"
+        }
       },
       "authoredAngularWidth": 13.687799920278408,
       "sha256": "419db30bd64559fe0d7500466ef9d01a446f3014d2704fc8fa7090d89abeac36",
@@ -1564,7 +1612,13 @@
         "sha256": "c5ffa92f7e65cba725db2df6f29beba64fd0c160025454d65e30bbddf8521f1c",
         "bytes": 1645661,
         "derivedFrom": "niu-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/niu-yuhuang-line-v2.webp",
+          "bytes": 895864,
+          "sha256": "c4274796e738aa284d69f03b68afb540c94ed3b03bb4ea335d797d55bd20cb2a",
+          "sourceSha256": "c5ffa92f7e65cba725db2df6f29beba64fd0c160025454d65e30bbddf8521f1c"
+        }
       },
       "authoredAngularWidth": 6.233700652241628,
       "sha256": "2fc1f682d859b7dbc00ab7a863577e80e5972e95f4917b0eb2606b9f6c336c0a",
@@ -1732,7 +1786,13 @@
         "sha256": "9fa750c0c668b99182f157a935d83d6370ff25e7d4a2478d7740c72709cc4cc5",
         "bytes": 1900444,
         "derivedFrom": "nu-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/nu-yuhuang-line-v2.webp",
+          "bytes": 1137162,
+          "sha256": "eb9e2748ec956c9e682c17ff4718fdf2952f2ad3fdd7b5a3cf6221b90c3c0a5f",
+          "sourceSha256": "9fa750c0c668b99182f157a935d83d6370ff25e7d4a2478d7740c72709cc4cc5"
+        }
       },
       "authoredAngularWidth": 4.971721197256941,
       "sha256": "ce42b75191bcee2e5048104de9416d32010e02201351a391bab45ccb0cddb048",
@@ -1886,7 +1946,13 @@
         "sha256": "45422090dcee2635e7217e0f7cd642da86b8ed664cb7b3b70e0a909d3dfc22c5",
         "bytes": 1838615,
         "derivedFrom": "xu-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/xu-yuhuang-line-v2.webp",
+          "bytes": 1142892,
+          "sha256": "4f99eb6dc95750aec818206c034794656b008e4124317126363c85f2a518f347",
+          "sourceSha256": "45422090dcee2635e7217e0f7cd642da86b8ed664cb7b3b70e0a909d3dfc22c5"
+        }
       },
       "authoredAngularWidth": 9.874490662017655,
       "sha256": "f8ddf922afffb7c28d5c1d17d91e8fee45dc823df150103963e3e95cadbcf8fb",
@@ -2054,7 +2120,13 @@
         "sha256": "70af8f4e069ad7be49b7271cfe89cf58bfdbd67f3c34ea1e6d2a6bfab8afb66c",
         "bytes": 1926593,
         "derivedFrom": "wei_moon-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/wei_moon-yuhuang-line-v2.webp",
+          "bytes": 1119656,
+          "sha256": "7655d3c1d9665e79e292160fa11c3610fc2670b8c30af6f6746d1c02b8b066dd",
+          "sourceSha256": "70af8f4e069ad7be49b7271cfe89cf58bfdbd67f3c34ea1e6d2a6bfab8afb66c"
+        }
       },
       "authoredAngularWidth": 12.420861810583707,
       "sha256": "eb81f8df67bfd9278aa12a3fc21f91cfc19c5aca88c4fb4c449f84479480ea41",
@@ -2229,7 +2301,13 @@
         "sha256": "c446f69ad756fa69a1b933d877403c8534970243ffadb11638ac9e494606e5c1",
         "bytes": 2324009,
         "derivedFrom": "shi-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/shi-yuhuang-line-v2.webp",
+          "bytes": 1352162,
+          "sha256": "ed3525b0d2075dc8615694db1d65807db132b94a27846af7067c7382aa8f7345",
+          "sourceSha256": "c446f69ad756fa69a1b933d877403c8534970243ffadb11638ac9e494606e5c1"
+        }
       },
       "authoredAngularWidth": 12.545365612331251,
       "sha256": "82187e434daead962fdc8a29e38802671face88b02d86fd28d732d70f79063c0",
@@ -2383,7 +2461,13 @@
         "sha256": "c92fcdae9977e57de763c3911799bd01e596ea804e87ed1dc17b5ea70fff60dd",
         "bytes": 1990873,
         "derivedFrom": "bi_water-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/bi_water-yuhuang-line-v2.webp",
+          "bytes": 1150662,
+          "sha256": "859fea032f7884df9c701c57e9f4162e2b161d9da049268e65b8d20d3f8deec8",
+          "sourceSha256": "c92fcdae9977e57de763c3911799bd01e596ea804e87ed1dc17b5ea70fff60dd"
+        }
       },
       "authoredAngularWidth": 13.087008610786784,
       "sha256": "266898628d7e3cc195293bdde2bda4148fd37cdcbd2e9d2a153ae3300e387c25",
@@ -2635,7 +2719,13 @@
         "sha256": "70165dcc80c5c822275595d8d391be22aa1c077746a3e5a2e04745e57494955f",
         "bytes": 1334857,
         "derivedFrom": "kui-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/kui-yuhuang-line-v2.webp",
+          "bytes": 730380,
+          "sha256": "09b858e5b4f6d1435f7cc486f13cbddeba84b432c3523ba48f432f1da88e5a34",
+          "sourceSha256": "70165dcc80c5c822275595d8d391be22aa1c077746a3e5a2e04745e57494955f"
+        }
       },
       "authoredAngularWidth": 18.185749466330584,
       "sha256": "1406f6f7c948f1605c5b4ad577a0f65193744cfdddd522a3f569e18ca287e054",
@@ -2796,7 +2886,13 @@
         "sha256": "921023836b1cf98bfebf94b81cf1882a10848fecedbaa2da54e05b0b14bdb69a",
         "bytes": 1863058,
         "derivedFrom": "lou-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/lou-yuhuang-line-v2.webp",
+          "bytes": 1016656,
+          "sha256": "8b71e685231e3cf9730ffc800aa6c175ac818cf6e43e83ab42c1736d4553d160",
+          "sourceSha256": "921023836b1cf98bfebf94b81cf1882a10848fecedbaa2da54e05b0b14bdb69a"
+        }
       },
       "authoredAngularWidth": 5.100221517305966,
       "sha256": "20b86da876d97321051b21ec0ac584d3f16adb174e636796e2f2deb7eee911bd",
@@ -2957,7 +3053,13 @@
         "sha256": "ba5e4063a1464617bfb6c614add75bd82c4e6f069e18ee62604e05fa0b6ec49f",
         "bytes": 1948936,
         "derivedFrom": "wei_earth-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/wei_earth-yuhuang-line-v2.webp",
+          "bytes": 1151954,
+          "sha256": "f18eda347e442a27846992baf859c077097a3b799e87441b467f11d37d1afd83",
+          "sourceSha256": "ba5e4063a1464617bfb6c614add75bd82c4e6f069e18ee62604e05fa0b6ec49f"
+        }
       },
       "authoredAngularWidth": 4.878826598203724,
       "sha256": "f9de90db6e83d524f9f7dc98864e08e8ab604b29c11686b1459ed6c20647b363",
@@ -3146,7 +3248,13 @@
         "sha256": "b403b0dc866ea063c24e43bd921d40ef875557af5f7b912581e30cf53cf6bf03",
         "bytes": 1327694,
         "derivedFrom": "mao-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/mao-yuhuang-line-v2.webp",
+          "bytes": 764266,
+          "sha256": "d620d6b89d7027141716028811303e385b7edcec142b025fe8d02ac7dd21e208",
+          "sourceSha256": "b403b0dc866ea063c24e43bd921d40ef875557af5f7b912581e30cf53cf6bf03"
+        }
       },
       "authoredAngularWidth": 6.320031892946246,
       "sha256": "958b6cfc3b22916b88d0b12ae6e667562186c565ae503d7c55caa42449204860",
@@ -3349,7 +3457,13 @@
         "sha256": "9efa4e73b0d962b0f689c0bc982e14c337d8e7f11e5e767f441ababec3bebdd0",
         "bytes": 1280600,
         "derivedFrom": "bi_moon-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/bi_moon-yuhuang-line-v2.webp",
+          "bytes": 744636,
+          "sha256": "b57e35b7390f9a4448f59d2acf06d2669e12840ee3d7460dea9451a3e47e47a5",
+          "sourceSha256": "9efa4e73b0d962b0f689c0bc982e14c337d8e7f11e5e767f441ababec3bebdd0"
+        }
       },
       "authoredAngularWidth": 12.542122254785568,
       "sha256": "f107ae0a84ee1cbbae64bda2537962b1f7a032b4e92cbd1c909b8508d556410f",
@@ -3510,7 +3624,13 @@
         "sha256": "4c5b23ddfddd6c5fa270b9200d5690e9dcc7e291f0e38104936f70c5a9f00951",
         "bytes": 2456035,
         "derivedFrom": "zi-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/zi-yuhuang-line-v2.webp",
+          "bytes": 1445982,
+          "sha256": "39345d7469106693aeba4c325d5f210774cf7197f9ff1bb077b3d7e1b95803d4",
+          "sourceSha256": "4c5b23ddfddd6c5fa270b9200d5690e9dcc7e291f0e38104936f70c5a9f00951"
+        }
       },
       "authoredAngularWidth": 4.252461866862394,
       "sha256": "fdfbcfc7a825a6e139b918ba30bbe970e9aac6f8a1a398b1f76c031e12ec0e1b",
@@ -3699,7 +3819,13 @@
         "sha256": "d1f965888f0adec7078a96fcc974b0141d48f96b524a3735bf149d99194cf1c6",
         "bytes": 1517338,
         "derivedFrom": "shen-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/shen-yuhuang-line-v2.webp",
+          "bytes": 889692,
+          "sha256": "06557f1cb58a2df34920e4aee48c888f6ad15bda5eeb6e071b7dcdfc34ca1abb",
+          "sourceSha256": "d1f965888f0adec7078a96fcc974b0141d48f96b524a3735bf149d99194cf1c6"
+        }
       },
       "authoredAngularWidth": 18.885791799302503,
       "sha256": "c472a4c210ccf1d73eb7d5db8b93631f08179b2ca75385b6c0acbe8b4a853339",
@@ -3902,7 +4028,13 @@
         "sha256": "14acde3d8491941a8b16d46adce713d29dd3ecbc46928992807a7f2ebe8b6560",
         "bytes": 1260630,
         "derivedFrom": "jing-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/jing-yuhuang-line-v2.webp",
+          "bytes": 648258,
+          "sha256": "f2addb1bbd1f10aead8ab7d471e904623926cb3650a46c20b15968047cc5bedb",
+          "sourceSha256": "14acde3d8491941a8b16d46adce713d29dd3ecbc46928992807a7f2ebe8b6560"
+        }
       },
       "authoredAngularWidth": 18.775167886185162,
       "sha256": "8a43be111927b722f5116e2c3b0a87a87813ccbabe5d729272ae5384d04f1e86",
@@ -4070,7 +4202,13 @@
         "sha256": "b29b6924b2f6a5e05c9ffeeb8f0a2f0f086978d385368dec31bffd990e15744c",
         "bytes": 1728189,
         "derivedFrom": "gui-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/gui-yuhuang-line-v2.webp",
+          "bytes": 1044378,
+          "sha256": "84711a93ab9f102958e8a3849e524a84ac6b978bf5fca50648b837beb7f4bac9",
+          "sourceSha256": "b29b6924b2f6a5e05c9ffeeb8f0a2f0f086978d385368dec31bffd990e15744c"
+        }
       },
       "authoredAngularWidth": 5.781156199536762,
       "sha256": "5ef812a7539d8b550fac71db88257a78d81e7ff23eaf92f42bf9aaae3eb9377d",
@@ -4266,7 +4404,13 @@
         "sha256": "6b2938b47e44375151bc12dc304f1b3adfbc30916d0c871d32ad6238d19c7e14",
         "bytes": 1825346,
         "derivedFrom": "liu-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/liu-yuhuang-line-v2.webp",
+          "bytes": 986554,
+          "sha256": "635e4a2a93ac1225155636b1e665b089d80756a48fffc16806ddeec314e7caf0",
+          "sourceSha256": "6b2938b47e44375151bc12dc304f1b3adfbc30916d0c871d32ad6238d19c7e14"
+        }
       },
       "authoredAngularWidth": 12.441458818642166,
       "sha256": "e3f1e9dee6c2b3a15e94e4a9bceebfc0bd7cee03f28dc0cdadd407ccef38e8c6",
@@ -4455,7 +4599,13 @@
         "sha256": "c2bcce7349e27ce1d3c9a8fec8b3a44b2ffcd483d1aed38393b9d878cfc07a72",
         "bytes": 1165944,
         "derivedFrom": "xing-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/xing-yuhuang-line-v2.webp",
+          "bytes": 684248,
+          "sha256": "ca85baa1c66d010876eb2a5a40da647484ea2edd49e40f5b0253919af14bc124",
+          "sourceSha256": "c2bcce7349e27ce1d3c9a8fec8b3a44b2ffcd483d1aed38393b9d878cfc07a72"
+        }
       },
       "authoredAngularWidth": 12.387665863369302,
       "sha256": "d74cb6a0b7882732d4c3d997cbda75fe79a00bd99ecf082879b0e39094644854",
@@ -4637,7 +4787,13 @@
         "sha256": "4424cbb6d1a50d46c6024e97e7cbb8e234fab1f453db0089acc4e3f233976cd3",
         "bytes": 1683550,
         "derivedFrom": "zhang-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/zhang-yuhuang-line-v2.webp",
+          "bytes": 1040676,
+          "sha256": "1ad6576485bd2256786379eca9a5fb1eee7cba6facfd8550dcab4f5fec259c46",
+          "sourceSha256": "4424cbb6d1a50d46c6024e97e7cbb8e234fab1f453db0089acc4e3f233976cd3"
+        }
       },
       "authoredAngularWidth": 14.766346234389491,
       "sha256": "a591d9a5aad5c5b376c2a86a6bce3c99e9bf2b3cefb963cf0efb4995920190d6",
@@ -4931,7 +5087,13 @@
         "sha256": "c316e73e3a7bd5be87889f4db9c59c1101536136984c3a888c5e3cb9a8e7af63",
         "bytes": 2429094,
         "derivedFrom": "yi-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/yi-yuhuang-line-v2.webp",
+          "bytes": 1489774,
+          "sha256": "ab8337b620b4846e4745079007475c3b2a830109aa325697522ae7734f1926d3",
+          "sourceSha256": "c316e73e3a7bd5be87889f4db9c59c1101536136984c3a888c5e3cb9a8e7af63"
+        }
       },
       "authoredAngularWidth": 21.472139118732652,
       "sha256": "f97dcb2ffec116cad57ff58cc470a2a4813b31454c95ff884e3dcdcdf8c8ba87",
@@ -5120,7 +5282,13 @@
         "sha256": "adf8aa7850185eff9d72cfa7ba4ded6562f3871c3aaefb6ded27321a5d8e19be",
         "bytes": 1857413,
         "derivedFrom": "zhen-yuhuang-v1.png",
-        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json"
+        "generationRecord": "reference/sky/yuhuang-temple/full-set-generation.json",
+        "delivery": {
+          "file": "chinese-art/zhen-yuhuang-line-v2.webp",
+          "bytes": 1106584,
+          "sha256": "230255613b0cc115bb7e9df76a412ec1b8d0e1f11340395ce0f6208251dc7daf",
+          "sourceSha256": "adf8aa7850185eff9d72cfa7ba4ded6562f3871c3aaefb6ded27321a5d8e19be"
+        }
       },
       "authoredAngularWidth": 9.323702256356482,
       "sha256": "565e81371aff7a3ca0953432213196c2685d9aac367631c47485911a6bf936b1",

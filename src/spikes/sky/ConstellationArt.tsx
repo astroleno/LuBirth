@@ -5,8 +5,11 @@ import { illustrationDirection } from './skyModel';
 import type { SkyFrame, SkyIllustration } from './skyModel';
 import { acquireArtTexture } from './artTextureCache';
 
-// URL imports emit assets at build time; PNGs load only when admitted to the visible drawing set.
-const urls = import.meta.glob(['./data/illustrations/*.png', './data/chinese-art/*.png', '!./data/chinese-art/*-line-v1.png'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+// URL imports emit assets at build time. The visibility filter controls image requests.
+const urls = import.meta.glob([
+  './data/illustrations/*.png', './data/chinese-art/*.png',
+  '!./data/chinese-art/*-line-v*.png', './data/chinese-art/*-line-v*.webp',
+], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const artworkUrl = (file: string) => urls['./data/' + file];
 
 export function ConstellationArt({ image, frame, ground, daylight, opacity = .24, lineArt = false }: {

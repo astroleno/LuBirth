@@ -1,6 +1,8 @@
+import { execFile } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { createServer } from 'vite';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -10,6 +12,8 @@ const generation = JSON.parse(await readFile(root + '/reference/sky/yuhuang-temp
 const placements = JSON.parse(await readFile(root + '/reference/sky/yuhuang-temple/placements.json', 'utf8'));
 const catalog = JSON.parse(await readFile(data + 'catalog.json', 'utf8'));
 const manifest = JSON.parse(await readFile(data + 'chinese-art/manifest.json', 'utf8'));
+const runEncoder = promisify(execFile);
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const vite = await createServer({ configFile: false, root, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false }, appType: 'custom' });
 try {
   const { cultureGroup, CHINESE_GROUPS } = await vite.ssrLoadModule('/src/spikes/sky/skyPresentation.ts');
@@ -17,7 +21,7 @@ try {
   const specifications = generation.specifications;
   if (specifications.length !== 28 || new Set(specifications.map(s => s.name)).size !== 28) throw new Error('Expected all 28 distinct prototypes.');
   if (placements.entries.length !== 28 || new Set(placements.entries.map(p => p.number)).size !== 28) throw new Error('Expected all 28 individual placements.');
-  manifest.schema = 5;
+  manifest.schema = 6;
   manifest.status = '28 photo-referenced Yuhuang Temple adaptations, each with a full-color prototype and a finer transparent sky line drawing. Photographic attribution remains distinct from independent museum identification.';
   manifest.rights = 'Adapted from photographs by Patrick20242023, CC BY-SA 4.0. Contemporary AI-assisted drawings by LuBirth, distributed as adaptations under CC BY-SA 4.0. No museum endorsement claimed.';
   manifest.references['yuhuang-photographs'] = { url: 'https://commons.wikimedia.org/wiki/Category:Statues_of_the_Twenty-Eight_Mansions_in_Jade_Emperor_Temple,_Fucheng',
@@ -40,9 +44,9 @@ try {
     const line = registerChineseFigure(catalog, item, 'chinese-art/' + spec.skyFile, skySize, placement);
     return { cultureId: item.id, number: spec.n, name: item.name, title: spec.title, group: cultureGroup(item), summary: spec.summary, adaptationNote: spec.note || '',
       image: original.image, skyImage: line.image, placement: original.calibration,
-      skyVariant: { kind: 'transparent-luminous-line-art', sha256: createHash('sha256').update(skyBytes).digest('hex'),
+      skyVariant: { kind: 'transparent-luminous-line-art', sha256: sha256(skyBytes),
         bytes: skyBytes.length, derivedFrom: spec.file, generationRecord: 'reference/sky/yuhuang-temple/full-set-generation.json' },
-      authoredAngularWidth: original.calibration.angularWidthDeg, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length,
+      authoredAngularWidth: original.calibration.angularWidthDeg, sha256: sha256(bytes), bytes: bytes.length,
       creator: 'LuBirth — AI-assisted contemporary drawn adaptation', created: '2026-10-22', license: 'CC-BY-SA-4.0',
       photograph: { page: photo.sourcePage, original: photo.sourceImage, originalSha1: photo.sourceSha1, localFile: photo.file,
         identification: photo.identification,
@@ -52,6 +56,17 @@ try {
         registration: 'Individually authored rotation, scale and position using two asterism members paired to figure landmarks. Similarity preserves aspect and handedness; a third HIP stabilizes the projection. Full placement and helper role are recorded; no historical anatomical claim.',
         remaining: 'Independent museum identification; hidden anatomy, costume and animal details are not conservation-verified.' } };
   }));
+  // cwebp is only needed when preparing assets. Lossless mode preserves every alpha value.
+  const deliveries = [];
+  for (const entry of entries) {
+    const file = entry.skyImage.file.replace(/\.png$/, '.webp');
+    const { stdout: bytes } = await runEncoder('cwebp', [
+      '-quiet', '-z', '6', '-exact', '-metadata', 'all', data + entry.skyImage.file, '-o', '-',
+    ], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024 });
+    entry.skyVariant.delivery = { file, bytes: bytes.length, sha256: sha256(bytes), sourceSha256: entry.skyVariant.sha256 };
+    deliveries.push({ file, bytes });
+  }
+  for (const { file, bytes } of deliveries) await writeFile(data + file, bytes);
   manifest.entries = entries;
   await writeFile(data + 'chinese-art/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
